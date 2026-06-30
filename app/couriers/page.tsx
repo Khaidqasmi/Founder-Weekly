@@ -212,7 +212,7 @@ function CodReceiptsSection({ couriers }: { couriers: string[] }) {
               <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
                 <div>
                   <Label className="text-xs mb-1 block">Courier *</Label>
-                  <Select value={form.courier} onValueChange={(v) => setForm({ ...form, courier: v as string })}>
+                  <Select value={form.courier} onValueChange={(v) => setForm({ ...form, courier: v ?? '' })}>
                     <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Select courier" /></SelectTrigger>
                     <SelectContent>
                       {['Trax', 'Leopards', 'Call Courier', 'PostEx', 'TCS', 'Swyft', 'BlueEx', 'Other'].map((c) => (
