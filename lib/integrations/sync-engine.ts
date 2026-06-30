@@ -304,15 +304,24 @@ async function resolveShopifyAccessToken(shopDomain: string, accessTokenOrClient
     'Shopify token API'
   )
 
-  const tokenData = await tokenRes.json().catch(() => ({}))
+  const tokenText = await tokenRes.text().catch(() => '')
+  const tokenData = safeJson(tokenText)
 
   if (!tokenRes.ok || !tokenData.access_token) {
-    const message = tokenData.error_description || tokenData.error || tokenRes.statusText
+    const message = tokenData.error_description || tokenData.error || tokenText || tokenRes.statusText
     if (tokenRes.status === 403) {
       throw new Error('Shopify refused client credentials. Use the store .myshopify.com domain, make sure this app is installed on that store, and set Custom distribution for one store with Admin API scopes.')
     }
-    throw new Error(`Shopify could not generate an access token: ${message}`)
+    throw new Error(`Shopify could not generate an access token: ${tokenRes.status} ${message}`)
   }
 
   return tokenData.access_token as string
+}
+
+function safeJson(text: string) {
+  try {
+    return JSON.parse(text)
+  } catch {
+    return {}
+  }
 }
