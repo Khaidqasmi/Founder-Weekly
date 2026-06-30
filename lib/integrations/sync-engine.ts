@@ -14,13 +14,14 @@ interface SyncContext {
 export async function syncShopifyData(ctx: SyncContext) {
   const { supabase, workspaceId, accessToken, shopDomain } = ctx
   const normalizedShopDomain = normalizeShopifyDomain(shopDomain)
-  if (!normalizedShopDomain || !accessToken) throw new Error('Missing Shopify credentials')
+  const cleanAccessToken = accessToken.trim()
+  if (!normalizedShopDomain || !cleanAccessToken) throw new Error('Missing Shopify credentials')
 
   const syncRun = await startSyncRun(supabase, workspaceId, 'shopify', 'orders+inventory')
 
   try {
     const baseUrl = `https://${normalizedShopDomain}/admin/api/2024-01`
-    const headers = { 'X-Shopify-Access-Token': accessToken, 'Content-Type': 'application/json' }
+    const headers = { 'X-Shopify-Access-Token': cleanAccessToken, 'Content-Type': 'application/json' }
 
     // Fetch orders
     const ordersRes = await fetchWithReadableError(`${baseUrl}/orders.json?status=any&limit=250`, { headers }, 'Shopify orders API')
@@ -119,7 +120,9 @@ export async function syncShopifyData(ctx: SyncContext) {
 
 export async function syncMetaAdsData(ctx: SyncContext) {
   const { supabase, workspaceId, accessToken, adAccountId } = ctx
-  if (!accessToken || !adAccountId) throw new Error('Missing Meta Ads credentials')
+  const cleanAccessToken = accessToken.trim()
+  const cleanAdAccountId = adAccountId.trim()
+  if (!cleanAccessToken || !cleanAdAccountId) throw new Error('Missing Meta Ads credentials')
 
   const syncRun = await startSyncRun(supabase, workspaceId, 'meta', 'ads')
 
@@ -130,11 +133,11 @@ export async function syncMetaAdsData(ctx: SyncContext) {
     const sinceStr = since.toISOString().split('T')[0]
     const untilStr = new Date().toISOString().split('T')[0]
 
-    const url = `https://graph.facebook.com/v18.0/${adAccountId}/insights?` +
+    const url = `https://graph.facebook.com/v18.0/${cleanAdAccountId}/insights?` +
       `fields=campaign_name,adset_name,ad_name,spend,impressions,reach,clicks,actions,action_values` +
       `&time_range={"since":"${sinceStr}","until":"${untilStr}"}` +
       `&level=ad&time_increment=1&limit=500` +
-      `&access_token=${accessToken}`
+      `&access_token=${cleanAccessToken}`
 
     const res = await fetchWithReadableError(url, undefined, 'Meta API')
     if (!res.ok) throw new Error(await formatHttpError(res, 'Meta API'))

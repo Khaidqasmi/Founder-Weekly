@@ -92,11 +92,77 @@ function buildConnectionRecord(workspaceId: string, provider: string, credential
     workspace_id: workspaceId,
     provider,
     status: 'connected',
-    access_token_encrypted: credentials.access_token || credentials.api_key || '',
-    refresh_token_encrypted: credentials.api_secret || credentials.api_password || '',
-    shop_domain: credentials.shop_domain || '',
-    ad_account_id: credentials.ad_account_id || '',
-    ga4_property_id: credentials.property_id || credentials.ga4_property_id || '',
+    access_token_encrypted: cleanValue(credentials.access_token || credentials.api_key),
+    refresh_token_encrypted: cleanValue(credentials.api_secret || credentials.api_password),
+    shop_domain: normalizeShopifyDomain(credentials.shop_domain || ''),
+    ad_account_id: cleanValue(credentials.ad_account_id),
+    ga4_property_id: cleanValue(credentials.property_id || credentials.ga4_property_id),
+  }
+}
+
+function cleanValue(value?: string) {
+  return (value || '').trim()
+}
+
+function normalizeShopifyDomain(input: string) {
+  const trimmed = cleanValue(input)
+  if (!trimmed) return ''
+
+  const withProtocol = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`
+
+  try {
+    const parsed = new URL(withProtocol)
+    if (parsed.hostname.toLowerCase() === 'admin.shopify.com') {
+      const storeHandle = parsed.pathname.split('/').filter(Boolean).at(1)
+      return storeHandle ? `${storeHandle}.myshopify.com`.toLowerCase() : ''
+    }
+
+    return ensureShopifyHostname(parsed.hostname)
+  } catch {
+    const hostname = trimmed
+      .replace(/^https?:\/\//i, '')
+      .replace(/\/.*$/, '')
+      .toLowerCase()
+
+    return ensureShopifyHostname(hostname)
+  }
+}
+
+function ensureShopifyHostname(hostname: string) {
+  const clean = hostname.replace(/^www\./i, '').toLowerCase()
+  if (!clean) return ''
+  return clean.includes('.') ? clean : `${clean}.myshopify.com`
+}
+
+async function validateShopifyCredentials(shopDomain: string, accessToken: string) {
+  if (!shopDomain || !accessToken) {
+    return 'Enter your Shopify store domain and Admin API access token.'
+  }
+
+  try {
+    const res = await fetch(`https://${shopDomain}/admin/api/2024-01/shop.json`, {
+      headers: {
+        'X-Shopify-Access-Token': accessToken,
+        'Content-Type': 'application/json',
+      },
+    })
+
+    if (res.ok) return null
+
+    const body = await res.text().catch(() => '')
+
+    if (res.status === 401) {
+      return 'Shopify rejected this token. Use the Admin API access token from the same store, not the API key, API secret, or Storefront token.'
+    }
+
+    if (res.status === 403) {
+      return 'Shopify accepted the token but blocked access. Add Admin API scopes such as read_orders, read_products, and read_inventory, then reinstall/save the token.'
+    }
+
+    return `Shopify validation failed: ${res.status} ${body.slice(0, 200) || res.statusText}`
+  } catch (error: any) {
+    const reason = error?.cause?.message || error?.message || 'network request failed'
+    return `Could not reach Shopify store: ${reason}`
   }
 }
 
@@ -151,6 +217,13 @@ export async function POST(request: NextRequest) {
     const admin = createServiceRoleClient()
     const member = await getOrCreateWorkspace(admin, user)
     const record = buildConnectionRecord(member.workspace_id, provider, credentials)
+
+    if (provider === 'shopify') {
+      const validationError = await validateShopifyCredentials(record.shop_domain, record.access_token_encrypted)
+      if (validationError) {
+        return NextResponse.json({ error: validationError }, { status: 400 })
+      }
+    }
 
     const { error } = await admin
       .from('integration_connections')
