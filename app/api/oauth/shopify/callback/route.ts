@@ -29,10 +29,28 @@ export async function GET(req: NextRequest) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ client_id: CLIENT_ID, client_secret: CLIENT_SECRET, code }),
     })
-    if (!tokenRes.ok) throw new Error(`Token exchange failed: ${tokenRes.status}`)
-    const tokenData = await tokenRes.json()
+
+    const rawText = await tokenRes.text()
+
+    if (!tokenRes.ok) {
+      // Shopify sometimes returns an HTML page for bad requests instead of JSON
+      if (rawText.trimStart().startsWith('<')) {
+        throw new Error(`Shopify token exchange failed (${tokenRes.status}). Check that your Shopify app credentials are correct.`)
+      }
+      let detail: string
+      try { detail = JSON.parse(rawText).error_description || JSON.parse(rawText).error || tokenRes.status.toString() } catch { detail = tokenRes.status.toString() }
+      throw new Error(`Shopify token exchange failed: ${detail}`)
+    }
+
+    let tokenData: any
+    try {
+      tokenData = JSON.parse(rawText)
+    } catch {
+      throw new Error('Shopify returned an unexpected response during token exchange.')
+    }
+
     accessToken = tokenData.access_token
-    if (!accessToken) throw new Error('No access token returned')
+    if (!accessToken) throw new Error('Shopify did not return an access token. The app may lack the required scopes.')
   } catch (err: any) {
     return NextResponse.redirect(`${APP_URL}/integrations?error=${encodeURIComponent(err.message)}`)
   }

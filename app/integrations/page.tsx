@@ -481,10 +481,24 @@ export default function IntegrationsPage() {
             connection={getConn('shopify')}
             fields={[
               { label: 'Shopify store domain', key: 'shop_domain', placeholder: 'yourstore.myshopify.com' },
-              { label: 'Client ID or Admin API token', key: 'access_token', placeholder: 'Client ID or shpat_...', type: 'password' },
+              { label: 'Admin API access token', key: 'access_token', placeholder: 'shpat_xxxxxxxxxxxxxxxxxxxx', type: 'password' },
               { label: 'Client secret', key: 'api_secret', placeholder: 'Only needed for Dev Dashboard apps', type: 'password' },
             ]}
-            onSave={(credentials) => saveCredentials('shopify', credentials)}
+            onSave={async (credentials) => {
+              const res = await fetch('/api/integrations/shopify/connect', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  shopDomain: credentials.shop_domain,
+                  accessToken: credentials.access_token,
+                  apiSecret: credentials.api_secret || undefined,
+                }),
+              })
+              const data = await res.json().catch(() => ({}))
+              if (!res.ok) throw new Error(data.error || 'Connection failed')
+              toast.success(`Shopify connected${data.shopName ? ` — ${data.shopName}` : ''}!`)
+              await loadStatus()
+            }}
             onDisconnect={() => disconnect('shopify')}
             onSync={() => syncNow('shopify')}
             syncing={!!syncing.shopify}
