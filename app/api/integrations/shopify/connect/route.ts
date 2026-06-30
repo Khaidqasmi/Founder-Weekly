@@ -27,9 +27,39 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'shopDomain and accessToken are required' }, { status: 400 })
   }
 
-  const domain = shopDomain.includes('.myshopify.com')
-    ? shopDomain
-    : `${shopDomain}.myshopify.com`
+  // --- Detect common token paste mistakes before hitting Shopify ---
+  if (accessToken.startsWith('shpuf_')) {
+    return NextResponse.json(
+      { error: 'That looks like a Storefront API token (shpuf_…). You need the Admin API access token — find it in your Shopify custom app under "API credentials" > "Admin API access token".' },
+      { status: 400 }
+    )
+  }
+  // API keys (client IDs) and API secrets are 32-char hex strings with no prefix
+  if (/^[a-f0-9]{32}$/i.test(accessToken)) {
+    return NextResponse.json(
+      { error: 'That looks like an API key or client secret, not an access token. The Admin API access token starts with "shpat_" — find it in your Shopify custom app under "API credentials".' },
+      { status: 400 }
+    )
+  }
+  if (!accessToken.startsWith('shpat_')) {
+    return NextResponse.json(
+      { error: 'Admin API access tokens must start with "shpat_". Check that you copied the correct value from your Shopify custom app (Settings → Apps → your app → API credentials).' },
+      { status: 400 }
+    )
+  }
+
+  // --- Normalize the domain (strip protocol/path if accidentally included) ---
+  const rawDomain = shopDomain.replace(/^https?:\/\//i, '').split('/')[0]
+  const domain = rawDomain.includes('.myshopify.com')
+    ? rawDomain
+    : `${rawDomain}.myshopify.com`
+
+  if (!/^[a-zA-Z0-9-]+\.myshopify\.com$/.test(domain)) {
+    return NextResponse.json(
+      { error: 'Enter the store domain as "yourstore.myshopify.com". Custom domains are not supported — use the original .myshopify.com address.' },
+      { status: 400 }
+    )
+  }
 
   // Validate the token by calling a lightweight Shopify endpoint
   let shopName: string | undefined
@@ -40,17 +70,42 @@ export async function POST(req: NextRequest) {
 
     if (!testRes.ok) {
       const text = await testRes.text()
-      // Check if Shopify returned HTML (common for invalid domains)
+      // HTML response means the domain doesn't route to a Shopify store
       if (text.trimStart().startsWith('<')) {
         return NextResponse.json(
-          { error: `Store "${domain}" not found or access denied. Check the domain and try again.` },
+          { error: `Store "${domain}" was not found. Double-check the .myshopify.com domain and try again.` },
           { status: 400 }
         )
       }
-      let detail = testRes.status.toString()
-      try { detail = JSON.parse(text).errors || detail } catch {}
+
+      let parsed: any = {}
+      try { parsed = JSON.parse(text) } catch {}
+
+      if (testRes.status === 401) {
+        return NextResponse.json(
+          { error: `Access denied (401): the token was rejected by "${domain}". Verify you copied the Admin API access token from the correct store\'s custom app, and that the app has been installed on that store.` },
+          { status: 400 }
+        )
+      }
+
+      if (testRes.status === 403) {
+        const detail = parsed.errors ? ` Details: ${parsed.errors}` : ''
+        return NextResponse.json(
+          { error: `Token accepted but missing permissions (403). Enable at least the "read_orders" and "read_products" scopes in the Shopify custom app settings, then reinstall the app.${detail}` },
+          { status: 400 }
+        )
+      }
+
+      if (testRes.status === 404) {
+        return NextResponse.json(
+          { error: `Store "${domain}" not found. Check the domain and try again.` },
+          { status: 400 }
+        )
+      }
+
+      const detail = parsed.errors || testRes.status.toString()
       return NextResponse.json(
-        { error: `Shopify rejected the token (${detail}). Make sure the token has read permissions.` },
+        { error: `Shopify returned an unexpected error (${testRes.status}): ${detail}` },
         { status: 400 }
       )
     }
