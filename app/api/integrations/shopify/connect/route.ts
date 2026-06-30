@@ -30,20 +30,14 @@ export async function POST(req: NextRequest) {
   // --- Detect common token paste mistakes before hitting Shopify ---
   if (accessToken.startsWith('shpuf_')) {
     return NextResponse.json(
-      { error: 'That looks like a Storefront API token (shpuf_…). You need the Admin API access token — find it in your Shopify custom app under "API credentials" > "Admin API access token".' },
+      { error: 'That looks like a Storefront API token (shpuf_…). You need the Admin API access token — find it in Shopify admin under Settings → Apps and sales channels → Develop apps → (your app) → API credentials.' },
       { status: 400 }
     )
   }
   // API keys (client IDs) and API secrets are 32-char hex strings with no prefix
   if (/^[a-f0-9]{32}$/i.test(accessToken)) {
     return NextResponse.json(
-      { error: 'That looks like an API key or client secret, not an access token. The Admin API access token starts with "shpat_" — find it in your Shopify custom app under "API credentials".' },
-      { status: 400 }
-    )
-  }
-  if (!accessToken.startsWith('shpat_')) {
-    return NextResponse.json(
-      { error: 'Admin API access tokens must start with "shpat_". Check that you copied the correct value from your Shopify custom app (Settings → Apps → your app → API credentials).' },
+      { error: 'That looks like an API key or client secret, not an access token. The Admin API access token is a longer string — find it in Shopify admin under Settings → Apps and sales channels → Develop apps → (your app) → API credentials.' },
       { status: 400 }
     )
   }
@@ -83,7 +77,7 @@ export async function POST(req: NextRequest) {
 
       if (testRes.status === 401) {
         return NextResponse.json(
-          { error: `Access denied (401): the token was rejected by "${domain}". Verify you copied the Admin API access token from the correct store\'s custom app, and that the app has been installed on that store.` },
+          { error: `Access denied (401): the token was rejected by "${domain}". Make sure you copied the Admin API access token from Settings → Apps and sales channels → Develop apps → (your app) → API credentials, and that the app is installed on this store.` },
           { status: 400 }
         )
       }
@@ -91,7 +85,7 @@ export async function POST(req: NextRequest) {
       if (testRes.status === 403) {
         const detail = parsed.errors ? ` Details: ${parsed.errors}` : ''
         return NextResponse.json(
-          { error: `Token accepted but missing permissions (403). Enable at least the "read_orders" and "read_products" scopes in the Shopify custom app settings, then reinstall the app.${detail}` },
+          { error: `Token accepted but missing permissions (403). In Shopify admin, go to Settings → Apps and sales channels → Develop apps → (your app) → Configuration and enable at least the "read_orders" and "read_products" Admin API scopes, then reinstall the app.${detail}` },
           { status: 400 }
         )
       }

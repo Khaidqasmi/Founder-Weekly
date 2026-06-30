@@ -480,9 +480,8 @@ export default function IntegrationsPage() {
             color="bg-[#f0f9eb]"
             connection={getConn('shopify')}
             fields={[
-              { label: 'Shopify store domain', key: 'shop_domain', placeholder: 'yourstore.myshopify.com' },
-              { label: 'Admin API access token', key: 'access_token', placeholder: 'shpat_xxxxxxxxxxxxxxxxxxxx', type: 'password' },
-              { label: 'Client secret', key: 'api_secret', placeholder: 'Only needed for Dev Dashboard apps', type: 'password' },
+              { label: 'Store domain', key: 'shop_domain', placeholder: 'yourstore.myshopify.com' },
+              { label: 'Admin API access token', key: 'access_token', placeholder: 'shpat_…  (Settings → Apps → Develop apps → your app → API credentials)', type: 'password' },
             ]}
             onSave={async (credentials) => {
               const res = await fetch('/api/integrations/shopify/connect', {
@@ -491,7 +490,6 @@ export default function IntegrationsPage() {
                 body: JSON.stringify({
                   shopDomain: credentials.shop_domain,
                   accessToken: credentials.access_token,
-                  apiSecret: credentials.api_secret || undefined,
                 }),
               })
               const data = await res.json().catch(() => ({}))
