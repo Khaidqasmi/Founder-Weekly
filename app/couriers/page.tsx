@@ -586,7 +586,7 @@ export default function CouriersPage() {
               ))}
             </SelectContent>
           </Select>
-          <Select value={courierFilter} onValueChange={(v: string | null) => v && setCourierFilter(v)}>
+          <Select value={courierFilter} onValueChange={(v: string) => v && setCourierFilter(v)}>
             <SelectTrigger className="w-[180px]"><SelectValue placeholder="All Couriers" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Couriers</SelectItem>
