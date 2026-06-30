@@ -13,17 +13,18 @@ interface SyncContext {
 
 export async function syncShopifyData(ctx: SyncContext) {
   const { supabase, workspaceId, accessToken, shopDomain } = ctx
-  if (!shopDomain || !accessToken) throw new Error('Missing Shopify credentials')
+  const normalizedShopDomain = normalizeShopifyDomain(shopDomain)
+  if (!normalizedShopDomain || !accessToken) throw new Error('Missing Shopify credentials')
 
   const syncRun = await startSyncRun(supabase, workspaceId, 'shopify', 'orders+inventory')
 
   try {
-    const baseUrl = `https://${shopDomain}/admin/api/2024-01`
+    const baseUrl = `https://${normalizedShopDomain}/admin/api/2024-01`
     const headers = { 'X-Shopify-Access-Token': accessToken, 'Content-Type': 'application/json' }
 
     // Fetch orders
-    const ordersRes = await fetch(`${baseUrl}/orders.json?status=any&limit=250`, { headers })
-    if (!ordersRes.ok) throw new Error(`Shopify orders API: ${ordersRes.status}`)
+    const ordersRes = await fetchWithReadableError(`${baseUrl}/orders.json?status=any&limit=250`, { headers }, 'Shopify orders API')
+    if (!ordersRes.ok) throw new Error(await formatHttpError(ordersRes, 'Shopify orders API'))
     const ordersData = await ordersRes.json()
     const shopifyOrders = ordersData.orders || []
 
@@ -56,16 +57,18 @@ export async function syncShopifyData(ctx: SyncContext) {
         .single()
 
       if (existing) {
-        await supabase.from('orders').update(mapped).eq('id', existing.id)
+        const { error } = await supabase.from('orders').update(mapped).eq('id', existing.id)
+        if (error) throw error
         updatedOrders++
       } else {
-        await supabase.from('orders').insert(mapped)
+        const { error } = await supabase.from('orders').insert(mapped)
+        if (error) throw error
         newOrders++
       }
     }
 
     // Fetch products/inventory
-    const productsRes = await fetch(`${baseUrl}/products.json?limit=250`, { headers })
+    const productsRes = await fetchWithReadableError(`${baseUrl}/products.json?limit=250`, { headers }, 'Shopify products API')
     if (productsRes.ok) {
       const productsData = await productsRes.json()
       const products = productsData.products || []
@@ -93,9 +96,11 @@ export async function syncShopifyData(ctx: SyncContext) {
             .single()
 
           if (existing) {
-            await supabase.from('inventory').update(mapped).eq('id', existing.id)
+            const { error } = await supabase.from('inventory').update(mapped).eq('id', existing.id)
+            if (error) throw error
           } else {
-            await supabase.from('inventory').insert(mapped)
+            const { error } = await supabase.from('inventory').insert(mapped)
+            if (error) throw error
             newInventory++
           }
         }
@@ -131,8 +136,8 @@ export async function syncMetaAdsData(ctx: SyncContext) {
       `&level=ad&time_increment=1&limit=500` +
       `&access_token=${accessToken}`
 
-    const res = await fetch(url)
-    if (!res.ok) throw new Error(`Meta API: ${res.status}`)
+    const res = await fetchWithReadableError(url, undefined, 'Meta API')
+    if (!res.ok) throw new Error(await formatHttpError(res, 'Meta API'))
     const data = await res.json()
     const rows = data.data || []
 
@@ -171,10 +176,12 @@ export async function syncMetaAdsData(ctx: SyncContext) {
         .single()
 
       if (existing) {
-        await supabase.from('ads').update(mapped).eq('id', existing.id)
+        const { error } = await supabase.from('ads').update(mapped).eq('id', existing.id)
+        if (error) throw error
         updatedAds++
       } else {
-        await supabase.from('ads').insert(mapped)
+        const { error } = await supabase.from('ads').insert(mapped)
+        if (error) throw error
         newAds++
       }
     }
@@ -197,11 +204,13 @@ function mapShopifyStatus(financial: string, fulfillment: string): string {
 }
 
 async function startSyncRun(supabase: SupabaseClient, workspaceId: string, provider: string, syncType: string) {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('sync_runs')
     .insert({ workspace_id: workspaceId, provider, sync_type: syncType, status: 'running' })
     .select()
     .single()
+
+  if (error) throw error
   return data
 }
 
@@ -209,7 +218,7 @@ async function finishSyncRun(
   supabase: SupabaseClient, runId: string, status: string,
   fetched: number, newRecs: number, updated: number, error?: string
 ) {
-  await supabase
+  const { error: updateError } = await supabase
     .from('sync_runs')
     .update({
       status,
@@ -220,4 +229,53 @@ async function finishSyncRun(
       finished_at: new Date().toISOString(),
     })
     .eq('id', runId)
+
+  if (updateError) {
+    console.error('[sync-engine] Failed to update sync run', updateError)
+  }
+}
+
+function normalizeShopifyDomain(input: string) {
+  const trimmed = input.trim()
+  if (!trimmed) return ''
+
+  const withProtocol = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`
+
+  try {
+    const parsed = new URL(withProtocol)
+    if (parsed.hostname.toLowerCase() === 'admin.shopify.com') {
+      const storeHandle = parsed.pathname.split('/').filter(Boolean).at(1)
+      return storeHandle ? `${storeHandle}.myshopify.com`.toLowerCase() : ''
+    }
+
+    return ensureShopifyHostname(parsed.hostname)
+  } catch {
+    const hostname = trimmed
+      .replace(/^https?:\/\//i, '')
+      .replace(/\/.*$/, '')
+      .toLowerCase()
+
+    return ensureShopifyHostname(hostname)
+  }
+}
+
+function ensureShopifyHostname(hostname: string) {
+  const clean = hostname.replace(/^www\./i, '').toLowerCase()
+  if (!clean) return ''
+  return clean.includes('.') ? clean : `${clean}.myshopify.com`
+}
+
+async function fetchWithReadableError(url: string, init: RequestInit | undefined, label: string) {
+  try {
+    return await fetch(url, init)
+  } catch (error: any) {
+    const reason = error?.cause?.message || error?.message || 'network request failed'
+    throw new Error(`${label} request failed: ${reason}`)
+  }
+}
+
+async function formatHttpError(response: Response, label: string) {
+  const text = await response.text().catch(() => '')
+  const message = text.slice(0, 300) || response.statusText
+  return `${label}: ${response.status} ${message}`
 }
