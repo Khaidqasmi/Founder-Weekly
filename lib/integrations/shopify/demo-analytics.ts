@@ -18,11 +18,16 @@ export const demoAnalytics: ShopifyAnalytics = {
   averageOrderValue: 2850,
   totalSales: 290700,
   returningCustomerRate: 28.5,
+  bounceRate: 44.2,
+  avgSessionDuration: 187,
+  totalOrders: 102,
+  dataSource: 'estimated' as const,
   sessionsByDay: Array.from({ length: 14 }, (_, i) => ({
     date: daysAgo(13 - i),
     sessions: 280 + Math.round(Math.random() * 180),
     visitors: 220 + Math.round(Math.random() * 150),
-    pageViews: 900 + Math.round(Math.random() * 500),
+    bounceRate: 42 + Math.round(Math.random() * 10),
+    conversionRate: 1.8 + Math.round(Math.random() * 10) / 10,
   })),
   topPages: [
     { path: '/', title: 'Home', views: 4200, sessions: 3100 },

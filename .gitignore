@@ -23,6 +23,7 @@
 # misc
 .DS_Store
 *.pem
+/agency website deloy/
 
 # debug
 npm-debug.log*
