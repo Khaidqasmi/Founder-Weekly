@@ -1,0 +1,4 @@
+order_date,order_id,customer_name,city,product_name,sku,quantity,selling_price,payment_method,order_status,cod_status,notes
+2024-01-15,ORD-001,Ali Khan,Karachi,Premium T-Shirt,TS-001,2,1500,COD,Delivered,Confirmed,
+2024-01-15,ORD-002,Sara Ahmed,Lahore,Hoodie Classic,HD-001,1,3500,Bank Transfer,Delivered,N/A,
+2024-01-16,ORD-003,Usman Raza,Islamabad,Jogger Pants,JP-001,1,2800,COD,Shipped,Pending,

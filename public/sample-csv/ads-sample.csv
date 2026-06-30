@@ -1,0 +1,4 @@
+date,platform,campaign_name,ad_set_name,ad_name,ad_spend,impressions,reach,clicks,purchases,purchase_revenue
+2024-01-15,Meta,Summer Sale,Karachi 18-35,Video Ad 1,5000,25000,18000,850,4,12000
+2024-01-16,Meta,Retargeting,Website Visitors,Carousel Ad,2500,12000,8000,450,3,10500
+2024-01-17,Google,Brand Search,Brand Keywords,Text Ad 1,1800,8000,6000,340,2,6500

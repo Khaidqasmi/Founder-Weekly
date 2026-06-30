@@ -1,0 +1,5 @@
+product_name,sku,current_stock,reorder_level,selling_price,cost_price,notes
+Premium T-Shirt,TS-001,45,20,1500,600,
+Hoodie Classic,HD-001,12,15,3500,1400,Low stock
+Jogger Pants,JP-001,8,10,2800,1100,
+Cap Minimal,CP-001,60,25,800,250,
