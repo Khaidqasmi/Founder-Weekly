@@ -481,7 +481,8 @@ export default function IntegrationsPage() {
             connection={getConn('shopify')}
             fields={[
               { label: 'Shopify store domain', key: 'shop_domain', placeholder: 'yourstore.myshopify.com' },
-              { label: 'Admin API access token', key: 'access_token', placeholder: 'shpat_...', type: 'password' },
+              { label: 'Client ID or Admin API token', key: 'access_token', placeholder: 'Client ID or shpat_...', type: 'password' },
+              { label: 'Client secret', key: 'api_secret', placeholder: 'Only needed for Dev Dashboard apps', type: 'password' },
             ]}
             onSave={(credentials) => saveCredentials('shopify', credentials)}
             onDisconnect={() => disconnect('shopify')}

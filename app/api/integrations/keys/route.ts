@@ -136,16 +136,11 @@ function ensureShopifyHostname(hostname: string) {
 
 async function validateShopifyCredentials(shopDomain: string, accessToken: string) {
   if (!shopDomain || !accessToken) {
-    return 'Enter your Shopify store domain and Admin API access token.'
+    return 'Enter your Shopify store domain and either a Dev Dashboard Client ID, or an Admin API access token.'
   }
 
   try {
-    const res = await fetch(`https://${shopDomain}/admin/api/2024-01/shop.json`, {
-      headers: {
-        'X-Shopify-Access-Token': accessToken,
-        'Content-Type': 'application/json',
-      },
-    })
+    const res = await fetchShopifyShop(shopDomain, accessToken)
 
     if (res.ok) return null
 
@@ -164,6 +159,54 @@ async function validateShopifyCredentials(shopDomain: string, accessToken: strin
     const reason = error?.cause?.message || error?.message || 'network request failed'
     return `Could not reach Shopify store: ${reason}`
   }
+}
+
+async function validateShopifyDevDashboardCredentials(shopDomain: string, clientId: string, clientSecret: string) {
+  if (!shopDomain || !clientId || !clientSecret) {
+    return 'Enter your Shopify store domain, Client ID, and Client secret.'
+  }
+
+  try {
+    const token = await getShopifyClientCredentialsToken(shopDomain, clientId, clientSecret)
+    const res = await fetchShopifyShop(shopDomain, token)
+
+    if (res.ok) return null
+
+    const body = await res.text().catch(() => '')
+    return `Shopify token validation failed: ${res.status} ${body.slice(0, 200) || res.statusText}`
+  } catch (error: any) {
+    return error?.message || 'Could not validate Shopify credentials.'
+  }
+}
+
+async function getShopifyClientCredentialsToken(shopDomain: string, clientId: string, clientSecret: string) {
+  const tokenRes = await fetch(`https://${shopDomain}/admin/oauth/access_token`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      grant_type: 'client_credentials',
+      client_id: clientId,
+      client_secret: clientSecret,
+    }),
+  })
+
+  const tokenData = await tokenRes.json().catch(() => ({}))
+
+  if (!tokenRes.ok || !tokenData.access_token) {
+    const message = tokenData.error_description || tokenData.error || tokenRes.statusText
+    throw new Error(`Shopify could not generate an access token: ${message}`)
+  }
+
+  return tokenData.access_token as string
+}
+
+function fetchShopifyShop(shopDomain: string, accessToken: string) {
+  return fetch(`https://${shopDomain}/admin/api/2024-01/shop.json`, {
+    headers: {
+      'X-Shopify-Access-Token': accessToken,
+      'Content-Type': 'application/json',
+    },
+  })
 }
 
 function handleRouteError(error: unknown, fallback: string) {
@@ -219,7 +262,10 @@ export async function POST(request: NextRequest) {
     const record = buildConnectionRecord(member.workspace_id, provider, credentials)
 
     if (provider === 'shopify') {
-      const validationError = await validateShopifyCredentials(record.shop_domain, record.access_token_encrypted)
+      const validationError = record.refresh_token_encrypted
+        ? await validateShopifyDevDashboardCredentials(record.shop_domain, record.access_token_encrypted, record.refresh_token_encrypted)
+        : await validateShopifyCredentials(record.shop_domain, record.access_token_encrypted)
+
       if (validationError) {
         return NextResponse.json({ error: validationError }, { status: 400 })
       }

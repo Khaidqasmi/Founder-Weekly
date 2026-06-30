@@ -12,9 +12,9 @@ interface SyncContext {
 }
 
 export async function syncShopifyData(ctx: SyncContext) {
-  const { supabase, workspaceId, accessToken, shopDomain } = ctx
+  const { supabase, workspaceId, accessToken, refreshToken, shopDomain } = ctx
   const normalizedShopDomain = normalizeShopifyDomain(shopDomain)
-  const cleanAccessToken = accessToken.trim()
+  const cleanAccessToken = await resolveShopifyAccessToken(normalizedShopDomain, accessToken, refreshToken)
   if (!normalizedShopDomain || !cleanAccessToken) throw new Error('Missing Shopify credentials')
 
   const syncRun = await startSyncRun(supabase, workspaceId, 'shopify', 'orders+inventory')
@@ -281,4 +281,35 @@ async function formatHttpError(response: Response, label: string) {
   const text = await response.text().catch(() => '')
   const message = text.slice(0, 300) || response.statusText
   return `${label}: ${response.status} ${message}`
+}
+
+async function resolveShopifyAccessToken(shopDomain: string, accessTokenOrClientId: string, clientSecret: string) {
+  const accessToken = accessTokenOrClientId.trim()
+  const secret = clientSecret.trim()
+
+  if (!secret) return accessToken
+  if (!shopDomain || !accessToken) return ''
+
+  const tokenRes = await fetchWithReadableError(
+    `https://${shopDomain}/admin/oauth/access_token`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        grant_type: 'client_credentials',
+        client_id: accessToken,
+        client_secret: secret,
+      }),
+    },
+    'Shopify token API'
+  )
+
+  const tokenData = await tokenRes.json().catch(() => ({}))
+
+  if (!tokenRes.ok || !tokenData.access_token) {
+    const message = tokenData.error_description || tokenData.error || tokenRes.statusText
+    throw new Error(`Shopify could not generate an access token: ${message}`)
+  }
+
+  return tokenData.access_token as string
 }
