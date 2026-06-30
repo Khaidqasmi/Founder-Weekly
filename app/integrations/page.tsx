@@ -134,6 +134,8 @@ function IntegrationCard({
       await onSave(credentials)
       setValues({})
       setOpen(false)
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to save credentials')
     } finally {
       setSaving(false)
     }
