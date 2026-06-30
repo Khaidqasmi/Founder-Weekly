@@ -294,8 +294,8 @@ async function resolveShopifyAccessToken(shopDomain: string, accessTokenOrClient
     `https://${shopDomain}/admin/oauth/access_token`,
     {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
         grant_type: 'client_credentials',
         client_id: accessToken,
         client_secret: secret,
@@ -308,6 +308,9 @@ async function resolveShopifyAccessToken(shopDomain: string, accessTokenOrClient
 
   if (!tokenRes.ok || !tokenData.access_token) {
     const message = tokenData.error_description || tokenData.error || tokenRes.statusText
+    if (tokenRes.status === 403) {
+      throw new Error('Shopify refused client credentials. Use the store .myshopify.com domain, make sure this app is installed on that store, and set Custom distribution for one store with Admin API scopes.')
+    }
     throw new Error(`Shopify could not generate an access token: ${message}`)
   }
 
