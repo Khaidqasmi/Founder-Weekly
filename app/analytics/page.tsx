@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -30,6 +30,65 @@ const DATE_PRESETS = [
   { label: '30 Days', fromDays: 30, toDays: 0 },
   { label: '90 Days', fromDays: 90, toDays: 0 },
 ]
+
+type Tab = 'shopify' | 'google'
+
+function AnalyticsHeader({
+  tab,
+  setTab,
+  statusSlot,
+}: {
+  tab: Tab
+  setTab: (tab: Tab) => void
+  statusSlot?: ReactNode
+}) {
+  return (
+    <div className="mb-6 rounded-2xl border border-white/10 bg-zinc-900/70 p-4 shadow-[0_1px_0_0_rgba(255,255,255,0.04)_inset] sm:p-5">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div className="max-w-2xl">
+          <span className="mb-3 inline-flex rounded-full border border-amber-500/25 bg-amber-500/10 px-3 py-1 text-xs font-medium text-amber-400">
+            Performance Command Center
+          </span>
+          <h1 className="text-3xl font-bold tracking-tight text-white dark:text-gray-100 sm:text-4xl">Analytics</h1>
+          <p className="mt-2 text-sm leading-6 text-zinc-400 sm:text-base">
+            Track store performance, conversion movement, traffic sources, and landing pages in one focused view.
+          </p>
+        </div>
+
+        <div className="grid w-full grid-cols-2 gap-1 rounded-2xl border border-white/10 bg-zinc-950/70 p-1 sm:w-auto sm:min-w-[300px]">
+          <button
+            onClick={() => setTab('shopify')}
+            className={`flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold transition-colors sm:text-sm ${
+              tab === 'shopify'
+                ? 'bg-amber-500 text-black shadow-[0_0_18px_rgba(245,158,11,0.28)]'
+                : 'text-zinc-400 hover:bg-white/[0.04] hover:text-zinc-200'
+            }`}
+          >
+            <ShoppingBag className="w-4 h-4" />
+            Shopify
+          </button>
+          <button
+            onClick={() => setTab('google')}
+            className={`flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold transition-colors sm:text-sm ${
+              tab === 'google'
+                ? 'bg-blue-500 text-white shadow-[0_0_18px_rgba(59,130,246,0.28)]'
+                : 'text-zinc-400 hover:bg-white/[0.04] hover:text-zinc-200'
+            }`}
+          >
+            <BarChart3 className="w-4 h-4" />
+            Google Analytics
+          </button>
+        </div>
+      </div>
+
+      {statusSlot && (
+        <div className="mt-4 flex flex-col gap-3 border-t border-white/10 pt-4 sm:flex-row sm:items-center sm:justify-between">
+          {statusSlot}
+        </div>
+      )}
+    </div>
+  )
+}
 
 function DeviceIcon({ device }: { device: string }) {
   const d = device.toLowerCase()
@@ -99,7 +158,7 @@ function LandingPageChange({ change }: { change?: number | null }) {
 
 // ─── Shopify Analytics Tab ───────────────────────────────────────────────────
 
-function ShopifyTab() {
+function ShopifyTab({ tab, setTab }: { tab: Tab; setTab: (tab: Tab) => void }) {
   const [data, setData] = useState<ShopifyAnalytics>(demoAnalytics)
   const [loading, setLoading] = useState(true)
   const [isDemo, setIsDemo] = useState(true)
@@ -173,8 +232,48 @@ function ShopifyTab() {
 
   return (
     <div>
+      <AnalyticsHeader
+        tab={tab}
+        setTab={setTab}
+        statusSlot={
+          <>
+            <div className="flex flex-wrap items-center gap-2">
+              {connected === true ? (
+                <>
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-green-500/25 bg-green-500/10 px-3 py-1.5 text-xs font-medium text-green-400">
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block" /> Connected
+                  </span>
+                  {dataSource === 'shopifyql' && (
+                    <span className="inline-flex items-center rounded-full border border-blue-500/25 bg-blue-500/10 px-3 py-1.5 text-xs font-medium text-blue-400">Live Shopify</span>
+                  )}
+                  {dataSource === 'estimated' && (
+                    <span className="inline-flex items-center rounded-full border border-amber-500/25 bg-amber-500/10 px-3 py-1.5 text-xs font-medium text-amber-400">Synced orders</span>
+                  )}
+                </>
+              ) : connected === false ? (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-zinc-800 px-3 py-1.5 text-xs text-zinc-400">
+                  Not connected - <a href="/integrations" className="underline font-medium">connect Shopify</a>
+                </span>
+              ) : null}
+              {isDemo && connected !== null && <Badge variant="secondary" className="text-xs">Demo Data</Badge>}
+            </div>
+
+            {connected === true && (
+              <button
+                onClick={() => fetchData(dateFrom, dateTo)}
+                disabled={loading}
+                className="inline-flex w-fit items-center gap-1.5 rounded-full border border-white/10 px-3 py-1.5 text-xs text-zinc-400 transition-colors hover:border-white/15 hover:text-zinc-300"
+              >
+                <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
+                Refresh
+              </button>
+            )}
+          </>
+        }
+      />
+
       {/* Status bar */}
-      <div className="mb-5 flex flex-col gap-3 rounded-2xl border border-white/10 bg-zinc-900/70 p-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="hidden">
         <div className="flex flex-wrap items-center gap-2">
           {connected === true ? (
             <>
@@ -434,12 +533,22 @@ function ShopifyTab() {
 
 // ─── Google Analytics Tab ────────────────────────────────────────────────────
 
-function GoogleAnalyticsTab() {
+function GoogleAnalyticsTab({ tab, setTab }: { tab: Tab; setTab: (tab: Tab) => void }) {
   const propertyId = typeof window !== 'undefined' ? localStorage.getItem('fwgr_ga4_property_id') || '' : ''
   const connected = !!propertyId
 
   return (
     <div>
+      <AnalyticsHeader
+        tab={tab}
+        setTab={setTab}
+        statusSlot={connected ? (
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-green-500/25 bg-green-500/10 px-3 py-1.5 text-xs font-medium text-green-400">
+            <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block" /> Connected
+          </span>
+        ) : undefined}
+      />
+
       {connected ? (
         <div className="space-y-5">
           <div className="flex items-center gap-2">
@@ -502,8 +611,6 @@ function GoogleAnalyticsTab() {
 
 // ─── Page ────────────────────────────────────────────────────────────────────
 
-type Tab = 'shopify' | 'google'
-
 export default function AnalyticsPage() {
   const [tab, setTab] = useState<Tab>('shopify')
 
@@ -511,49 +618,8 @@ export default function AnalyticsPage() {
     <div className="min-h-screen bg-zinc-950 dark:bg-gray-950">
       <div className="max-w-7xl mx-auto px-4 py-8">
 
-        {/* Header */}
-        <div className="mb-6 rounded-2xl border border-white/10 bg-zinc-900/70 p-5 shadow-[0_1px_0_0_rgba(255,255,255,0.04)_inset] sm:p-6">
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-            <div className="max-w-2xl">
-              <span className="mb-3 inline-flex rounded-full border border-amber-500/25 bg-amber-500/10 px-3 py-1 text-xs font-medium text-amber-400">
-                Performance Command Center
-              </span>
-              <h1 className="text-3xl font-bold tracking-tight text-white dark:text-gray-100 sm:text-4xl">Analytics</h1>
-              <p className="mt-2 text-sm leading-6 text-zinc-400 sm:text-base">
-                Monitor live Shopify performance, conversion movement, traffic sources, and landing page behavior in one focused view.
-              </p>
-            </div>
-
-            {/* Tab bar */}
-            <div className="grid w-full grid-cols-2 gap-1 rounded-2xl border border-white/10 bg-zinc-950/70 p-1 sm:w-auto sm:min-w-[390px]">
-              <button
-                onClick={() => setTab('shopify')}
-                className={`flex items-center justify-center gap-2 rounded-xl px-3 py-3 text-sm font-semibold transition-colors ${
-                  tab === 'shopify'
-                    ? 'bg-amber-500 text-black shadow-[0_0_18px_rgba(245,158,11,0.28)]'
-                    : 'text-zinc-400 hover:bg-white/[0.04] hover:text-zinc-200'
-                }`}
-              >
-                <ShoppingBag className="w-4 h-4" />
-                Shopify
-              </button>
-              <button
-                onClick={() => setTab('google')}
-                className={`flex items-center justify-center gap-2 rounded-xl px-3 py-3 text-sm font-semibold transition-colors ${
-                  tab === 'google'
-                    ? 'bg-blue-500 text-white shadow-[0_0_18px_rgba(59,130,246,0.28)]'
-                    : 'text-zinc-400 hover:bg-white/[0.04] hover:text-zinc-200'
-                }`}
-              >
-                <BarChart3 className="w-4 h-4" />
-                Google Analytics
-              </button>
-            </div>
-          </div>
-        </div>
-
         {/* Tab content */}
-        {tab === 'shopify' ? <ShopifyTab /> : <GoogleAnalyticsTab />}
+        {tab === 'shopify' ? <ShopifyTab tab={tab} setTab={setTab} /> : <GoogleAnalyticsTab tab={tab} setTab={setTab} />}
       </div>
     </div>
   )
