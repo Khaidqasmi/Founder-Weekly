@@ -24,10 +24,11 @@ function daysAgoStr(n: number) {
 }
 
 const DATE_PRESETS = [
-  { label: 'Today', days: 0 },
-  { label: '7 Days', days: 7 },
-  { label: '30 Days', days: 30 },
-  { label: '90 Days', days: 90 },
+  { label: 'Today', fromDays: 0, toDays: 0 },
+  { label: 'Yesterday', fromDays: 1, toDays: 1 },
+  { label: '7 Days', fromDays: 7, toDays: 0 },
+  { label: '30 Days', fromDays: 30, toDays: 0 },
+  { label: '90 Days', fromDays: 90, toDays: 0 },
 ]
 
 function DeviceIcon({ device }: { device: string }) {
@@ -197,22 +198,30 @@ function ShopifyTab() {
       {/* Date filter */}
       <div className="bg-zinc-900 dark:bg-gray-900 rounded-xl border border-white/10 dark:border-gray-700 p-4 mb-6">
         <div className="flex flex-wrap items-center gap-2">
-          {DATE_PRESETS.map((p) => (
-            <button
-              key={p.label}
-              onClick={() => { const f = p.days === 0 ? dateTo : daysAgoStr(p.days); setDateFrom(f); fetchData(f, dateTo) }}
-              className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
-                dateFrom === (p.days === 0 ? dateTo : daysAgoStr(p.days))
-                  ? 'bg-amber-500 text-black border-amber-500 font-semibold'
-                  : 'bg-zinc-900 text-zinc-400 border-white/10 hover:border-white/20'
-              }`}
-            >{p.label}</button>
-          ))}
-          <div className="flex items-center gap-1 ml-auto">
-            <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="h-7 text-xs w-[130px]" />
-            <span className="text-xs text-zinc-500">to</span>
-            <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="h-7 text-xs w-[130px]" />
-            <button onClick={() => { fetchData(dateFrom, dateTo) }} className="h-7 px-3 text-xs bg-amber-500 text-black font-medium rounded-md hover:bg-amber-400 transition-colors">Apply</button>
+          {DATE_PRESETS.map((p) => {
+            const from = daysAgoStr(p.fromDays)
+            const to = daysAgoStr(p.toDays)
+            const active = dateFrom === from && dateTo === to
+
+            return (
+              <button
+                key={p.label}
+                onClick={() => { setDateFrom(from); setDateTo(to); fetchData(from, to) }}
+                className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                  active
+                    ? 'bg-amber-500 text-black border-amber-500 font-semibold'
+                    : 'bg-zinc-900 text-zinc-400 border-white/10 hover:border-white/20'
+                }`}
+              >{p.label}</button>
+            )
+          })}
+          <div className="flex w-full flex-col gap-2 pt-2 sm:ml-auto sm:w-auto sm:flex-row sm:items-center sm:pt-0">
+            <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 sm:flex sm:gap-1">
+              <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="h-9 min-w-0 text-xs sm:h-7 sm:w-[130px]" />
+              <span className="text-center text-xs text-zinc-500">to</span>
+              <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="h-9 min-w-0 text-xs sm:h-7 sm:w-[130px]" />
+            </div>
+            <button onClick={() => { fetchData(dateFrom, dateTo) }} className="h-9 w-full px-4 text-xs bg-amber-500 text-black font-medium rounded-md hover:bg-amber-400 transition-colors sm:h-7 sm:w-auto">Apply</button>
           </div>
         </div>
       </div>
