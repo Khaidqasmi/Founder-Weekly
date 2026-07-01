@@ -342,23 +342,23 @@ export default function DashboardPage() {
                   )
                 })}
               </div>
-              <div className="ml-auto flex items-center gap-1.5">
+              <div className="flex w-full flex-wrap items-center gap-1.5 sm:ml-auto sm:w-auto">
                 <input
                   type="date"
                   value={dateFrom}
                   onChange={(e) => setDateFrom(e.target.value)}
-                  className="h-8 w-[135px] rounded-md border border-white/[0.1] bg-zinc-950/60 px-2 text-xs text-zinc-300 outline-none [color-scheme:dark] focus:border-amber-500/50"
+                  className="h-8 min-w-0 flex-1 rounded-md border border-white/[0.1] bg-zinc-950/60 px-2 text-xs text-zinc-300 outline-none [color-scheme:dark] focus:border-amber-500/50 sm:w-[135px] sm:flex-none"
                 />
-                <span className="text-xs text-zinc-600">to</span>
+                <span className="hidden text-xs text-zinc-600 sm:inline">to</span>
                 <input
                   type="date"
                   value={dateTo}
                   onChange={(e) => setDateTo(e.target.value)}
-                  className="h-8 w-[135px] rounded-md border border-white/[0.1] bg-zinc-950/60 px-2 text-xs text-zinc-300 outline-none [color-scheme:dark] focus:border-amber-500/50"
+                  className="h-8 min-w-0 flex-1 rounded-md border border-white/[0.1] bg-zinc-950/60 px-2 text-xs text-zinc-300 outline-none [color-scheme:dark] focus:border-amber-500/50 sm:w-[135px] sm:flex-none"
                 />
                 <button
                   onClick={() => switchRange(dateFrom, dateTo)}
-                  className="h-8 rounded-md bg-amber-500 px-3 text-xs font-medium text-black transition-colors hover:bg-amber-400"
+                  className="h-8 w-full rounded-md bg-amber-500 px-3 text-xs font-medium text-black transition-colors hover:bg-amber-400 sm:w-auto"
                 >
                   Apply
                 </button>
