@@ -174,22 +174,22 @@ function ShopifyTab() {
   return (
     <div>
       {/* Status bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
-        <div className="flex items-center gap-2">
+      <div className="mb-5 flex flex-col gap-3 rounded-2xl border border-white/10 bg-zinc-900/70 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap items-center gap-2">
           {connected === true ? (
             <>
-              <span className="inline-flex items-center gap-1.5 text-xs bg-green-500/10 border border-green-500/25 text-green-400 rounded-full px-3 py-1">
+              <span className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-green-500/25 bg-green-500/10 px-3 py-1.5 text-xs font-medium text-green-400">
                 <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block" /> Connected{shopDomain ? ` · ${shopDomain}` : ''}
               </span>
               {dataSource === 'shopifyql' && (
-                <span className="text-xs text-blue-400 bg-blue-500/10 border border-blue-500/25 rounded-full px-2 py-0.5">Live ShopifyQL data</span>
+                <span className="inline-flex items-center rounded-full border border-blue-500/25 bg-blue-500/10 px-3 py-1.5 text-xs font-medium text-blue-400">Live Shopify</span>
               )}
               {dataSource === 'estimated' && (
-                <span className="text-xs text-amber-400 bg-amber-500/10 border border-amber-500/25 rounded-full px-2 py-0.5">Estimated from orders</span>
+                <span className="inline-flex items-center rounded-full border border-amber-500/25 bg-amber-500/10 px-3 py-1.5 text-xs font-medium text-amber-400">Synced orders</span>
               )}
             </>
           ) : connected === false ? (
-            <span className="inline-flex items-center gap-1.5 text-xs bg-zinc-800 text-zinc-400 rounded-full px-3 py-1">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-zinc-800 px-3 py-1.5 text-xs text-zinc-400">
               Not connected — <a href="/integrations" className="underline font-medium">connect Shopify</a>
             </span>
           ) : null}
@@ -200,7 +200,7 @@ function ShopifyTab() {
           <button
             onClick={() => fetchData(dateFrom, dateTo)}
             disabled={loading}
-            className="inline-flex items-center gap-1.5 text-xs text-zinc-400 hover:text-zinc-300 border border-white/10 rounded-lg px-3 py-1.5 hover:border-white/15 transition-colors"
+            className="inline-flex w-fit items-center gap-1.5 rounded-lg border border-white/10 px-3 py-1.5 text-xs text-zinc-400 transition-colors hover:border-white/15 hover:text-zinc-300"
           >
             <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
             Refresh
@@ -512,35 +512,44 @@ export default function AnalyticsPage() {
       <div className="max-w-7xl mx-auto px-4 py-8">
 
         {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-white dark:text-gray-100">Analytics</h1>
-          <p className="text-sm text-zinc-400 mt-1">Real-time store performance and website traffic data</p>
-        </div>
+        <div className="mb-6 rounded-2xl border border-white/10 bg-zinc-900/70 p-5 shadow-[0_1px_0_0_rgba(255,255,255,0.04)_inset] sm:p-6">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+            <div className="max-w-2xl">
+              <span className="mb-3 inline-flex rounded-full border border-amber-500/25 bg-amber-500/10 px-3 py-1 text-xs font-medium text-amber-400">
+                Performance Command Center
+              </span>
+              <h1 className="text-3xl font-bold tracking-tight text-white dark:text-gray-100 sm:text-4xl">Analytics</h1>
+              <p className="mt-2 text-sm leading-6 text-zinc-400 sm:text-base">
+                Monitor live Shopify performance, conversion movement, traffic sources, and landing page behavior in one focused view.
+              </p>
+            </div>
 
-        {/* Tab bar */}
-        <div className="flex gap-1 bg-zinc-900 dark:bg-gray-900 border border-white/10 dark:border-gray-700 rounded-xl p-1 mb-6 w-fit">
-          <button
-            onClick={() => setTab('shopify')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              tab === 'shopify'
-                ? 'bg-[#5e8e3e] text-white shadow-sm'
-                : 'text-zinc-400 hover:text-zinc-300 dark:hover:text-gray-300'
-            }`}
-          >
-            <ShoppingBag className="w-4 h-4" />
-            Shopify Store
-          </button>
-          <button
-            onClick={() => setTab('google')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              tab === 'google'
-                ? 'bg-[#4285F4] text-white shadow-sm'
-                : 'text-zinc-400 hover:text-zinc-300 dark:hover:text-gray-300'
-            }`}
-          >
-            <BarChart3 className="w-4 h-4" />
-            Google Analytics
-          </button>
+            {/* Tab bar */}
+            <div className="grid w-full grid-cols-2 gap-1 rounded-2xl border border-white/10 bg-zinc-950/70 p-1 sm:w-auto sm:min-w-[390px]">
+              <button
+                onClick={() => setTab('shopify')}
+                className={`flex items-center justify-center gap-2 rounded-xl px-3 py-3 text-sm font-semibold transition-colors ${
+                  tab === 'shopify'
+                    ? 'bg-amber-500 text-black shadow-[0_0_18px_rgba(245,158,11,0.28)]'
+                    : 'text-zinc-400 hover:bg-white/[0.04] hover:text-zinc-200'
+                }`}
+              >
+                <ShoppingBag className="w-4 h-4" />
+                Shopify
+              </button>
+              <button
+                onClick={() => setTab('google')}
+                className={`flex items-center justify-center gap-2 rounded-xl px-3 py-3 text-sm font-semibold transition-colors ${
+                  tab === 'google'
+                    ? 'bg-blue-500 text-white shadow-[0_0_18px_rgba(59,130,246,0.28)]'
+                    : 'text-zinc-400 hover:bg-white/[0.04] hover:text-zinc-200'
+                }`}
+              >
+                <BarChart3 className="w-4 h-4" />
+                Google Analytics
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Tab content */}
