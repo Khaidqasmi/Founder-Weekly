@@ -24,6 +24,8 @@ export interface ShopifyAnalytics {
   orderAccessLimited?: boolean
   /** Order count reported by Shopify count endpoint (may be non-zero even when order details are inaccessible). */
   orderCount?: number
+  /** True when order-derived metrics are read from the app's synced Shopify orders table. */
+  syncedOrderFallback?: boolean
 }
 
 function sinceUntil(from: string, to: string) {

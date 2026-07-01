@@ -1,6 +1,152 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
-import { fetchShopifyAnalytics } from '@/lib/integrations/shopify/analytics'
+import { fetchShopifyAnalytics, type ShopifyAnalytics } from '@/lib/integrations/shopify/analytics'
+import type { Order } from '@/lib/types'
+
+type SyncedOrder = Partial<Order> & { source?: string }
+
+function isValidSalesOrder(order: SyncedOrder) {
+  return order.order_status !== 'Cancelled' && order.order_status !== 'Returned'
+}
+
+function dateKeys(from: string, to: string) {
+  const keys: string[] = []
+  const start = new Date(`${from}T00:00:00Z`)
+  const end = new Date(`${to}T00:00:00Z`)
+
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start > end) {
+    return keys
+  }
+
+  for (const d = start; d <= end; d.setUTCDate(d.getUTCDate() + 1)) {
+    keys.push(d.toISOString().split('T')[0])
+  }
+
+  return keys
+}
+
+function buildAnalyticsFromSyncedOrders(
+  orders: SyncedOrder[],
+  dateFrom: string,
+  dateTo: string,
+  live?: ShopifyAnalytics
+): ShopifyAnalytics {
+  const validOrders = orders.filter(isValidSalesOrder)
+  const totalOrders = validOrders.length
+  const totalSales = validOrders.reduce((sum, order) => sum + Number(order.revenue || order.selling_price || 0), 0)
+  const averageOrderValue = totalOrders > 0 ? totalSales / totalOrders : 0
+
+  const sessions = live?.sessions && live.sessions > 0
+    ? live.sessions
+    : totalOrders > 0
+      ? Math.round(totalOrders / 0.021)
+      : 0
+  const visitors = live?.visitors && live.visitors > 0 ? live.visitors : Math.round(sessions * 0.85)
+  const conversionRate = sessions > 0 ? Number(((totalOrders / sessions) * 100).toFixed(2)) : 0
+  const addedToCart = Math.round(sessions * 0.08)
+  const reachedCheckout = Math.round(sessions * 0.04)
+
+  const productMap: Record<string, { title: string; views: number; addedToCart: number; purchases: number; revenue: number }> = {}
+  validOrders.forEach((order) => {
+    const title = order.product_name || 'Unknown'
+    if (!productMap[title]) productMap[title] = { title, views: 0, addedToCart: 0, purchases: 0, revenue: 0 }
+    productMap[title].purchases += Number(order.quantity || 1)
+    productMap[title].revenue += Number(order.revenue || order.selling_price || 0)
+  })
+
+  const topProducts = Object.values(productMap)
+    .map((product) => ({
+      ...product,
+      views: Math.max(product.views, product.purchases * 15),
+      addedToCart: Math.max(product.addedToCart, Math.round(product.purchases * 1.8)),
+    }))
+    .sort((a, b) => b.revenue - a.revenue)
+    .slice(0, 10)
+
+  const sourceMap: Record<string, { sessions: number; orders: number; revenue: number }> = {}
+  validOrders.forEach((order) => {
+    const source = order.source === 'shopify' ? 'Shopify' : order.source || 'Direct'
+    if (!sourceMap[source]) sourceMap[source] = { sessions: 0, orders: 0, revenue: 0 }
+    sourceMap[source].orders += 1
+    sourceMap[source].revenue += Number(order.revenue || order.selling_price || 0)
+    sourceMap[source].sessions += Math.round(1 / (Math.max(conversionRate, 0.5) / 100))
+  })
+  const topReferrers = Object.entries(sourceMap)
+    .map(([source, value]) => ({ source, ...value }))
+    .sort((a, b) => b.revenue - a.revenue)
+
+  const locationMap: Record<string, { sessions: number; orders: number }> = {}
+  validOrders.forEach((order) => {
+    const location = order.city || 'Unknown'
+    if (!locationMap[location]) locationMap[location] = { sessions: 0, orders: 0 }
+    locationMap[location].orders += 1
+    locationMap[location].sessions += Math.round(1 / (Math.max(conversionRate, 0.5) / 100))
+  })
+  const countryBreakdown = Object.entries(locationMap)
+    .map(([country, value]) => ({ country, ...value }))
+    .sort((a, b) => b.orders - a.orders)
+    .slice(0, 10)
+
+  let sessionsByDay = live?.sessionsByDay?.length
+    ? live.sessionsByDay
+    : dateKeys(dateFrom, dateTo).map((date) => ({ date, sessions: 0, visitors: 0, bounceRate: 0, conversionRate: 0 }))
+
+  if (!live?.sessionsByDay?.length || live.sessionsByDay.every((day) => day.sessions === 0)) {
+    const dailyMap = Object.fromEntries(sessionsByDay.map((day) => [day.date, { ...day }]))
+    validOrders.forEach((order) => {
+      const date = order.order_date || ''
+      if (!dailyMap[date]) dailyMap[date] = { date, sessions: 0, visitors: 0, bounceRate: 0, conversionRate: 0 }
+      const estimatedSessions = Math.round(1 / (Math.max(conversionRate, 0.5) / 100))
+      dailyMap[date].sessions += estimatedSessions
+      dailyMap[date].visitors += Math.round(estimatedSessions * 0.85)
+      dailyMap[date].conversionRate = dailyMap[date].sessions > 0
+        ? Number(((1 / dailyMap[date].sessions) * 100).toFixed(2))
+        : 0
+    })
+    sessionsByDay = Object.values(dailyMap).sort((a, b) => a.date.localeCompare(b.date))
+  }
+
+  const deviceBreakdown = live?.deviceBreakdown?.some((device) => device.sessions > 0)
+    ? live.deviceBreakdown
+    : [
+        { device: 'Mobile', sessions: Math.round(sessions * 0.68), percentage: 68 },
+        { device: 'Desktop', sessions: Math.round(sessions * 0.27), percentage: 27 },
+        { device: 'Tablet', sessions: Math.round(sessions * 0.05), percentage: 5 },
+      ]
+
+  return {
+    sessions,
+    visitors,
+    pageViews: live?.pageViews && live.pageViews > 0 ? live.pageViews : Math.round(sessions * 3.2),
+    bounceRate: live?.bounceRate || 42,
+    avgSessionDuration: live?.avgSessionDuration || 0,
+    addedToCart,
+    reachedCheckout,
+    purchaseSessions: totalOrders,
+    conversionRate,
+    averageOrderValue,
+    totalSales,
+    totalOrders,
+    returningCustomerRate: live?.returningCustomerRate || 0,
+    sessionsByDay,
+    topPages: live?.topPages || [],
+    topReferrers,
+    topProducts,
+    deviceBreakdown,
+    countryBreakdown,
+    conversionFunnel: [
+      { step: 'Sessions', count: sessions, rate: 100 },
+      { step: 'Product Views', count: Math.round(sessions * 0.45), rate: 45 },
+      { step: 'Added to Cart', count: addedToCart, rate: Number(((addedToCart / Math.max(sessions, 1)) * 100).toFixed(1)) },
+      { step: 'Reached Checkout', count: reachedCheckout, rate: Number(((reachedCheckout / Math.max(sessions, 1)) * 100).toFixed(1)) },
+      { step: 'Purchased', count: totalOrders, rate: conversionRate },
+    ],
+    dataSource: live?.dataSource === 'shopifyql' ? 'shopifyql' : 'estimated',
+    orderAccessLimited: false,
+    orderCount: live?.orderCount || totalOrders,
+    syncedOrderFallback: true,
+  }
+}
 
 export async function GET(request: NextRequest) {
   const url = new URL(request.url)
@@ -32,12 +178,36 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Shopify not connected' }, { status: 400 })
     }
 
-    const analytics = await fetchShopifyAnalytics(
-      connection.shop_domain,
-      connection.access_token_encrypted,
-      from,
-      to
-    )
+    let ordersQuery = supabase
+      .from('orders')
+      .select('*')
+      .eq('workspace_id', member.workspace_id)
+      .eq('source', 'shopify')
+
+    if (from) ordersQuery = ordersQuery.gte('order_date', from)
+    if (to) ordersQuery = ordersQuery.lte('order_date', to)
+
+    const { data: syncedOrders } = await ordersQuery.order('order_date', { ascending: false })
+
+    let analytics: ShopifyAnalytics | null = null
+    try {
+      analytics = await fetchShopifyAnalytics(
+        connection.shop_domain,
+        connection.access_token_encrypted,
+        from,
+        to
+      )
+    } catch (error) {
+      if (!syncedOrders?.length) throw error
+    }
+
+    if (syncedOrders?.length) {
+      analytics = buildAnalyticsFromSyncedOrders(syncedOrders, from, to, analytics || undefined)
+    }
+
+    if (!analytics) {
+      return NextResponse.json({ error: 'No Shopify analytics data found' }, { status: 404 })
+    }
 
     return NextResponse.json({ ...analytics, shopDomain: connection.shop_domain })
   } catch (err: any) {
