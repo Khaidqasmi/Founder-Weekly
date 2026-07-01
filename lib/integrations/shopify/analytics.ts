@@ -13,7 +13,7 @@ export interface ShopifyAnalytics {
   totalOrders: number
   returningCustomerRate: number
   sessionsByDay: { date: string; sessions: number; visitors: number; bounceRate: number; conversionRate: number }[]
-  topPages: { path: string; title: string; views: number; sessions: number }[]
+  topPages: { path: string; title: string; views: number; sessions: number; changePercent?: number | null }[]
   topReferrers: { source: string; sessions: number; orders: number; revenue: number }[]
   topProducts: { title: string; views: number; addedToCart: number; purchases: number; revenue: number }[]
   deviceBreakdown: { device: string; sessions: number; percentage: number }[]
@@ -34,6 +34,23 @@ export interface ShopifyAnalytics {
 
 function sinceUntil(from: string, to: string) {
   return `SINCE ${from} UNTIL ${to}`
+}
+
+function previousDateRange(from: string, to: string) {
+  const start = new Date(`${from}T00:00:00Z`)
+  const end = new Date(`${to}T00:00:00Z`)
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start > end) return null
+
+  const days = Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000) + 1)
+  const previousEnd = new Date(start)
+  previousEnd.setUTCDate(previousEnd.getUTCDate() - 1)
+  const previousStart = new Date(previousEnd)
+  previousStart.setUTCDate(previousStart.getUTCDate() - days + 1)
+
+  return {
+    from: previousStart.toISOString().split('T')[0],
+    to: previousEnd.toISOString().split('T')[0],
+  }
 }
 
 async function shopifyQL(domain: string, token: string, qlQuery: string) {
@@ -87,6 +104,37 @@ function normalizeTrafficSource(source: string) {
   return raw
 }
 
+function landingPageTitle(type: string, path: string) {
+  const pageType = (type || '').trim().toLowerCase()
+  const cleanPath = path || '/'
+
+  if (cleanPath === '/') return 'Homepage'
+  if (cleanPath === '/password') return 'Password'
+  if (pageType) return pageType.charAt(0).toUpperCase() + pageType.slice(1)
+
+  const segment = cleanPath.split('/').filter(Boolean)[0] || 'Page'
+  return segment.charAt(0).toUpperCase() + segment.slice(1)
+}
+
+async function fetchLandingPages(shopDomain: string, accessToken: string, range: string, limit = 10) {
+  const table = await shopifyQL(
+    shopDomain,
+    accessToken,
+    `FROM sessions SHOW sessions, pageviews WHERE landing_page_path IS NOT NULL GROUP BY landing_page_type, landing_page_path ${range} ORDER BY sessions DESC LIMIT ${limit}`
+  )
+  const rows = tableToObjects(table)
+
+  return rows.map((row) => {
+    const path = String(row.landing_page_path || row.path || '/')
+    return {
+      path,
+      title: landingPageTitle(String(row.landing_page_type || ''), path),
+      views: Number(row.pageviews || 0),
+      sessions: Number(row.sessions || 0),
+    }
+  })
+}
+
 export async function fetchShopifyAnalytics(
   shopDomain: string,
   accessToken: string,
@@ -107,6 +155,7 @@ export async function fetchShopifyAnalytics(
   let conversionRate = 0
   let dataSource: 'shopifyql' | 'estimated' = 'estimated'
   let shopifyQLError = ''
+  let topPages: ShopifyAnalytics['topPages'] = []
 
   try {
     const sessionsTable = await shopifyQL(shopDomain, accessToken,
@@ -183,6 +232,26 @@ export async function fetchShopifyAnalytics(
 
   // ── 5. Orders from REST API (real sales data) ───────────────────────────
   // Fetch the count first so we can detect missing read_all_orders scope.
+  try {
+    const currentPages = await fetchLandingPages(shopDomain, accessToken, range)
+    const previousRange = previousDateRange(dateFrom, dateTo)
+    const previousPages = previousRange
+      ? await fetchLandingPages(shopDomain, accessToken, sinceUntil(previousRange.from, previousRange.to), 50)
+      : []
+    const previousByPath = new Map(previousPages.map((page) => [page.path, page.sessions]))
+
+    topPages = currentPages.map((page) => {
+      const previousSessions = previousByPath.get(page.path) || 0
+      const changePercent = previousSessions > 0
+        ? Number((((page.sessions - previousSessions) / previousSessions) * 100).toFixed(0))
+        : null
+
+      return { ...page, changePercent }
+    })
+  } catch (err: any) {
+    shopifyQLError ||= err?.message || 'ShopifyQL landing page query failed'
+  }
+
   let orderCount = 0
   try {
     const countRes = await fetch(
@@ -308,7 +377,7 @@ export async function fetchShopifyAnalytics(
     totalOrders,
     returningCustomerRate,
     sessionsByDay,
-    topPages: [],
+    topPages,
     topReferrers,
     topProducts,
     deviceBreakdown,

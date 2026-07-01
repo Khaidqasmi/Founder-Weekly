@@ -11,7 +11,7 @@ import { LoadingSpinner } from '@/components/loading'
 import { formatCurrency, formatNumber, formatPercent } from '@/lib/utils'
 import { demoAnalytics } from '@/lib/integrations/shopify/demo-analytics'
 import type { ShopifyAnalytics } from '@/lib/integrations/shopify/analytics'
-import { ArrowRight, Smartphone, Monitor, Tablet, RefreshCw, ShoppingBag, BarChart3, AlertCircle } from 'lucide-react'
+import { ArrowRight, Smartphone, Monitor, Tablet, RefreshCw, ShoppingBag, BarChart3, AlertCircle, TrendingDown, TrendingUp } from 'lucide-react'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -58,6 +58,28 @@ function HorizontalFunnel({ steps }: { steps: { step: string; count: number; rat
         )
       })}
     </div>
+  )
+}
+
+function LandingPageChange({ change }: { change?: number | null }) {
+  if (change === null || change === undefined) {
+    return <span className="text-sm font-semibold text-gray-400">-</span>
+  }
+
+  if (change >= 0) {
+    return (
+      <span className="inline-flex items-center gap-1 text-sm font-semibold text-emerald-600">
+        <TrendingUp className="w-3.5 h-3.5" />
+        {formatNumber(change)}%
+      </span>
+    )
+  }
+
+  return (
+    <span className="inline-flex items-center gap-1 text-sm font-semibold text-gray-500">
+      <TrendingDown className="w-3.5 h-3.5" />
+      {formatNumber(Math.abs(change))}%
+    </span>
   )
 }
 
@@ -286,6 +308,26 @@ function ShopifyTab() {
                   </div>
                 ))}
               </div>
+            </div>
+          </div>
+
+          {/* Landing Pages */}
+          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 mb-6">
+            <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">Sessions by landing page</p>
+            <div className="divide-y divide-gray-100 dark:divide-gray-800">
+              {data.topPages.length > 0 ? data.topPages.slice(0, 8).map((page) => (
+                <div key={page.path} className="grid grid-cols-[1fr_auto_auto] items-center gap-4 py-4 first:pt-0 last:pb-0">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">
+                      {page.title} · {page.path}
+                    </p>
+                  </div>
+                  <p className="text-sm font-bold tabular-nums text-gray-900 dark:text-gray-100">{formatNumber(page.sessions)}</p>
+                  <LandingPageChange change={page.changePercent} />
+                </div>
+              )) : (
+                <div className="py-8 text-center text-sm text-gray-400">No landing page data yet</div>
+              )}
             </div>
           </div>
 
