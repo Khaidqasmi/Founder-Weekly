@@ -240,15 +240,23 @@ function ShopifyTab({ tab, setTab }: { tab: Tab; setTab: (tab: Tab) => void }) {
             <div className="flex flex-wrap items-center gap-2">
               {connected === true ? (
                 <>
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-green-500/25 bg-green-500/10 px-3 py-1.5 text-xs font-medium text-green-400">
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-green-500/25 bg-green-500/10 px-2.5 py-1.5 text-xs font-medium text-green-400 sm:px-3">
                     <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block" /> Connected
                   </span>
                   {dataSource === 'shopifyql' && (
-                    <span className="inline-flex items-center rounded-full border border-blue-500/25 bg-blue-500/10 px-3 py-1.5 text-xs font-medium text-blue-400">Live Shopify</span>
+                    <span className="inline-flex items-center rounded-full border border-blue-500/25 bg-blue-500/10 px-2.5 py-1.5 text-xs font-medium text-blue-400 sm:px-3">Live Shopify</span>
                   )}
                   {dataSource === 'estimated' && (
-                    <span className="inline-flex items-center rounded-full border border-amber-500/25 bg-amber-500/10 px-3 py-1.5 text-xs font-medium text-amber-400">Synced orders</span>
+                    <span className="inline-flex items-center rounded-full border border-amber-500/25 bg-amber-500/10 px-2.5 py-1.5 text-xs font-medium text-amber-400 sm:px-3">Synced orders</span>
                   )}
+                  <button
+                    onClick={() => fetchData(dateFrom, dateTo)}
+                    disabled={loading}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-white/10 px-2.5 py-1.5 text-xs text-zinc-400 transition-colors hover:border-white/15 hover:text-zinc-300 sm:hidden"
+                  >
+                    <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
+                    Refresh
+                  </button>
                 </>
               ) : connected === false ? (
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-zinc-800 px-3 py-1.5 text-xs text-zinc-400">
@@ -262,7 +270,7 @@ function ShopifyTab({ tab, setTab }: { tab: Tab; setTab: (tab: Tab) => void }) {
               <button
                 onClick={() => fetchData(dateFrom, dateTo)}
                 disabled={loading}
-                className="inline-flex w-fit items-center gap-1.5 rounded-full border border-white/10 px-3 py-1.5 text-xs text-zinc-400 transition-colors hover:border-white/15 hover:text-zinc-300"
+                className="hidden w-fit items-center gap-1.5 rounded-full border border-white/10 px-3 py-1.5 text-xs text-zinc-400 transition-colors hover:border-white/15 hover:text-zinc-300 sm:inline-flex"
               >
                 <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
                 Refresh
