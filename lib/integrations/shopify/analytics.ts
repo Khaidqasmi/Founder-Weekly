@@ -72,6 +72,21 @@ function normalizePercent(value: any) {
   return numeric <= 1 ? Number((numeric * 100).toFixed(2)) : Number(numeric.toFixed(2))
 }
 
+function normalizeTrafficSource(source: string) {
+  const raw = (source || '').trim()
+  const key = raw.toLowerCase()
+
+  if (!key || key === 'direct' || key === '(direct)') return 'Direct'
+  if (['ig', 'instagram', 'instagram.com', 'l.instagram.com'].includes(key)) return 'Instagram'
+  if (['fb', 'facebook', 'facebook.com', 'm.facebook.com', 'l.facebook.com'].includes(key)) return 'Facebook'
+  if (key.includes('google')) return 'Google'
+  if (key.includes('tiktok')) return 'TikTok'
+  if (key.includes('youtube')) return 'YouTube'
+  if (key.includes('whatsapp')) return 'WhatsApp'
+
+  return raw
+}
+
 export async function fetchShopifyAnalytics(
   shopDomain: string,
   accessToken: string,
@@ -140,7 +155,7 @@ export async function fetchShopifyAnalytics(
     )
     const rows = tableToObjects(refTable)
     topReferrers = rows.map((r) => ({
-      source: r.utm_source || r.source || 'Direct',
+      source: normalizeTrafficSource(r.utm_source || r.source || 'Direct'),
       sessions: Number(r.sessions || 0),
       orders: 0,
       revenue: 0,
@@ -229,7 +244,7 @@ export async function fetchShopifyAnalytics(
   if (topReferrers.length === 0 && !orderAccessLimited) {
     const srcMap: Record<string, { sessions: number; orders: number; revenue: number }> = {}
     paidOrders.forEach((o: any) => {
-      const src = o.source_name || 'Direct'
+      const src = normalizeTrafficSource(o.source_name || 'Direct')
       if (!srcMap[src]) srcMap[src] = { sessions: 0, orders: 0, revenue: 0 }
       srcMap[src].orders++
       srcMap[src].revenue += Number(o.total_price || 0)

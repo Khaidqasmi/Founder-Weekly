@@ -9,6 +9,21 @@ function isValidSalesOrder(order: SyncedOrder) {
   return order.order_status !== 'Cancelled' && order.order_status !== 'Returned'
 }
 
+function normalizeTrafficSource(source: string) {
+  const raw = (source || '').trim()
+  const key = raw.toLowerCase()
+
+  if (!key || key === 'direct' || key === '(direct)') return 'Direct'
+  if (['ig', 'instagram', 'instagram.com', 'l.instagram.com'].includes(key)) return 'Instagram'
+  if (['fb', 'facebook', 'facebook.com', 'm.facebook.com', 'l.facebook.com'].includes(key)) return 'Facebook'
+  if (key.includes('google')) return 'Google'
+  if (key.includes('tiktok')) return 'TikTok'
+  if (key.includes('youtube')) return 'YouTube'
+  if (key.includes('whatsapp')) return 'WhatsApp'
+
+  return raw
+}
+
 function dateKeys(from: string, to: string) {
   const keys: string[] = []
   const start = new Date(`${from}T00:00:00Z`)
@@ -65,7 +80,7 @@ function buildAnalyticsFromSyncedOrders(
 
   const sourceMap: Record<string, { sessions: number; orders: number; revenue: number }> = {}
   validOrders.forEach((order) => {
-    const source = order.source === 'shopify' ? 'Shopify' : order.source || 'Direct'
+    const source = order.source === 'shopify' ? 'Shopify' : normalizeTrafficSource(order.source || 'Direct')
     if (!sourceMap[source]) sourceMap[source] = { sessions: 0, orders: 0, revenue: 0 }
     sourceMap[source].orders += 1
     sourceMap[source].revenue += Number(order.revenue || order.selling_price || 0)
