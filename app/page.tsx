@@ -256,21 +256,50 @@ export default function HomePage() {
         <div className="mx-auto grid max-w-7xl gap-8 px-4 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
           <div className="rounded-lg border border-white/10 bg-zinc-900 p-4">
             <div className="grid gap-3 sm:grid-cols-2">
-              {[
-                ['Top landing page', '/', '9 sessions', '+800%'],
-                ['Traffic source', 'instagram', '26 sessions', 'PKR 0'],
-                ['Peak product', 'Gurkha Pant', '4 orders', 'Best seller'],
-                ['Weekly report', 'Ready Monday', 'Email draft', 'Auto summary'],
-              ].map(([title, name, value, tag]) => (
-                <div key={title} className="rounded-lg border border-white/10 bg-black p-4">
-                  <p className="text-xs text-zinc-500">{title}</p>
-                  <p className="mt-3 text-base font-semibold text-white">{name}</p>
-                  <div className="mt-4 flex items-center justify-between text-xs">
-                    <span className="text-zinc-400">{value}</span>
-                    <span className="rounded-full bg-emerald-500/10 px-2 py-1 font-medium text-emerald-400">{tag}</span>
-                  </div>
+              <div className="rounded-lg border border-white/10 bg-black p-4">
+                <p className="text-xs text-zinc-500">Top landing page</p>
+                <p className="mt-3 text-base font-semibold text-white">Gurkha Pant Collection</p>
+                <p className="mt-1 text-xs text-zinc-500">/collections/gurkha-pant</p>
+                <div className="mt-4 flex items-center justify-between text-xs">
+                  <span className="text-zinc-400">186 sessions</span>
+                  <span className="rounded-full bg-emerald-500/10 px-2 py-1 font-medium text-emerald-400">+38%</span>
                 </div>
-              ))}
+              </div>
+
+              <div className="rounded-lg border border-white/10 bg-black p-4">
+                <p className="text-xs text-zinc-500">Traffic sources</p>
+                <div className="mt-3 space-y-2">
+                  {[
+                    ['Instagram', '26'],
+                    ['Facebook', '18'],
+                    ['Meta Ads', '14'],
+                    ['TikTok', '9'],
+                  ].map(([source, sessions]) => (
+                    <div key={source} className="flex items-center justify-between text-sm">
+                      <span className="font-medium text-white">{source}</span>
+                      <span className="text-xs text-zinc-500">{sessions} sessions</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-white/10 bg-black p-4">
+                <p className="text-xs text-zinc-500">Trending product</p>
+                <p className="mt-3 text-base font-semibold text-white">Gurkha Pant - Sand Beige</p>
+                <div className="mt-4 flex items-center justify-between text-xs">
+                  <span className="text-zinc-400">24 orders</span>
+                  <span className="rounded-full bg-emerald-500/10 px-2 py-1 font-medium text-emerald-400">Best seller</span>
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-white/10 bg-black p-4">
+                <p className="text-xs text-zinc-500">Weekly report</p>
+                <p className="mt-3 text-base font-semibold text-white">Ready Monday</p>
+                <div className="mt-4 flex items-center justify-between text-xs">
+                  <span className="text-zinc-400">Email draft</span>
+                  <span className="rounded-full bg-emerald-500/10 px-2 py-1 font-medium text-emerald-400">Auto summary</span>
+                </div>
+              </div>
             </div>
           </div>
 
