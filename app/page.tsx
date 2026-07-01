@@ -258,8 +258,8 @@ export default function HomePage() {
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="rounded-lg border border-white/10 bg-black p-4">
                 <p className="text-xs text-zinc-500">Top landing page</p>
-                <p className="mt-3 text-base font-semibold text-white">Gurkha Pant Collection</p>
-                <p className="mt-1 text-xs text-zinc-500">/collections/gurkha-pant</p>
+                <p className="mt-3 text-base font-semibold text-white">Earbuds & Smart Watch</p>
+                <p className="mt-1 text-xs text-zinc-500">/collections/earbuds-smart-watch</p>
                 <div className="mt-4 flex items-center justify-between text-xs">
                   <span className="text-zinc-400">186 sessions</span>
                   <span className="rounded-full bg-emerald-500/10 px-2 py-1 font-medium text-emerald-400">+38%</span>
@@ -285,7 +285,7 @@ export default function HomePage() {
 
               <div className="rounded-lg border border-white/10 bg-black p-4">
                 <p className="text-xs text-zinc-500">Trending product</p>
-                <p className="mt-3 text-base font-semibold text-white">Gurkha Pant - Sand Beige</p>
+                <p className="mt-3 text-base font-semibold text-white">Smart Watch Pro X</p>
                 <div className="mt-4 flex items-center justify-between text-xs">
                   <span className="text-zinc-400">24 orders</span>
                   <span className="rounded-full bg-emerald-500/10 px-2 py-1 font-medium text-emerald-400">Best seller</span>
