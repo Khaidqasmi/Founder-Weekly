@@ -17,7 +17,10 @@ import { ArrowRight, Smartphone, Monitor, Tablet, RefreshCw, ShoppingBag, BarCha
 
 function daysAgoStr(n: number) {
   const d = new Date(); d.setDate(d.getDate() - n)
-  return d.toISOString().split('T')[0]
+  const year = d.getFullYear()
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
 }
 
 const DATE_PRESETS = [
@@ -69,7 +72,7 @@ function ShopifyTab() {
   const [connected, setConnected] = useState<boolean | null>(null)
   const [shopDomain, setShopDomain] = useState('')
   const [dateFrom, setDateFrom] = useState(daysAgoStr(30))
-  const [dateTo, setDateTo] = useState(new Date().toISOString().split('T')[0])
+  const [dateTo, setDateTo] = useState(daysAgoStr(0))
   const [dataSource, setDataSource] = useState<'shopifyql' | 'estimated' | 'demo'>('demo')
 
   async function fetchData(from: string, to: string) {

@@ -66,6 +66,12 @@ function tableToObjects(tableData: any): Record<string, any>[] {
   })
 }
 
+function normalizePercent(value: any) {
+  const numeric = Number(value || 0)
+  if (!Number.isFinite(numeric) || numeric <= 0) return 0
+  return numeric <= 1 ? Number((numeric * 100).toFixed(2)) : Number(numeric.toFixed(2))
+}
+
 export async function fetchShopifyAnalytics(
   shopDomain: string,
   accessToken: string,
@@ -99,8 +105,8 @@ export async function fetchShopifyAnalytics(
         date: r.day || r.date || '',
         sessions: Number(r.sessions || 0),
         visitors: Number(r.online_store_visitors || r.visitors || r.users || 0),
-        bounceRate: Number(r.bounce_rate || 0),
-        conversionRate: Number(r.conversion_rate || 0),
+        bounceRate: normalizePercent(r.bounce_rate),
+        conversionRate: normalizePercent(r.conversion_rate),
       }))
     }
   } catch (err: any) {
@@ -117,9 +123,9 @@ export async function fetchShopifyAnalytics(
     if (rows[0]) {
       totalSessions = Number(rows[0].sessions || 0)
       totalVisitors = Number(rows[0].online_store_visitors || rows[0].visitors || rows[0].users || 0)
-      bounceRate = Number(rows[0].bounce_rate || 0)
+      bounceRate = normalizePercent(rows[0].bounce_rate)
       avgSessionDuration = Number(rows[0].avg_session_duration || 0)
-      conversionRate = Number(rows[0].conversion_rate || 0)
+      conversionRate = normalizePercent(rows[0].conversion_rate)
       dataSource = 'shopifyql'
     }
   } catch (err: any) {

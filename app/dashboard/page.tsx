@@ -65,24 +65,29 @@ function buildDemoData() {
 
 function daysAgoStr(n: number) {
   const d = new Date(); d.setDate(d.getDate() - n)
-  return d.toISOString().split('T')[0]
+  const year = d.getFullYear()
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
 }
 
 const DATE_PRESETS = [
-  { label: '7D', days: 7 },
-  { label: '30D', days: 30 },
-  { label: '90D', days: 90 },
-  { label: '6M', days: 180 },
-  { label: '1Y', days: 365 },
-  { label: 'All', days: 0 },
+  { label: 'Today', fromDays: 0, toDays: 0 },
+  { label: 'Yesterday', fromDays: 1, toDays: 1 },
+  { label: '7D', fromDays: 7, toDays: 0 },
+  { label: '30D', fromDays: 30, toDays: 0 },
+  { label: '90D', fromDays: 90, toDays: 0 },
+  { label: '6M', fromDays: 180, toDays: 0 },
+  { label: '1Y', fromDays: 365, toDays: 0 },
+  { label: 'All', all: true },
 ]
 
 export default function DashboardPage() {
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
-  const [dateFrom, setDateFrom] = useState('')
-  const [dateTo, setDateTo] = useState('')
+  const [dateFrom, setDateFrom] = useState(daysAgoStr(0))
+  const [dateTo, setDateTo] = useState(daysAgoStr(0))
   const [syncing, setSyncing] = useState<string | null>(null)
 
   async function fetchDashboard(from?: string, to?: string) {
@@ -130,7 +135,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     async function init() {
-      const found = await fetchDashboard()
+      const found = await fetchDashboard(dateFrom, dateTo)
       if (!found) {
         setData(buildDemoData())
         setLoading(false)
@@ -143,12 +148,18 @@ export default function DashboardPage() {
     if (!isLoggedIn) return
     const interval = setInterval(async () => {
       try {
-        const res = await fetch('/api/dashboard')
+        let url = '/api/dashboard'
+        const params: string[] = []
+        if (dateFrom) params.push(`from=${dateFrom}`)
+        if (dateTo) params.push(`to=${dateTo}`)
+        if (params.length) url += '?' + params.join('&')
+
+        const res = await fetch(url)
         if (res.ok) setData(await res.json())
       } catch {}
     }, 30000)
     return () => clearInterval(interval)
-  }, [isLoggedIn])
+  }, [isLoggedIn, dateFrom, dateTo])
 
   if (loading) {
     return (
@@ -211,21 +222,27 @@ export default function DashboardPage() {
           <div className="bg-white rounded-lg p-4 shadow-sm mb-6">
             <div className="flex flex-wrap items-center gap-2 mb-3">
               {DATE_PRESETS.map((p) => (
-                <Button
-                  key={p.label}
-                  variant="outline"
-                  size="sm"
-                  className="h-7 text-xs"
-                  onClick={() => {
-                    const from = p.days === 0 ? '' : daysAgoStr(p.days)
-                    const to = new Date().toISOString().split('T')[0]
-                    setDateFrom(from)
-                    setDateTo(to)
-                    fetchDashboard(from || undefined, to)
-                  }}
-                >
-                  {p.label}
-                </Button>
+                (() => {
+                  const from = p.all ? '' : daysAgoStr(p.fromDays || 0)
+                  const to = p.all ? '' : daysAgoStr(p.toDays || 0)
+                  const active = dateFrom === from && dateTo === to
+
+                  return (
+                    <Button
+                      key={p.label}
+                      variant={active ? 'default' : 'outline'}
+                      size="sm"
+                      className="h-7 text-xs"
+                      onClick={() => {
+                        setDateFrom(from)
+                        setDateTo(to)
+                        fetchDashboard(from || undefined, to || undefined)
+                      }}
+                    >
+                      {p.label}
+                    </Button>
+                  )
+                })()
               ))}
               <div className="flex items-center gap-1 ml-2">
                 <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="h-7 text-xs w-[130px]" />
