@@ -20,6 +20,10 @@ export interface ShopifyAnalytics {
   countryBreakdown: { country: string; sessions: number; orders: number }[]
   conversionFunnel: { step: string; count: number; rate: number }[]
   dataSource: 'shopifyql' | 'estimated'
+  /** True when Shopify reports orders exist for the range but the access token lacks read_all_orders. */
+  orderAccessLimited?: boolean
+  /** Order count reported by Shopify count endpoint (may be non-zero even when order details are inaccessible). */
+  orderCount?: number
 }
 
 function sinceUntil(from: string, to: string) {
@@ -140,45 +144,66 @@ export async function fetchShopifyAnalytics(
   } catch {}
 
   // ── 5. Orders from REST API (real sales data) ───────────────────────────
+  // Fetch the count first so we can detect missing read_all_orders scope.
+  let orderCount = 0
+  try {
+    const countRes = await fetch(
+      `${baseUrl}/orders/count.json?created_at_min=${dateFrom}T00:00:00Z&created_at_max=${dateTo}T23:59:59Z&status=any`,
+      { headers }
+    )
+    if (countRes.ok) {
+      const countData = await countRes.json()
+      orderCount = Number(countData.count || 0)
+    }
+  } catch {}
+
   const ordersRes = await fetch(
     `${baseUrl}/orders.json?created_at_min=${dateFrom}T00:00:00Z&created_at_max=${dateTo}T23:59:59Z&status=any&limit=250&fields=id,total_price,financial_status,source_name,shipping_address,billing_address,line_items,created_at,customer`,
     { headers }
   )
   const orders = ordersRes.ok ? (await ordersRes.json()).orders || [] : []
 
+  // Detect "count > 0 but list empty": Shopify has orders but token lacks
+  // read_all_orders — only the last 60 days of order details are accessible by default.
+  const orderAccessLimited = orderCount > 0 && orders.length === 0
+
   const paidOrders = orders.filter((o: any) => !['refunded', 'voided'].includes(o.financial_status))
-  const totalSales = paidOrders.reduce((s: number, o: any) => s + Number(o.total_price || 0), 0)
-  const totalOrders = paidOrders.length
+
+  // Do NOT invent revenue figures when order details are inaccessible.
+  const totalSales = orderAccessLimited ? 0 : paidOrders.reduce((s: number, o: any) => s + Number(o.total_price || 0), 0)
+  const totalOrders = orderAccessLimited ? 0 : paidOrders.length
   const aov = totalOrders > 0 ? totalSales / totalOrders : 0
 
   // Returning customers
   const customerIds = paidOrders.map((o: any) => o.customer?.id).filter(Boolean)
   const unique = new Set(customerIds).size
-  const returningCustomerRate = unique > 0 ? Math.round(((customerIds.length - unique) / Math.max(customerIds.length, 1)) * 100) : 0
+  const returningCustomerRate = orderAccessLimited ? 0 : (unique > 0 ? Math.round(((customerIds.length - unique) / Math.max(customerIds.length, 1)) * 100) : 0)
 
-  // If ShopifyQL didn't give us sessions, estimate from orders
-  if (totalSessions === 0 && totalOrders > 0) {
+  // If ShopifyQL didn't give us sessions, estimate from orders (only when accessible)
+  if (totalSessions === 0 && totalOrders > 0 && !orderAccessLimited) {
     conversionRate = 2.1
     totalSessions = Math.round(totalOrders / (conversionRate / 100))
     totalVisitors = Math.round(totalSessions * 0.85)
   }
 
-  // Product performance from line items
+  // Product performance from line items (skip when inaccessible)
   const productMap: Record<string, ShopifyAnalytics['topProducts'][0]> = {}
-  paidOrders.forEach((o: any) => {
-    (o.line_items || []).forEach((li: any) => {
-      const title = li.title || 'Unknown'
-      if (!productMap[title]) productMap[title] = { title, views: 0, addedToCart: 0, purchases: 0, revenue: 0 }
-      productMap[title].purchases += Number(li.quantity || 1)
-      productMap[title].revenue += Number(li.price) * Number(li.quantity || 1)
-      productMap[title].views = Math.round(productMap[title].purchases * 15)
-      productMap[title].addedToCart = Math.round(productMap[title].purchases * 1.8)
+  if (!orderAccessLimited) {
+    paidOrders.forEach((o: any) => {
+      (o.line_items || []).forEach((li: any) => {
+        const title = li.title || 'Unknown'
+        if (!productMap[title]) productMap[title] = { title, views: 0, addedToCart: 0, purchases: 0, revenue: 0 }
+        productMap[title].purchases += Number(li.quantity || 1)
+        productMap[title].revenue += Number(li.price) * Number(li.quantity || 1)
+        productMap[title].views = Math.round(productMap[title].purchases * 15)
+        productMap[title].addedToCart = Math.round(productMap[title].purchases * 1.8)
+      })
     })
-  })
+  }
   const topProducts = Object.values(productMap).sort((a, b) => b.revenue - a.revenue).slice(0, 10)
 
-  // Traffic from order source (fallback if ShopifyQL referrers failed)
-  if (topReferrers.length === 0) {
+  // Traffic from order source (fallback if ShopifyQL referrers failed, skip when inaccessible)
+  if (topReferrers.length === 0 && !orderAccessLimited) {
     const srcMap: Record<string, { sessions: number; orders: number; revenue: number }> = {}
     paidOrders.forEach((o: any) => {
       const src = o.source_name || 'Direct'
@@ -190,18 +215,20 @@ export async function fetchShopifyAnalytics(
     topReferrers = Object.entries(srcMap).map(([source, v]) => ({ source, ...v })).sort((a, b) => b.sessions - a.sessions)
   }
 
-  // Country breakdown
+  // Country breakdown (skip when inaccessible)
   const countryMap: Record<string, { sessions: number; orders: number }> = {}
-  paidOrders.forEach((o: any) => {
-    const c = o.shipping_address?.country || o.billing_address?.country || 'Unknown'
-    if (!countryMap[c]) countryMap[c] = { sessions: 0, orders: 0 }
-    countryMap[c].orders++
-    countryMap[c].sessions += Math.round(1 / (Math.max(conversionRate, 0.5) / 100))
-  })
+  if (!orderAccessLimited) {
+    paidOrders.forEach((o: any) => {
+      const c = o.shipping_address?.country || o.billing_address?.country || 'Unknown'
+      if (!countryMap[c]) countryMap[c] = { sessions: 0, orders: 0 }
+      countryMap[c].orders++
+      countryMap[c].sessions += Math.round(1 / (Math.max(conversionRate, 0.5) / 100))
+    })
+  }
   const countryBreakdown = Object.entries(countryMap).map(([country, v]) => ({ country, ...v })).sort((a, b) => b.orders - a.orders).slice(0, 10)
 
-  // Session day breakdown fallback
-  if (sessionsByDay.length === 0) {
+  // Session day breakdown fallback (only from order data when accessible)
+  if (sessionsByDay.length === 0 && !orderAccessLimited) {
     const dailyMap: Record<string, { sessions: number; visitors: number }> = {}
     const d = new Date(dateFrom), end = new Date(dateTo)
     while (d <= end) {
@@ -256,5 +283,7 @@ export async function fetchShopifyAnalytics(
       { step: 'Purchased', count: totalOrders, rate: Number(((totalOrders / Math.max(totalSessions, 1)) * 100).toFixed(2)) },
     ],
     dataSource,
+    orderAccessLimited,
+    orderCount,
   }
 }

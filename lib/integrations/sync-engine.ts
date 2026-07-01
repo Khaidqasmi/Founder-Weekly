@@ -29,6 +29,28 @@ export async function syncShopifyData(ctx: SyncContext) {
     const ordersData = await ordersRes.json()
     const shopifyOrders = ordersData.orders || []
 
+    // If no orders were returned, check the count endpoint to distinguish
+    // "store truly has no orders" from "token lacks read_all_orders scope".
+    if (shopifyOrders.length === 0) {
+      try {
+        const countRes = await fetchWithReadableError(`${baseUrl}/orders/count.json?status=any`, { headers }, 'Shopify orders count API')
+        if (countRes.ok) {
+          const countData = await countRes.json()
+          const totalCount = Number(countData.count || 0)
+          if (totalCount > 0) {
+            throw new Error(
+              `Shopify reports ${totalCount} order(s) exist but this app cannot retrieve them. ` +
+              `The connected token is missing the read_all_orders permission. ` +
+              `To fix this: add the read_all_orders scope to your Shopify app, then reinstall/reconnect the integration.`
+            )
+          }
+        }
+      } catch (countErr: any) {
+        // Re-throw only our own descriptive error; swallow count fetch errors
+        if (countErr.message?.includes('read_all_orders')) throw countErr
+      }
+    }
+
     let newOrders = 0
     let updatedOrders = 0
 

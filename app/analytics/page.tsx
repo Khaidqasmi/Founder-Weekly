@@ -65,6 +65,7 @@ function ShopifyTab() {
   const [loading, setLoading] = useState(true)
   const [isDemo, setIsDemo] = useState(true)
   const [error, setError] = useState('')
+  const [warning, setWarning] = useState('')
   const [connected, setConnected] = useState<boolean | null>(null)
   const [shopDomain, setShopDomain] = useState('')
   const [dateFrom, setDateFrom] = useState(daysAgoStr(30))
@@ -74,6 +75,7 @@ function ShopifyTab() {
   async function fetchData(from: string, to: string) {
     setLoading(true)
     setError('')
+    setWarning('')
     try {
       const res = await fetch(`/api/analytics?from=${from}&to=${to}`)
       if (res.status === 401) {
@@ -105,6 +107,13 @@ function ShopifyTab() {
       setIsDemo(false)
       setDataSource((d as any).dataSource || 'estimated')
       if ((d as any).shopDomain) setShopDomain((d as any).shopDomain)
+      if (d.orderAccessLimited) {
+        setWarning(
+          `Shopify shows ${d.orderCount} order(s) in this date range, but your connected app can only retrieve order details from the last 60 days. ` +
+          `Sales and revenue figures are hidden to avoid showing inaccurate zeros. ` +
+          `To unlock the full date range: add the read_all_orders scope to your Shopify app and reconnect the integration.`
+        )
+      }
     } catch (e: any) {
       setError(e.message)
     }
@@ -172,6 +181,13 @@ function ShopifyTab() {
           </div>
         </div>
       </div>
+
+      {warning && (
+        <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 text-amber-800 rounded-lg p-3 mb-5 text-sm">
+          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-amber-500" />
+          <span>{warning}</span>
+        </div>
+      )}
 
       {error && (
         <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 rounded-lg p-3 mb-5 text-sm">
