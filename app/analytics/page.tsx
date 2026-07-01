@@ -108,7 +108,11 @@ function ShopifyTab() {
       setDataSource((d as any).dataSource || 'estimated')
       if ((d as any).shopDomain) setShopDomain((d as any).shopDomain)
       if (d.syncedOrderFallback) {
-        setWarning('Showing sales, orders, AOV, products, and funnel metrics from your synced Shopify orders.')
+        setWarning(
+          d.analyticsAccessLimited
+            ? 'Showing sales, orders, AOV, products, and funnel metrics from synced Shopify orders. Live Shopify traffic metrics such as sessions and bounce rate are not available from the connected app yet.'
+            : 'Showing sales, orders, AOV, products, and funnel metrics from your synced Shopify orders.'
+        )
       } else if (d.orderAccessLimited) {
         setWarning(
           `Shopify shows ${d.orderCount} order(s) in this date range, but your connected app can only retrieve order details from the last 60 days. ` +

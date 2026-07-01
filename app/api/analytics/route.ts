@@ -145,6 +145,8 @@ function buildAnalyticsFromSyncedOrders(
     orderAccessLimited: false,
     orderCount: live?.orderCount || totalOrders,
     syncedOrderFallback: true,
+    analyticsAccessLimited: live?.analyticsAccessLimited,
+    analyticsError: live?.analyticsError,
   }
 }
 

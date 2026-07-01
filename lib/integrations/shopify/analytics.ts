@@ -26,6 +26,10 @@ export interface ShopifyAnalytics {
   orderCount?: number
   /** True when order-derived metrics are read from the app's synced Shopify orders table. */
   syncedOrderFallback?: boolean
+  /** True when ShopifyQL traffic/report metrics could not be read from Shopify. */
+  analyticsAccessLimited?: boolean
+  /** The first ShopifyQL error seen while trying to fetch live traffic/report metrics. */
+  analyticsError?: string
 }
 
 function sinceUntil(from: string, to: string) {
@@ -81,6 +85,7 @@ export async function fetchShopifyAnalytics(
   let avgSessionDuration = 0
   let conversionRate = 0
   let dataSource: 'shopifyql' | 'estimated' = 'estimated'
+  let shopifyQLError = ''
 
   try {
     const sessionsTable = await shopifyQL(shopDomain, accessToken,
@@ -98,7 +103,9 @@ export async function fetchShopifyAnalytics(
         conversionRate: Number(r.conversion_rate || 0),
       }))
     }
-  } catch {}
+  } catch (err: any) {
+    shopifyQLError ||= err?.message || 'ShopifyQL traffic query failed'
+  }
 
   // ── 2. Summary sessions via ShopifyQL ───────────────────────────────────
   let totalSessions = 0, totalVisitors = 0
@@ -115,7 +122,9 @@ export async function fetchShopifyAnalytics(
       conversionRate = Number(rows[0].conversion_rate || 0)
       dataSource = 'shopifyql'
     }
-  } catch {}
+  } catch (err: any) {
+    shopifyQLError ||= err?.message || 'ShopifyQL summary query failed'
+  }
 
   // ── 3. Traffic sources via ShopifyQL ────────────────────────────────────
   let topReferrers: ShopifyAnalytics['topReferrers'] = []
@@ -130,7 +139,9 @@ export async function fetchShopifyAnalytics(
       orders: 0,
       revenue: 0,
     }))
-  } catch {}
+  } catch (err: any) {
+    shopifyQLError ||= err?.message || 'ShopifyQL referrer query failed'
+  }
 
   // ── 4. Device breakdown via ShopifyQL ───────────────────────────────────
   let deviceBreakdown: ShopifyAnalytics['deviceBreakdown'] = []
@@ -145,7 +156,9 @@ export async function fetchShopifyAnalytics(
       sessions: Number(r.sessions || 0),
       percentage: Math.round((Number(r.sessions || 0) / total) * 100),
     }))
-  } catch {}
+  } catch (err: any) {
+    shopifyQLError ||= err?.message || 'ShopifyQL device query failed'
+  }
 
   // ── 5. Orders from REST API (real sales data) ───────────────────────────
   // Fetch the count first so we can detect missing read_all_orders scope.
@@ -289,5 +302,7 @@ export async function fetchShopifyAnalytics(
     dataSource,
     orderAccessLimited,
     orderCount,
+    analyticsAccessLimited: dataSource !== 'shopifyql' && Boolean(shopifyQLError),
+    analyticsError: shopifyQLError || undefined,
   }
 }
