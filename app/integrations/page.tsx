@@ -99,6 +99,7 @@ function IntegrationCard({
   onSync,
   syncing,
   syncEnabled = true,
+  formHeader,
 }: {
   provider: string
   name: string
@@ -111,6 +112,7 @@ function IntegrationCard({
   onSync: () => void
   syncing: boolean
   syncEnabled?: boolean
+  formHeader?: React.ReactNode
 }) {
   const [open, setOpen] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -170,6 +172,7 @@ function IntegrationCard({
           <p className="text-xs text-gray-500">
             Paste credentials from your own {name} account. They are saved only for your workspace.
           </p>
+          {formHeader}
           {fields.map((field) => (
             <div key={field.key}>
               <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">
@@ -367,6 +370,7 @@ export default function IntegrationsPage() {
   const [connections, setConnections] = useState<Connection[]>([])
   const [syncing, setSyncing] = useState<Record<string, boolean>>({})
   const [loggedIn, setLoggedIn] = useState(false)
+  const [shopifyMode, setShopifyMode] = useState<'dev' | 'token'>('dev')
 
   async function loadStatus() {
     try {
@@ -474,23 +478,47 @@ export default function IntegrationsPage() {
 
         <Section icon={<Store className="w-4 h-4" />} title="eCommerce" description="Connect your store to sync orders, products, inventory, and analytics.">
           <IntegrationCard
+            key={shopifyMode}
             provider="shopify"
             name="Shopify"
             tagline="Orders, products, inventory and store analytics"
             color="bg-[#f0f9eb]"
             connection={getConn('shopify')}
-            fields={[
+            formHeader={
+              <div className="flex rounded-lg border border-gray-200 overflow-hidden text-xs font-medium">
+                <button
+                  type="button"
+                  onClick={() => setShopifyMode('dev')}
+                  className={`flex-1 py-1.5 transition-colors ${shopifyMode === 'dev' ? 'bg-gray-900 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                >
+                  Dev Dashboard app
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShopifyMode('token')}
+                  className={`flex-1 py-1.5 border-l border-gray-200 transition-colors ${shopifyMode === 'token' ? 'bg-gray-900 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                >
+                  Custom app / direct token
+                </button>
+              </div>
+            }
+            fields={shopifyMode === 'dev' ? [
               { label: 'Store domain', key: 'shop_domain', placeholder: 'yourstore.myshopify.com' },
-              { label: 'Admin API access token', key: 'access_token', placeholder: 'shpat_…  (Settings → Apps → Develop apps → your app → API credentials)', type: 'password' },
+              { label: 'Client ID', key: 'client_id', placeholder: '32-char hex — Dev Dashboard → your app → Client credentials' },
+              { label: 'Client secret', key: 'client_secret', placeholder: '32-char hex — Dev Dashboard → your app → Client credentials', type: 'password' },
+            ] : [
+              { label: 'Store domain', key: 'shop_domain', placeholder: 'yourstore.myshopify.com' },
+              { label: 'Admin API access token', key: 'access_token', placeholder: 'shpat_… — Settings → Apps → Develop apps → your app → API credentials', type: 'password' },
             ]}
             onSave={async (credentials) => {
+              const body =
+                shopifyMode === 'dev'
+                  ? { shopDomain: credentials.shop_domain, clientId: credentials.client_id, clientSecret: credentials.client_secret }
+                  : { shopDomain: credentials.shop_domain, accessToken: credentials.access_token }
               const res = await fetch('/api/integrations/shopify/connect', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  shopDomain: credentials.shop_domain,
-                  accessToken: credentials.access_token,
-                }),
+                body: JSON.stringify(body),
               })
               const data = await res.json().catch(() => ({}))
               if (!res.ok) throw new Error(data.error || 'Connection failed')

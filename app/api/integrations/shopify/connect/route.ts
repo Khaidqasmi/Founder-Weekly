@@ -4,40 +4,52 @@ import { createServerSupabaseClient } from '@/lib/supabase/server'
 /**
  * POST /api/integrations/shopify/connect
  *
- * Saves a Shopify Admin API access token directly (no OAuth required).
- * The token is validated against /admin/api/2024-01/shop.json before saving.
+ * Supports two connection modes:
  *
- * Body: { shopDomain: string, accessToken: string }
+ * 1. Direct Admin API token (custom app or Dev Dashboard generated token):
+ *    Body: { shopDomain: string, accessToken: string }
+ *    Validates the token directly against /admin/api/2024-01/shop.json.
+ *
+ * 2. Dev Dashboard app credentials:
+ *    Body: { shopDomain: string, clientId: string, clientSecret: string }
+ *    Exchanges credentials via POST /admin/oauth/access_token with
+ *    grant_type=client_credentials, then validates the returned token.
  */
 export async function POST(req: NextRequest) {
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  let shopDomain: string, accessToken: string
+  let shopDomain: string,
+    accessToken: string | undefined,
+    clientId: string | undefined,
+    clientSecret: string | undefined
   try {
     const body = await req.json()
     shopDomain = body.shopDomain?.trim()
-    accessToken = body.accessToken?.trim()
+    accessToken = body.accessToken?.trim() || undefined
+    clientId = body.clientId?.trim() || undefined
+    clientSecret = body.clientSecret?.trim() || undefined
   } catch {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
   }
 
-  if (!shopDomain || !accessToken) {
-    return NextResponse.json({ error: 'shopDomain and accessToken are required' }, { status: 400 })
+  if (!shopDomain) {
+    return NextResponse.json({ error: 'shopDomain is required' }, { status: 400 })
   }
 
-  // --- Detect common token paste mistakes before hitting Shopify ---
-  if (accessToken.startsWith('shpuf_')) {
+  const useClientCredentials = !!(clientId && clientSecret)
+  if (!useClientCredentials && !accessToken) {
     return NextResponse.json(
-      { error: 'That looks like a Storefront API token (shpuf_…). You need the Admin API access token — find it in Shopify admin under Settings → Apps and sales channels → Develop apps → (your app) → API credentials.' },
+      { error: 'Provide either an access token, or both a Client ID and Client Secret.' },
       { status: 400 }
     )
   }
-  // API keys (client IDs) and API secrets are 32-char hex strings with no prefix
-  if (/^[a-f0-9]{32}$/i.test(accessToken)) {
+
+  // Detect Storefront API tokens — always wrong for Admin API
+  if (accessToken?.startsWith('shpuf_')) {
     return NextResponse.json(
-      { error: 'That looks like an API key or client secret, not an access token. The Admin API access token is a longer string — find it in Shopify admin under Settings → Apps and sales channels → Develop apps → (your app) → API credentials.' },
+      { error: 'That looks like a Storefront API token (shpuf_…). You need the Admin API access token — find it in Shopify admin under Settings → Apps and sales channels → Develop apps → (your app) → API credentials.' },
       { status: 400 }
     )
   }
@@ -55,16 +67,65 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  // Validate the token by calling a lightweight Shopify endpoint
+  // --- For Dev Dashboard mode: exchange client credentials for an access token ---
+  let resolvedToken: string
+  if (useClientCredentials) {
+    try {
+      const tokenRes = await fetch(`https://${domain}/admin/oauth/access_token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          grant_type: 'client_credentials',
+          client_id: clientId!,
+          client_secret: clientSecret!,
+        }),
+      })
+
+      const tokenText = await tokenRes.text()
+      if (!tokenRes.ok) {
+        if (tokenText.trimStart().startsWith('<')) {
+          return NextResponse.json(
+            { error: `Store "${domain}" was not found. Double-check the .myshopify.com domain.` },
+            { status: 400 }
+          )
+        }
+        let parsed: any = {}
+        try { parsed = JSON.parse(tokenText) } catch {}
+        const detail = parsed.error_description || parsed.error || tokenRes.status.toString()
+        return NextResponse.json(
+          { error: `Failed to exchange credentials (${tokenRes.status}): ${detail}. Verify your Client ID and Client Secret in the Shopify Dev Dashboard.` },
+          { status: 400 }
+        )
+      }
+
+      let tokenData: any = {}
+      try { tokenData = JSON.parse(tokenText) } catch {}
+      if (!tokenData.access_token) {
+        return NextResponse.json(
+          { error: 'Shopify did not return an access token. Check that your app supports the client_credentials grant (Dev Dashboard apps).' },
+          { status: 400 }
+        )
+      }
+      resolvedToken = tokenData.access_token
+    } catch (err: any) {
+      return NextResponse.json(
+        { error: `Could not reach Shopify to exchange credentials: ${err.message}` },
+        { status: 502 }
+      )
+    }
+  } else {
+    resolvedToken = accessToken!
+  }
+
+  // --- Validate the resolved token ---
   let shopName: string | undefined
   try {
     const testRes = await fetch(`https://${domain}/admin/api/2024-01/shop.json`, {
-      headers: { 'X-Shopify-Access-Token': accessToken },
+      headers: { 'X-Shopify-Access-Token': resolvedToken },
     })
 
     if (!testRes.ok) {
       const text = await testRes.text()
-      // HTML response means the domain doesn't route to a Shopify store
       if (text.trimStart().startsWith('<')) {
         return NextResponse.json(
           { error: `Store "${domain}" was not found. Double-check the .myshopify.com domain and try again.` },
@@ -76,8 +137,11 @@ export async function POST(req: NextRequest) {
       try { parsed = JSON.parse(text) } catch {}
 
       if (testRes.status === 401) {
+        const hint = useClientCredentials
+          ? 'Verify your Client ID and Client Secret are correct and the app is installed on this store.'
+          : 'If you have a Dev Dashboard app, switch to "Dev Dashboard app" mode and enter your Client ID + Client Secret instead. For a Custom app, copy the Admin API access token from Settings → Apps → Develop apps → (your app) → API credentials.'
         return NextResponse.json(
-          { error: `Access denied (401): the token was rejected by "${domain}". Make sure you copied the Admin API access token from Settings → Apps and sales channels → Develop apps → (your app) → API credentials, and that the app is installed on this store.` },
+          { error: `Access denied (401): the token was rejected by "${domain}". ${hint}` },
           { status: 400 }
         )
       }
@@ -124,7 +188,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'No workspace found for this account' }, { status: 404 })
   }
 
-  // Upsert the integration_connections record
+  // Upsert the integration_connections record — always save the resolved access token
   const { data: existing } = await supabase
     .from('integration_connections')
     .select('id')
@@ -137,7 +201,7 @@ export async function POST(req: NextRequest) {
     provider: 'shopify',
     status: 'connected',
     shop_domain: domain,
-    access_token_encrypted: accessToken,
+    access_token_encrypted: resolvedToken,
     last_sync_at: new Date().toISOString(),
   }
 
