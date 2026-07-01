@@ -84,8 +84,20 @@ export async function POST(req: NextRequest) {
       const tokenText = await tokenRes.text()
       if (!tokenRes.ok) {
         if (tokenText.trimStart().startsWith('<')) {
+          // HTML response — only a 404 means the domain itself is wrong.
+          // Any other status (401, 400, etc.) means the domain is reachable but the
+          // app credentials are invalid, the app isn't installed on this store, or
+          // there is a distribution/profile mismatch in the Dev Dashboard.
+          if (tokenRes.status === 404) {
+            return NextResponse.json(
+              { error: `Store "${domain}" was not found. Double-check the .myshopify.com domain.` },
+              { status: 400 }
+            )
+          }
           return NextResponse.json(
-            { error: `Store "${domain}" was not found. Double-check the .myshopify.com domain.` },
+            {
+              error: `Credential exchange failed (${tokenRes.status}). The store domain "${domain}" appears to be valid, but Shopify rejected the request. This usually means one of the following:\n• The app is not installed on this store\n• The Client ID or Client Secret doesn't match this store's app\n• The app's distribution mode in the Dev Dashboard doesn't support client_credentials\n\nVerify your Client ID and Client Secret in the Shopify Dev Dashboard and make sure the app is installed on "${domain}".`,
+            },
             { status: 400 }
           )
         }
@@ -127,8 +139,18 @@ export async function POST(req: NextRequest) {
     if (!testRes.ok) {
       const text = await testRes.text()
       if (text.trimStart().startsWith('<')) {
+        // HTML body — only a 404 means the domain is wrong.
+        // Other statuses mean the domain is reachable but the token/credentials are rejected.
+        if (testRes.status === 404) {
+          return NextResponse.json(
+            { error: `Store "${domain}" was not found. Double-check the .myshopify.com domain and try again.` },
+            { status: 400 }
+          )
+        }
         return NextResponse.json(
-          { error: `Store "${domain}" was not found. Double-check the .myshopify.com domain and try again.` },
+          {
+            error: `Token validation failed (${testRes.status}). The store "${domain}" is reachable but Shopify rejected the token. This indicates a credentials or configuration problem — not an invalid domain. Check that your access token (or Client ID/Secret) is correct and that the app is properly installed on this store.`,
+          },
           { status: 400 }
         )
       }
