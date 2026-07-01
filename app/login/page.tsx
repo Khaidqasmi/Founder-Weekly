@@ -23,7 +23,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-zinc-950 px-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl">Welcome Back</CardTitle>
@@ -39,13 +39,13 @@ export default function LoginPage() {
               <Label htmlFor="password">Password</Label>
               <Input id="password" name="password" type="password" required />
             </div>
-            {error && <p className="text-sm text-red-600">{error}</p>}
+            {error && <p className="text-sm text-red-400">{error}</p>}
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? 'Logging in...' : 'Log In'}
             </Button>
-            <p className="text-center text-sm text-gray-500">
+            <p className="text-center text-sm text-zinc-400">
               Don&apos;t have an account?{' '}
-              <Link href="/signup" className="text-blue-600 hover:underline">Start free trial</Link>
+              <Link href="/signup" className="text-blue-400 hover:underline">Start free trial</Link>
             </p>
           </form>
         </CardContent>

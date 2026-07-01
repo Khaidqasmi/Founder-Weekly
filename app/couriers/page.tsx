@@ -106,9 +106,9 @@ function CodReceiptsSection({ couriers }: { couriers: string[] }) {
   const manualTotal = receipts.reduce((s, r) => s + r.amount, 0)
 
   const statusBadge = (status: Remittance['status']) => {
-    if (status === 'paid') return <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-medium">Paid</span>
-    if (status === 'processing') return <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 font-medium">Processing</span>
-    return <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700 font-medium">Pending</span>
+    if (status === 'paid') return <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/15 text-green-400 font-medium">Paid</span>
+    if (status === 'processing') return <span className="text-xs px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-300 font-medium">Processing</span>
+    return <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-500/15 text-yellow-400 font-medium">Pending</span>
   }
 
   return (
@@ -116,16 +116,16 @@ function CodReceiptsSection({ couriers }: { couriers: string[] }) {
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">COD Payment Slips</h2>
-          <p className="text-xs text-gray-500 mt-0.5">
+          <h2 className="text-lg font-bold text-white dark:text-gray-100">COD Payment Slips</h2>
+          <p className="text-xs text-zinc-400 mt-0.5">
             {hasApiKeys ? 'Auto-fetched from your connected couriers' : 'Connect a courier on the Integrations page to auto-fetch slips'}
           </p>
         </div>
         <div className="flex items-center gap-3">
           {(remittances.length > 0 || receipts.length > 0) && (
             <div className="text-right">
-              <p className="text-xs text-gray-500">Total Collected</p>
-              <p className="text-lg font-bold text-green-600">PKR {(apiTotal + manualTotal).toLocaleString()}</p>
+              <p className="text-xs text-zinc-400">Total Collected</p>
+              <p className="text-lg font-bold text-green-400">PKR {(apiTotal + manualTotal).toLocaleString()}</p>
             </div>
           )}
           <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={loadRemittances} disabled={fetching}>
@@ -137,7 +137,7 @@ function CodReceiptsSection({ couriers }: { couriers: string[] }) {
 
       {/* API Errors */}
       {fetchErrors.length > 0 && (
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4 text-xs text-amber-800">
+        <div className="bg-amber-500/10 border border-amber-500/25 rounded-lg p-3 mb-4 text-xs text-amber-300">
           {fetchErrors.map((e, i) => <p key={i}>{e}</p>)}
         </div>
       )}
@@ -163,14 +163,14 @@ function CodReceiptsSection({ couriers }: { couriers: string[] }) {
                 {remittances.map((r) => (
                   <TableRow key={r.id}>
                     <TableCell className="text-sm font-medium">{r.courier}</TableCell>
-                    <TableCell className="text-xs font-mono text-gray-500">{r.remittanceNo}</TableCell>
-                    <TableCell className="text-xs text-gray-500">{r.date ? r.date.slice(0, 10) : '—'}</TableCell>
-                    <TableCell className="text-right font-bold text-green-600 text-sm">PKR {r.amount.toLocaleString()}</TableCell>
-                    <TableCell className="text-center text-xs text-gray-500">{r.shipmentCount || '—'}</TableCell>
+                    <TableCell className="text-xs font-mono text-zinc-400">{r.remittanceNo}</TableCell>
+                    <TableCell className="text-xs text-zinc-400">{r.date ? r.date.slice(0, 10) : '—'}</TableCell>
+                    <TableCell className="text-right font-bold text-green-400 text-sm">PKR {r.amount.toLocaleString()}</TableCell>
+                    <TableCell className="text-center text-xs text-zinc-400">{r.shipmentCount || '—'}</TableCell>
                     <TableCell>{statusBadge(r.status)}</TableCell>
                     <TableCell>
                       {r.pdfUrl && (
-                        <a href={r.pdfUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline">
+                        <a href={r.pdfUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-blue-400 hover:underline">
                           <FileText className="w-3 h-3" /> Slip <ExternalLink className="w-3 h-3" />
                         </a>
                       )}
@@ -185,10 +185,10 @@ function CodReceiptsSection({ couriers }: { couriers: string[] }) {
 
       {/* No API keys / no remittances state */}
       {!fetching && remittances.length === 0 && (
-        <div className="bg-white dark:bg-gray-900 border border-dashed border-gray-200 rounded-lg p-8 text-center mb-6">
+        <div className="bg-zinc-900 dark:bg-gray-900 border border-dashed border-white/10 rounded-lg p-8 text-center mb-6">
           <FileText className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-          <p className="text-sm font-medium text-gray-600">No remittance slips found</p>
-          <p className="text-xs text-gray-400 mt-1">
+          <p className="text-sm font-medium text-zinc-400">No remittance slips found</p>
+          <p className="text-xs text-zinc-500 mt-1">
             {hasApiKeys
               ? 'Your connected couriers have no remittances yet, or their API does not support remittance fetching.'
               : 'Connect Trax, Leopards, or PostEx on the Integrations page and slips will appear here automatically.'}
@@ -198,7 +198,7 @@ function CodReceiptsSection({ couriers }: { couriers: string[] }) {
 
       {/* Manual upload toggle */}
       <div className="flex items-center gap-2 mb-3">
-        <button onClick={() => setShowManual(!showManual)} className="text-xs text-blue-600 hover:underline flex items-center gap-1">
+        <button onClick={() => setShowManual(!showManual)} className="text-xs text-blue-400 hover:underline flex items-center gap-1">
           <Upload className="w-3 h-3" />
           {showManual ? 'Hide manual upload' : 'Add receipt manually (for couriers without API)'}
         </button>
@@ -235,7 +235,7 @@ function CodReceiptsSection({ couriers }: { couriers: string[] }) {
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <label className="flex items-center gap-2 cursor-pointer border border-dashed border-gray-300 rounded-lg px-4 py-2 text-xs text-gray-500 hover:border-gray-400 transition-colors">
+                <label className="flex items-center gap-2 cursor-pointer border border-dashed border-white/15 rounded-lg px-4 py-2 text-xs text-zinc-400 hover:border-white/20 transition-colors">
                   <Upload className="w-4 h-4" />
                   {preview ? 'Change Image' : 'Upload Receipt Photo'}
                   <input type="file" accept="image/*" className="hidden" onChange={handleImage} />
@@ -249,7 +249,7 @@ function CodReceiptsSection({ couriers }: { couriers: string[] }) {
           {receipts.length > 0 && (
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {receipts.map((r) => (
-                <div key={r.id} className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm">
+                <div key={r.id} className="bg-zinc-900 dark:bg-gray-900 rounded-lg border border-white/10 dark:border-gray-700 overflow-hidden shadow-sm">
                   {r.imageBase64 ? (
                     <div className="relative group cursor-pointer" onClick={() => setLightbox(r.imageBase64)}>
                       <img src={r.imageBase64} alt="receipt" className="w-full h-36 object-cover" />
@@ -258,20 +258,20 @@ function CodReceiptsSection({ couriers }: { couriers: string[] }) {
                       </div>
                     </div>
                   ) : (
-                    <div className="w-full h-36 bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
-                      <p className="text-xs text-gray-400">No image</p>
+                    <div className="w-full h-36 bg-zinc-800 dark:bg-gray-800 flex items-center justify-center">
+                      <p className="text-xs text-zinc-500">No image</p>
                     </div>
                   )}
                   <div className="p-3">
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-semibold text-gray-700 dark:text-gray-200">{r.courier}</span>
+                      <span className="text-xs font-semibold text-zinc-300 dark:text-gray-200">{r.courier}</span>
                       <button onClick={() => saveManual(receipts.filter((x) => x.id !== r.id))} className="text-gray-300 hover:text-red-500 transition-colors">
                         <X className="w-3.5 h-3.5" />
                       </button>
                     </div>
-                    <p className="text-base font-bold text-green-600">PKR {r.amount.toLocaleString()}</p>
-                    <p className="text-xs text-gray-400 mt-0.5">{r.date}</p>
-                    {r.notes && <p className="text-xs text-gray-500 mt-1 truncate">{r.notes}</p>}
+                    <p className="text-base font-bold text-green-400">PKR {r.amount.toLocaleString()}</p>
+                    <p className="text-xs text-zinc-500 mt-0.5">{r.date}</p>
+                    {r.notes && <p className="text-xs text-zinc-400 mt-1 truncate">{r.notes}</p>}
                   </div>
                 </div>
               ))}
@@ -335,7 +335,7 @@ function CourierSetupCard({ provider }: { provider: CourierProvider }) {
           <span className="font-medium text-sm">{provider.name}</span>
         </div>
         {saved ? (
-          <Badge className="bg-green-100 text-green-800 text-xs">Connected</Badge>
+          <Badge className="bg-green-500/15 text-green-300 text-xs">Connected</Badge>
         ) : (
           <Badge variant="secondary" className="text-xs">Not Set</Badge>
         )}
@@ -359,7 +359,7 @@ function CourierSetupCard({ provider }: { provider: CourierProvider }) {
       <div className="flex gap-2 mt-3">
         <Button size="sm" className="h-7 text-xs" onClick={handleSave}>Save</Button>
         {saved && <Button size="sm" variant="outline" className="h-7 text-xs" onClick={handleRemove}>Remove</Button>}
-        <a href={provider.docsUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline ml-auto self-center">Docs</a>
+        <a href={provider.docsUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-400 hover:underline ml-auto self-center">Docs</a>
       </div>
     </div>
   )
@@ -368,11 +368,11 @@ function CourierSetupCard({ provider }: { provider: CourierProvider }) {
 function StatusBadge({ status }: { status: string }) {
   const info = DELIVERY_STATUSES[status] || DELIVERY_STATUSES.unknown
   const colorMap = {
-    green: 'bg-green-100 text-green-800',
-    yellow: 'bg-yellow-100 text-yellow-800',
-    red: 'bg-red-100 text-red-800',
-    blue: 'bg-blue-100 text-blue-800',
-    gray: 'bg-gray-100 text-gray-800',
+    green: 'bg-green-500/15 text-green-300',
+    yellow: 'bg-yellow-500/15 text-yellow-300',
+    red: 'bg-red-500/15 text-red-300',
+    blue: 'bg-blue-500/15 text-blue-300',
+    gray: 'bg-zinc-800 text-zinc-100',
   }
   return <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${colorMap[info.color]}`}>{info.label}</span>
 }
@@ -476,15 +476,15 @@ export default function CouriersPage() {
   const uniqueCouriers = [...new Set(dateFiltered.map((s) => s.courier))]
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-zinc-950">
       
       <div className="max-w-7xl mx-auto px-4 py-8">
 
         {/* Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Courier Management</h1>
-            <p className="text-sm text-gray-500 mt-0.5">Track all your shipments across couriers in one place</p>
+            <h1 className="text-2xl font-bold text-white">Courier Management</h1>
+            <p className="text-sm text-zinc-400 mt-0.5">Track all your shipments across couriers in one place</p>
           </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={() => setShowSetup(!showSetup)}>
@@ -499,16 +499,16 @@ export default function CouriersPage() {
 
         {/* Demo Banner */}
         {isDemo && (
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
-            <p className="text-sm font-medium text-amber-900">Viewing demo shipment data</p>
-            <p className="text-xs text-amber-700 mt-0.5">Connect your courier accounts below to see real tracking data.</p>
+          <div className="bg-amber-500/10 border border-amber-500/25 rounded-lg p-4 mb-6">
+            <p className="text-sm font-medium text-amber-300">Viewing demo shipment data</p>
+            <p className="text-xs text-amber-200/70 mt-0.5">Connect your courier accounts below to see real tracking data.</p>
           </div>
         )}
 
         {/* Errors */}
         {errors.length > 0 && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-            {errors.map((e, i) => <p key={i} className="text-sm text-red-700">{e}</p>)}
+          <div className="bg-red-500/10 border border-red-500/25 rounded-lg p-4 mb-6">
+            {errors.map((e, i) => <p key={i} className="text-sm text-red-300">{e}</p>)}
           </div>
         )}
 
@@ -517,7 +517,7 @@ export default function CouriersPage() {
           <Card className="mb-6">
             <CardHeader>
               <CardTitle className="text-lg">Connect Your Courier Portals</CardTitle>
-              <p className="text-xs text-gray-500">API keys are stored in your browser only — never sent to our servers.</p>
+              <p className="text-xs text-zinc-400">API keys are stored in your browser only — never sent to our servers.</p>
             </CardHeader>
             <CardContent>
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -557,8 +557,8 @@ export default function CouriersPage() {
               onClick={() => setDateFilter(p.value)}
               className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
                 dateFilter === p.value
-                  ? 'bg-gray-900 text-white border-gray-900 dark:bg-white dark:text-gray-900'
-                  : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600'
+                  ? 'bg-amber-500 text-black border-amber-500 font-semibold'
+                  : 'bg-zinc-900 text-zinc-400 border-white/10 hover:border-white/20 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600'
               }`}
             >
               {p.label}
@@ -569,7 +569,7 @@ export default function CouriersPage() {
         {/* Filters */}
         <div className="flex flex-col sm:flex-row gap-3 mb-4">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
             <Input
               placeholder="Search by order ID, tracking #, name, phone, city, product..."
               value={searchQuery}
@@ -597,7 +597,7 @@ export default function CouriersPage() {
           </Select>
         </div>
 
-        <p className="text-xs text-gray-500 mb-2">{filtered.length} shipment{filtered.length !== 1 ? 's' : ''} found</p>
+        <p className="text-xs text-zinc-400 mb-2">{filtered.length} shipment{filtered.length !== 1 ? 's' : ''} found</p>
 
         {/* Shipments Table */}
         <Card>
@@ -629,18 +629,18 @@ export default function CouriersPage() {
                         <TableCell className="font-mono text-xs">{s.trackingNumber}</TableCell>
                         <TableCell className="text-xs">{s.orderId}</TableCell>
                         <TableCell className="text-sm">{s.customerName}</TableCell>
-                        <TableCell className="text-xs font-mono text-gray-700">{s.customerPhone || '—'}</TableCell>
+                        <TableCell className="text-xs font-mono text-zinc-300">{s.customerPhone || '—'}</TableCell>
                         <TableCell className="text-xs">{s.city}</TableCell>
                         <TableCell className="text-xs max-w-[150px] truncate">{s.productName}</TableCell>
                         <TableCell className="text-right font-medium text-sm">{formatCurrency(s.amount)}</TableCell>
                         <TableCell><StatusBadge status={s.deliveryStatus} /></TableCell>
-                        <TableCell className="text-xs text-gray-500">{s.bookedAt}</TableCell>
-                        <TableCell className="text-xs text-gray-500">{s.lastUpdate}</TableCell>
+                        <TableCell className="text-xs text-zinc-400">{s.bookedAt}</TableCell>
+                        <TableCell className="text-xs text-zinc-400">{s.lastUpdate}</TableCell>
                       </TableRow>
                     ))}
                     {filtered.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={11} className="text-center py-8 text-gray-400">
+                        <TableCell colSpan={11} className="text-center py-8 text-zinc-500">
                           No shipments match your filters
                         </TableCell>
                       </TableRow>

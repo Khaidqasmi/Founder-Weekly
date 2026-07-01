@@ -47,13 +47,13 @@ export default function SettingsPage() {
     setLoading(false)
   }
 
-  if (!workspace) return <div className="min-h-screen bg-gray-50"><div className="max-w-2xl mx-auto px-4 py-8"><p>Loading...</p></div></div>
+  if (!workspace) return <div className="min-h-screen bg-zinc-950"><div className="max-w-2xl mx-auto px-4 py-8"><p>Loading...</p></div></div>
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-zinc-950">
       
       <div className="max-w-2xl mx-auto px-4 py-8">
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">Settings</h1>
+        <h1 className="text-2xl font-bold text-white mb-6">Settings</h1>
         <Card>
           <CardContent className="pt-6">
             <form onSubmit={handleSave} className="space-y-4">

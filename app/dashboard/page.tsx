@@ -238,6 +238,8 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!isLoggedIn) return
     const interval = setInterval(() => {
+      // Skip background polling when the tab is hidden to cut server load
+      if (document.hidden) return
       fetchDashboard(dateFrom || undefined, dateTo || undefined)
     }, 30000)
     return () => clearInterval(interval)

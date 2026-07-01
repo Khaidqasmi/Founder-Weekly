@@ -103,10 +103,10 @@ export default function UploadPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-zinc-950">
       
       <div className="max-w-4xl mx-auto px-4 py-8">
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">Upload CSV Data</h1>
+        <h1 className="text-2xl font-bold text-white mb-6">Upload CSV Data</h1>
 
         <Card className="mb-6">
           <CardHeader>
@@ -114,10 +114,10 @@ export default function UploadPage() {
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-3">
-              <Link href="/sample-csv/orders-sample.csv" className="text-sm text-blue-600 hover:underline" download>Orders Sample</Link>
-              <Link href="/sample-csv/ads-sample.csv" className="text-sm text-blue-600 hover:underline" download>Ads Sample</Link>
-              <Link href="/sample-csv/leads-sample.csv" className="text-sm text-blue-600 hover:underline" download>Leads Sample</Link>
-              <Link href="/sample-csv/inventory-sample.csv" className="text-sm text-blue-600 hover:underline" download>Inventory Sample</Link>
+              <Link href="/sample-csv/orders-sample.csv" className="text-sm text-blue-400 hover:underline" download>Orders Sample</Link>
+              <Link href="/sample-csv/ads-sample.csv" className="text-sm text-blue-400 hover:underline" download>Ads Sample</Link>
+              <Link href="/sample-csv/leads-sample.csv" className="text-sm text-blue-400 hover:underline" download>Leads Sample</Link>
+              <Link href="/sample-csv/inventory-sample.csv" className="text-sm text-blue-400 hover:underline" download>Inventory Sample</Link>
             </div>
           </CardContent>
         </Card>
@@ -132,7 +132,7 @@ export default function UploadPage() {
                   {UPLOAD_TYPES.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
                 </SelectContent>
               </Select>
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-zinc-400 mt-1">
                 Required columns: {REQUIRED_COLUMNS[uploadType]?.join(', ')}
               </p>
             </div>
@@ -143,8 +143,8 @@ export default function UploadPage() {
             </div>
 
             {errors.length > 0 && (
-              <div className="bg-red-50 border border-red-200 rounded p-3">
-                {errors.map((e, i) => <p key={i} className="text-sm text-red-700">{e}</p>)}
+              <div className="bg-red-500/10 border border-red-500/25 rounded p-3">
+                {errors.map((e, i) => <p key={i} className="text-sm text-red-300">{e}</p>)}
               </div>
             )}
 
@@ -176,7 +176,7 @@ export default function UploadPage() {
               </Button>
             )}
 
-            {done && <p className="text-green-600 font-medium">Upload complete! Your dashboard will update automatically.</p>}
+            {done && <p className="text-green-400 font-medium">Upload complete! Your dashboard will update automatically.</p>}
           </CardContent>
         </Card>
       </div>

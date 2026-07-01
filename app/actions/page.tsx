@@ -122,11 +122,11 @@ export default function ActionsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-zinc-950">
       
       <div className="max-w-5xl mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Action Plan</h1>
+          <h1 className="text-2xl font-bold text-white">Action Plan</h1>
           <Button onClick={() => { setEditing(null); setShowForm(true) }}>Add Action</Button>
         </div>
 
@@ -173,13 +173,13 @@ export default function ActionsPage() {
                     <TableCell>
                       <div className="flex gap-1">
                         <Button size="sm" variant="ghost" onClick={() => { setEditing(a); setShowForm(true) }}>Edit</Button>
-                        <Button size="sm" variant="ghost" className="text-red-600" onClick={() => handleDelete(a.id)}>Delete</Button>
+                        <Button size="sm" variant="ghost" className="text-red-400" onClick={() => handleDelete(a.id)}>Delete</Button>
                       </div>
                     </TableCell>
                   </TableRow>
                 ))}
                 {actions.length === 0 && (
-                  <TableRow><TableCell colSpan={7} className="text-center text-gray-400">No actions yet</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={7} className="text-center text-zinc-500">No actions yet</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>

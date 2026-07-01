@@ -39,11 +39,11 @@ const plans = [
 
 export default function PricingPage() {
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-zinc-900">
       
       <div className="max-w-4xl mx-auto px-4 py-20">
-        <h1 className="text-3xl font-bold text-center text-gray-900">Simple Pricing</h1>
-        <p className="mt-4 text-center text-gray-600">Start free. Upgrade when you&apos;re ready.</p>
+        <h1 className="text-3xl font-bold text-center text-white">Simple Pricing</h1>
+        <p className="mt-4 text-center text-zinc-400">Start free. Upgrade when you&apos;re ready.</p>
         <div className="mt-12 grid md:grid-cols-2 gap-8 max-w-2xl mx-auto">
           {plans.map((plan) => (
             <Card key={plan.name} className={plan.highlight ? 'border-blue-600 border-2' : ''}>
@@ -51,14 +51,14 @@ export default function PricingPage() {
                 <CardTitle>{plan.name}</CardTitle>
                 <div className="mt-2">
                   <span className="text-3xl font-bold">{plan.price}</span>
-                  {plan.period && <span className="text-gray-500 ml-2">{plan.period}</span>}
+                  {plan.period && <span className="text-zinc-400 ml-2">{plan.period}</span>}
                 </div>
               </CardHeader>
               <CardContent>
                 <ul className="space-y-3">
                   {plan.features.map((f) => (
                     <li key={f} className="flex items-center gap-2 text-sm">
-                      <Check className="w-4 h-4 text-green-600" />
+                      <Check className="w-4 h-4 text-green-400" />
                       {f}
                     </li>
                   ))}

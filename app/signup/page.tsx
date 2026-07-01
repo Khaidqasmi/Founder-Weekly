@@ -25,7 +25,7 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4 py-12">
+    <div className="min-h-screen flex items-center justify-center bg-zinc-950 px-4 py-12">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl">Start Your Free Trial</CardTitle>
@@ -79,13 +79,13 @@ export default function SignupPage() {
               <Label htmlFor="website">Business Website</Label>
               <Input id="website" name="website" placeholder="https://" />
             </div>
-            {error && <p className="text-sm text-red-600">{error}</p>}
+            {error && <p className="text-sm text-red-400">{error}</p>}
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? 'Creating account...' : 'Start Free Trial'}
             </Button>
-            <p className="text-center text-sm text-gray-500">
+            <p className="text-center text-sm text-zinc-400">
               Already have an account?{' '}
-              <Link href="/login" className="text-blue-600 hover:underline">Log in</Link>
+              <Link href="/login" className="text-blue-400 hover:underline">Log in</Link>
             </p>
           </form>
         </CardContent>

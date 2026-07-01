@@ -42,7 +42,7 @@ export function AppNav() {
   const visibleItems = navItems.filter((item) => !item.requiresAuth || isLoggedIn)
 
   return (
-    <nav className="border-b bg-white sticky top-0 z-50">
+    <nav className="border-b bg-zinc-900 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
         <Link href="/dashboard" className="font-bold text-lg">Founder Weekly</Link>
         <div className="hidden lg:flex items-center gap-1">
@@ -52,7 +52,7 @@ export function AppNav() {
               href={item.href}
               className={cn(
                 'px-3 py-2 rounded-md text-sm transition-colors',
-                pathname === item.href ? 'bg-gray-100 text-gray-900 font-medium' : 'text-gray-600 hover:text-gray-900'
+                pathname === item.href ? 'bg-zinc-800 text-white font-medium' : 'text-zinc-400 hover:text-white'
               )}
             >
               {item.label}
@@ -74,12 +74,12 @@ export function AppNav() {
         </button>
       </div>
       {open && (
-        <div className="lg:hidden border-t px-4 py-3 space-y-1 bg-white">
+        <div className="lg:hidden border-t px-4 py-3 space-y-1 bg-zinc-900">
           {visibleItems.map((item) => (
             <Link
               key={item.href}
               href={item.href}
-              className={cn('block px-3 py-2 rounded-md text-sm', pathname === item.href ? 'bg-gray-100 font-medium' : 'text-gray-600')}
+              className={cn('block px-3 py-2 rounded-md text-sm', pathname === item.href ? 'bg-zinc-800 font-medium' : 'text-zinc-400')}
               onClick={() => setOpen(false)}
             >
               <item.icon className="inline w-4 h-4 mr-2" />

@@ -36,7 +36,7 @@ interface CredentialField {
 function StatusBadge({ status }: { status: Status | string }) {
   if (status === 'connected') {
     return (
-      <span className="inline-flex items-center gap-1 text-xs font-medium text-green-700 bg-green-50 border border-green-200 rounded-full px-2 py-0.5">
+      <span className="inline-flex items-center gap-1 text-xs font-medium text-green-400 bg-green-500/10 border border-green-500/25 rounded-full px-2 py-0.5">
         <CheckCircle className="w-3 h-3" /> Connected
       </span>
     )
@@ -44,14 +44,14 @@ function StatusBadge({ status }: { status: Status | string }) {
 
   if (status === 'loading') {
     return (
-      <span className="inline-flex items-center gap-1 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-full px-2 py-0.5">
+      <span className="inline-flex items-center gap-1 text-xs font-medium text-blue-300 bg-blue-500/10 border border-blue-500/25 rounded-full px-2 py-0.5">
         <Loader2 className="w-3 h-3 animate-spin" /> Connecting...
       </span>
     )
   }
 
   return (
-    <span className="inline-flex items-center gap-1 text-xs font-medium text-gray-500 bg-gray-100 rounded-full px-2 py-0.5">
+    <span className="inline-flex items-center gap-1 text-xs font-medium text-zinc-400 bg-zinc-800 rounded-full px-2 py-0.5">
       Not Connected
     </span>
   )
@@ -148,20 +148,20 @@ function IntegrationCard({
   }
 
   return (
-    <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+    <div className="bg-zinc-900 dark:bg-gray-900 rounded-2xl border border-white/10 dark:border-gray-700 overflow-hidden">
       <div className={`flex items-center gap-4 p-5 ${color}`}>
         <BrandMark provider={provider} />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-semibold text-gray-900 text-sm">{name}</span>
+            <span className="font-semibold text-white text-sm">{name}</span>
             <StatusBadge status={isConnected ? 'connected' : 'disconnected'} />
           </div>
-          <p className="text-xs text-gray-500 mt-0.5">{tagline}</p>
+          <p className="text-xs text-zinc-400 mt-0.5">{tagline}</p>
         </div>
       </div>
 
       {isConnected && (
-        <div className="px-5 py-3 bg-green-50 border-b border-green-100 text-xs text-green-700 flex items-center justify-between gap-3">
+        <div className="px-5 py-3 bg-green-500/10 border-b border-green-500/20 text-xs text-green-400 flex items-center justify-between gap-3">
           <span className="font-mono min-w-0 truncate">{detail || 'Connected'}</span>
           {connection?.last_sync_at && (
             <span className="text-green-500 shrink-0">
@@ -173,7 +173,7 @@ function IntegrationCard({
 
       {!isConnected && embeddedRedirectUrl && (
         <div className="px-5 pt-4 pb-1 space-y-2">
-          <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 text-xs text-amber-800">
+          <div className="flex items-start gap-2 bg-amber-500/10 border border-amber-500/25 rounded-lg px-3 py-2.5 text-xs text-amber-300">
             <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
             <span>
               Credentials cannot be saved inside the Shopify admin panel because browser cookies
@@ -190,7 +190,7 @@ function IntegrationCard({
             Open Founder Weekly to Connect Shopify
             <ChevronRight className="w-4 h-4" />
           </a>
-          <p className="text-xs text-gray-400 text-center pb-1">
+          <p className="text-xs text-zinc-500 text-center pb-1">
             Sign in if prompted, then paste your credentials on the Integrations page.
           </p>
         </div>
@@ -198,13 +198,13 @@ function IntegrationCard({
 
       {!isConnected && !embeddedRedirectUrl && open && (
         <div className="px-5 pt-4 space-y-3">
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-zinc-400">
             Paste credentials from your own {name} account. They are saved only for your workspace.
           </p>
           {formHeader}
           {fields.map((field) => (
             <div key={field.key}>
-              <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">
+              <label className="text-xs font-medium text-zinc-400 dark:text-zinc-500 block mb-1">
                 {field.label}
               </label>
               <input
@@ -212,7 +212,7 @@ function IntegrationCard({
                 value={values[field.key] || ''}
                 onChange={(event) => setValues({ ...values, [field.key]: event.target.value })}
                 placeholder={field.placeholder}
-                className="w-full h-9 px-3 text-xs font-mono rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-300"
+                className="w-full h-9 px-3 text-xs font-mono rounded-lg border border-white/10 dark:border-gray-700 bg-zinc-950 dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-300"
               />
             </div>
           ))}
@@ -226,7 +226,7 @@ function IntegrationCard({
               <button
                 onClick={onSync}
                 disabled={syncing}
-                className="flex items-center gap-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg px-3 py-2 hover:border-gray-400 transition-colors disabled:opacity-50"
+                className="flex items-center gap-1.5 text-xs font-medium text-zinc-400 border border-white/10 rounded-lg px-3 py-2 hover:border-white/20 transition-colors disabled:opacity-50"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} />
                 {syncing ? 'Syncing...' : 'Sync Now'}
@@ -234,7 +234,7 @@ function IntegrationCard({
             )}
             <button
               onClick={onDisconnect}
-              className="flex items-center gap-1.5 text-xs font-medium text-red-600 border border-red-200 rounded-lg px-3 py-2 hover:bg-red-50 transition-colors"
+              className="flex items-center gap-1.5 text-xs font-medium text-red-400 border border-red-500/25 rounded-lg px-3 py-2 hover:bg-red-500/10 transition-colors"
             >
               <Unplug className="w-3.5 h-3.5" />
               Disconnect
@@ -252,7 +252,7 @@ function IntegrationCard({
             </button>
             <button
               onClick={() => setOpen(false)}
-              className="text-xs font-medium text-gray-600 border border-gray-200 rounded-lg px-3 py-2 hover:border-gray-400 transition-colors"
+              className="text-xs font-medium text-zinc-400 border border-white/10 rounded-lg px-3 py-2 hover:border-white/20 transition-colors"
             >
               Cancel
             </button>
@@ -327,20 +327,20 @@ function CourierCard({ id, name }: { id: string; name: string }) {
   }
 
   return (
-    <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+    <div className="bg-zinc-900 dark:bg-gray-900 rounded-xl border border-white/10 dark:border-gray-700 p-4">
       <div className="flex items-center gap-3">
         <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold shrink-0 bg-gray-800">
           {name.split(' ').map((word) => word[0]).join('').slice(0, 2)}
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">{name}</span>
+            <span className="text-sm font-semibold text-white dark:text-gray-100">{name}</span>
             <StatusBadge status={saved ? 'connected' : 'disconnected'} />
           </div>
-          <p className="text-xs text-gray-400 mt-0.5">Sync shipments and COD payment slips</p>
+          <p className="text-xs text-zinc-500 mt-0.5">Sync shipments and COD payment slips</p>
         </div>
         {saved ? (
-          <button onClick={handleDisconnect} className="text-xs text-red-500 hover:text-red-700 border border-red-200 rounded-lg px-2.5 py-1.5 transition-colors">
+          <button onClick={handleDisconnect} className="text-xs text-red-500 hover:text-red-300 border border-red-500/25 rounded-lg px-2.5 py-1.5 transition-colors">
             Disconnect
           </button>
         ) : (
@@ -351,20 +351,20 @@ function CourierCard({ id, name }: { id: string; name: string }) {
       </div>
 
       {open && (
-        <div className="mt-4 space-y-3 pt-4 border-t border-gray-100">
+        <div className="mt-4 space-y-3 pt-4 border-t border-white/5">
           {fields.map((field) => (
             <div key={field.key}>
-              <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">{field.label}</label>
+              <label className="text-xs font-medium text-zinc-400 dark:text-zinc-500 block mb-1">{field.label}</label>
               <input
                 type={field.type || 'text'}
                 value={values[field.key] || ''}
                 onChange={(event) => setValues({ ...values, [field.key]: event.target.value })}
                 placeholder={field.placeholder}
-                className="w-full h-9 px-3 text-xs font-mono rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-300"
+                className="w-full h-9 px-3 text-xs font-mono rounded-lg border border-white/10 dark:border-gray-700 bg-zinc-950 dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-300"
               />
             </div>
           ))}
-          <button onClick={handleSave} className="w-full h-9 text-xs font-semibold text-white bg-gray-900 dark:bg-white dark:text-gray-900 rounded-lg hover:opacity-90 transition-opacity">
+          <button onClick={handleSave} className="w-full h-9 text-xs font-semibold text-black bg-amber-500 hover:bg-amber-400 rounded-lg hover:opacity-90 transition-opacity">
             Save & Connect
           </button>
         </div>
@@ -377,10 +377,10 @@ function Section({ icon, title, description, children }: { icon: React.ReactNode
   return (
     <div className="mb-8">
       <div className="flex items-center gap-2 mb-1">
-        <span className="text-gray-400">{icon}</span>
-        <h2 className="text-sm font-semibold text-gray-800 dark:text-gray-200">{title}</h2>
+        <span className="text-zinc-500">{icon}</span>
+        <h2 className="text-sm font-semibold text-zinc-100 dark:text-gray-200">{title}</h2>
       </div>
-      <p className="text-xs text-gray-400 mb-3 ml-6">{description}</p>
+      <p className="text-xs text-zinc-500 mb-3 ml-6">{description}</p>
       <div className="space-y-3">{children}</div>
     </div>
   )
@@ -512,20 +512,20 @@ export default function IntegrationsPage() {
     : undefined
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+    <div className="min-h-screen bg-zinc-950 dark:bg-gray-950">
       <div className="max-w-2xl mx-auto px-4 py-8">
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Integrations</h1>
-          <p className="text-sm text-gray-500 mt-1">
+          <h1 className="text-2xl font-bold text-white dark:text-gray-100">Integrations</h1>
+          <p className="text-sm text-zinc-400 mt-1">
             Click Connect, paste your account credentials, and save them to this workspace.
           </p>
           {connectedCount > 0 && (
-            <div className="mt-3 inline-flex items-center gap-2 text-xs bg-green-50 border border-green-200 text-green-700 rounded-full px-3 py-1 font-medium">
+            <div className="mt-3 inline-flex items-center gap-2 text-xs bg-green-500/10 border border-green-500/25 text-green-400 rounded-full px-3 py-1 font-medium">
               <CheckCircle className="w-3 h-3" /> {connectedCount} integration{connectedCount !== 1 ? 's' : ''} connected
             </div>
           )}
           {!loggedIn && !isEmbedded && (
-            <div className="mt-3 flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-800 rounded-lg px-4 py-3 text-sm">
+            <div className="mt-3 flex items-center gap-2 bg-amber-500/10 border border-amber-500/25 text-amber-300 rounded-lg px-4 py-3 text-sm">
               <AlertCircle className="w-4 h-4 shrink-0" />
               <span>
                 You need to{' '}
@@ -544,23 +544,23 @@ export default function IntegrationsPage() {
             provider="shopify"
             name="Shopify"
             tagline="Orders, products, inventory and store analytics"
-            color="bg-[#f0f9eb]"
+            color="bg-[#5e8e3e]/10"
             connection={getConn('shopify')}
             initialValues={shopParam ? { shop_domain: shopParam } : undefined}
             embeddedRedirectUrl={shopifyEmbeddedRedirectUrl}
             formHeader={
-              <div className="flex rounded-lg border border-gray-200 overflow-hidden text-xs font-medium">
+              <div className="flex rounded-lg border border-white/10 overflow-hidden text-xs font-medium">
                 <button
                   type="button"
                   onClick={() => setShopifyMode('dev')}
-                  className={`flex-1 py-1.5 transition-colors ${shopifyMode === 'dev' ? 'bg-gray-900 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                  className={`flex-1 py-1.5 transition-colors ${shopifyMode === 'dev' ? 'bg-amber-500 text-black font-semibold' : 'bg-zinc-900 text-zinc-400 hover:bg-white/5'}`}
                 >
                   Dev Dashboard app
                 </button>
                 <button
                   type="button"
                   onClick={() => setShopifyMode('token')}
-                  className={`flex-1 py-1.5 border-l border-gray-200 transition-colors ${shopifyMode === 'token' ? 'bg-gray-900 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                  className={`flex-1 py-1.5 border-l border-white/10 transition-colors ${shopifyMode === 'token' ? 'bg-amber-500 text-black font-semibold' : 'bg-zinc-900 text-zinc-400 hover:bg-white/5'}`}
                 >
                   Custom app / direct token
                 </button>
@@ -606,7 +606,7 @@ export default function IntegrationsPage() {
             provider="meta"
             name="Meta Ads"
             tagline="Facebook and Instagram ad spend, ROAS and campaigns"
-            color="bg-[#eff6ff]"
+            color="bg-[#1877F2]/10"
             connection={getConn('meta')}
             fields={[
               { label: 'Meta access token', key: 'access_token', placeholder: 'EAAB...', type: 'password' },
@@ -624,7 +624,7 @@ export default function IntegrationsPage() {
             provider="google"
             name="Google Analytics"
             tagline="GA4 property credentials for reporting"
-            color="bg-[#fef9c3]"
+            color="bg-amber-500/10"
             connection={getConn('google')}
             fields={[
               { label: 'GA4 property ID', key: 'property_id', placeholder: '123456789' },
@@ -651,9 +651,9 @@ export default function IntegrationsPage() {
           </div>
         </Section>
 
-        <div className="mt-6 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
-          <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Your data stays secure</p>
-          <p className="text-xs text-gray-400">
+        <div className="mt-6 bg-zinc-900 dark:bg-gray-900 rounded-xl border border-white/10 dark:border-gray-700 p-5">
+          <p className="text-xs font-medium text-zinc-300 dark:text-gray-300 mb-1">Your data stays secure</p>
+          <p className="text-xs text-zinc-500">
             Store and ad credentials are saved to your workspace, so they remain connected when you log back in.
             Courier API keys are currently saved in this browser and need to be re-entered if browser data is cleared.
           </p>

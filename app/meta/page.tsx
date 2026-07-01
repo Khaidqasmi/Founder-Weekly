@@ -53,9 +53,9 @@ const DEMO: MetaData = {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function statusBadge(status: string) {
-  if (status === 'ACTIVE') return <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-medium">Active</span>
-  if (status === 'PAUSED') return <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700 font-medium">Paused</span>
-  return <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 font-medium">{status}</span>
+  if (status === 'ACTIVE') return <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/15 text-green-400 font-medium">Active</span>
+  if (status === 'PAUSED') return <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-500/15 text-yellow-400 font-medium">Paused</span>
+  return <span className="text-xs px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-400 font-medium">{status}</span>
 }
 
 function roas(insights: Insights) {
@@ -75,7 +75,7 @@ const PRESETS = [
 
 function CreativeThumbnail({ url, title }: { url: string; title: string }) {
   const initials = (title || 'Ad').slice(0, 2).toUpperCase()
-  if (url) return <img src={url} alt={title} className="w-14 h-14 object-cover rounded-lg border border-gray-200 shrink-0" />
+  if (url) return <img src={url} alt={title} className="w-14 h-14 object-cover rounded-lg border border-white/10 shrink-0" />
   return (
     <div className="w-14 h-14 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-sm font-bold shrink-0">
       {initials}
@@ -87,9 +87,9 @@ function CreativeThumbnail({ url, title }: { url: string; title: string }) {
 
 function Tab({ active, onClick, icon, label, count }: { active: boolean; onClick: () => void; icon: React.ReactNode; label: string; count?: number }) {
   return (
-    <button onClick={onClick} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${active ? 'bg-[#1877F2] text-white' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}>
+    <button onClick={onClick} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${active ? 'bg-[#1877F2] text-white' : 'text-zinc-400 hover:text-zinc-300 dark:hover:text-gray-300'}`}>
       {icon} {label}
-      {count !== undefined && <span className={`text-xs rounded-full px-1.5 py-0.5 ${active ? 'bg-white/20' : 'bg-gray-100 text-gray-600'}`}>{count}</span>}
+      {count !== undefined && <span className={`text-xs rounded-full px-1.5 py-0.5 ${active ? 'bg-white/20' : 'bg-zinc-800 text-zinc-400'}`}>{count}</span>}
     </button>
   )
 }
@@ -132,7 +132,7 @@ export default function MetaPage() {
   const ti = data.totalInsights
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+    <div className="min-h-screen bg-zinc-950 dark:bg-gray-950">
       <div className="max-w-7xl mx-auto px-4 py-8">
 
         {/* Header */}
@@ -143,8 +143,8 @@ export default function MetaPage() {
                 <svg viewBox="0 0 24 24" className="w-5 h-5 fill-white"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Meta Ads</h1>
-                <p className="text-sm text-gray-500">Facebook & Instagram ad performance</p>
+                <h1 className="text-2xl font-bold text-white dark:text-gray-100">Meta Ads</h1>
+                <p className="text-sm text-zinc-400">Facebook & Instagram ad performance</p>
               </div>
             </div>
           </div>
@@ -152,12 +152,12 @@ export default function MetaPage() {
           <div className="flex items-center gap-2 flex-wrap">
             {isDemo && <Badge variant="secondary" className="text-xs">Demo Data</Badge>}
             {!isDemo && data.adAccountId && (
-              <span className="text-xs bg-green-50 border border-green-200 text-green-700 rounded-full px-3 py-1 font-medium">
+              <span className="text-xs bg-green-500/10 border border-green-500/25 text-green-400 rounded-full px-3 py-1 font-medium">
                 {data.adAccountId}
               </span>
             )}
             <button onClick={() => { fetchData(); toast.info('Refreshing…') }} disabled={loading}
-              className="flex items-center gap-1.5 text-xs border border-gray-200 rounded-lg px-3 py-2 hover:border-gray-400 transition-colors disabled:opacity-50">
+              className="flex items-center gap-1.5 text-xs border border-white/10 rounded-lg px-3 py-2 hover:border-white/20 transition-colors disabled:opacity-50">
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} /> Refresh
             </button>
             {isDemo && (
@@ -172,7 +172,7 @@ export default function MetaPage() {
         <div className="flex gap-2 mb-6 flex-wrap">
           {PRESETS.map((p) => (
             <button key={p.value} onClick={() => { setPreset(p.value); fetchData(p.value) }}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${preset === p.value ? 'bg-gray-900 text-white border-gray-900 dark:bg-white dark:text-gray-900' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600'}`}>
+              className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${preset === p.value ? 'bg-amber-500 text-black border-amber-500 font-semibold' : 'bg-zinc-900 text-zinc-400 border-white/10 hover:border-white/20 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600'}`}>
               {p.label}
             </button>
           ))}
@@ -180,7 +180,7 @@ export default function MetaPage() {
 
         {/* Error */}
         {error && (
-          <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 rounded-lg p-3 mb-5 text-sm">
+          <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/25 text-red-300 rounded-lg p-3 mb-5 text-sm">
             <AlertCircle className="w-4 h-4 shrink-0" /> {error}
           </div>
         )}
@@ -204,7 +204,7 @@ export default function MetaPage() {
             </div>
 
             {/* Tabs */}
-            <div className="flex items-center gap-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-1 mb-6 w-fit flex-wrap">
+            <div className="flex items-center gap-1 bg-zinc-900 dark:bg-gray-900 border border-white/10 dark:border-gray-700 rounded-xl p-1 mb-6 w-fit flex-wrap">
               <Tab active={tab === 'overview'} onClick={() => setTab('overview')} icon={<LayoutGrid className="w-4 h-4" />} label="Overview" />
               <Tab active={tab === 'campaigns'} onClick={() => setTab('campaigns')} icon={<Target className="w-4 h-4" />} label="Campaigns" count={data.campaigns.length} />
               <Tab active={tab === 'ads'} onClick={() => setTab('ads')} icon={<Image className="w-4 h-4" />} label="Creatives" count={data.ads.length} />
@@ -214,7 +214,7 @@ export default function MetaPage() {
             <div className="flex gap-2 mb-5">
               {(['ALL', 'ACTIVE', 'PAUSED'] as const).map((s) => (
                 <button key={s} onClick={() => setStatusFilter(s)}
-                  className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${statusFilter === s ? 'bg-gray-900 text-white border-gray-900 dark:bg-white dark:text-gray-900' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400 dark:bg-gray-800 dark:text-gray-300'}`}>
+                  className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${statusFilter === s ? 'bg-amber-500 text-black border-amber-500 font-semibold' : 'bg-zinc-900 text-zinc-400 border-white/10 hover:border-white/20 dark:bg-gray-800 dark:text-gray-300'}`}>
                   {s === 'ALL' ? 'All' : s === 'ACTIVE' ? '🟢 Active' : '⏸ Paused'}
                 </button>
               ))}
@@ -224,29 +224,29 @@ export default function MetaPage() {
             {tab === 'overview' && (
               <div className="space-y-5">
                 {/* Spend by Campaign chart */}
-                <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+                <div className="bg-zinc-900 dark:bg-gray-900 rounded-xl border border-white/10 dark:border-gray-700 p-5">
                   <SimpleBarChart
                     data={data.campaigns.map(c => ({ label: c.name.slice(0, 20), value: c.insights.spend }))}
                     title="Spend by Campaign (PKR)"
-                    color="#1877F2"
+                    color="#f59e0b"
                   />
                 </div>
 
                 {/* ROAS by Campaign */}
-                <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+                <div className="bg-zinc-900 dark:bg-gray-900 rounded-xl border border-white/10 dark:border-gray-700 p-5">
                   <SimpleBarChart
                     data={data.campaigns.map(c => ({ label: c.name.slice(0, 20), value: c.insights.spend > 0 ? Number((c.insights.revenue / c.insights.spend).toFixed(2)) : 0 }))}
                     title="ROAS by Campaign"
-                    color="#10b981"
+                    color="#fbbf24"
                   />
                 </div>
 
                 {/* Purchases by Campaign */}
-                <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+                <div className="bg-zinc-900 dark:bg-gray-900 rounded-xl border border-white/10 dark:border-gray-700 p-5">
                   <SimpleBarChart
                     data={data.campaigns.map(c => ({ label: c.name.slice(0, 20), value: c.insights.purchases }))}
                     title="Purchases by Campaign"
-                    color="#8b5cf6"
+                    color="#d97706"
                   />
                 </div>
               </div>
@@ -259,25 +259,25 @@ export default function MetaPage() {
                   const isOpen = expandedCampaign === c.id
                   const campaignAdsets = data.adsets.filter(a => a.campaignId === c.id)
                   return (
-                    <div key={c.id} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+                    <div key={c.id} className="bg-zinc-900 dark:bg-gray-900 rounded-xl border border-white/10 dark:border-gray-700 overflow-hidden">
                       {/* Campaign row */}
-                      <button className="w-full text-left p-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                      <button className="w-full text-left p-4 hover:bg-white/5 dark:hover:bg-gray-800 transition-colors"
                         onClick={() => setExpandedCampaign(isOpen ? null : c.id)}>
                         <div className="flex items-center gap-3">
-                          {isOpen ? <ChevronDown className="w-4 h-4 text-gray-400 shrink-0" /> : <ChevronRight className="w-4 h-4 text-gray-400 shrink-0" />}
+                          {isOpen ? <ChevronDown className="w-4 h-4 text-zinc-500 shrink-0" /> : <ChevronRight className="w-4 h-4 text-zinc-500 shrink-0" />}
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-semibold text-sm text-gray-900 dark:text-gray-100 truncate">{c.name}</span>
+                              <span className="font-semibold text-sm text-white dark:text-gray-100 truncate">{c.name}</span>
                               {statusBadge(c.status)}
-                              <span className="text-xs text-gray-400 bg-gray-100 dark:bg-gray-800 rounded px-1.5 py-0.5">{c.objective?.replace('OUTCOME_', '')}</span>
+                              <span className="text-xs text-zinc-500 bg-zinc-800 dark:bg-gray-800 rounded px-1.5 py-0.5">{c.objective?.replace('OUTCOME_', '')}</span>
                             </div>
                             <div className="flex gap-4 mt-1.5 flex-wrap">
-                              <span className="text-xs text-gray-500">Spend: <b className="text-gray-800 dark:text-gray-200">{formatCurrency(c.insights.spend)}</b></span>
-                              <span className="text-xs text-gray-500">Revenue: <b className="text-gray-800 dark:text-gray-200">{formatCurrency(c.insights.revenue)}</b></span>
-                              <span className="text-xs text-gray-500">ROAS: <b className="text-green-600">{roas(c.insights)}x</b></span>
-                              <span className="text-xs text-gray-500">Purchases: <b className="text-gray-800 dark:text-gray-200">{c.insights.purchases}</b></span>
-                              <span className="text-xs text-gray-500">CTR: <b className="text-gray-800 dark:text-gray-200">{Number(c.insights.ctr).toFixed(2)}%</b></span>
-                              <span className="text-xs text-gray-500">Budget: <b className="text-gray-800 dark:text-gray-200">{c.dailyBudget > 0 ? `${formatCurrency(c.dailyBudget)}/day` : formatCurrency(c.lifetimeBudget)}</b></span>
+                              <span className="text-xs text-zinc-400">Spend: <b className="text-zinc-100 dark:text-gray-200">{formatCurrency(c.insights.spend)}</b></span>
+                              <span className="text-xs text-zinc-400">Revenue: <b className="text-zinc-100 dark:text-gray-200">{formatCurrency(c.insights.revenue)}</b></span>
+                              <span className="text-xs text-zinc-400">ROAS: <b className="text-green-400">{roas(c.insights)}x</b></span>
+                              <span className="text-xs text-zinc-400">Purchases: <b className="text-zinc-100 dark:text-gray-200">{c.insights.purchases}</b></span>
+                              <span className="text-xs text-zinc-400">CTR: <b className="text-zinc-100 dark:text-gray-200">{Number(c.insights.ctr).toFixed(2)}%</b></span>
+                              <span className="text-xs text-zinc-400">Budget: <b className="text-zinc-100 dark:text-gray-200">{c.dailyBudget > 0 ? `${formatCurrency(c.dailyBudget)}/day` : formatCurrency(c.lifetimeBudget)}</b></span>
                             </div>
                           </div>
                         </div>
@@ -285,10 +285,10 @@ export default function MetaPage() {
 
                       {/* Ad Sets */}
                       {isOpen && campaignAdsets.length > 0 && (
-                        <div className="border-t border-gray-100 dark:border-gray-800">
+                        <div className="border-t border-white/5 dark:border-gray-800">
                           <Table>
                             <TableHeader>
-                              <TableRow className="bg-gray-50 dark:bg-gray-800/50">
+                              <TableRow className="bg-zinc-950 dark:bg-gray-800/50">
                                 <TableHead className="text-xs">Ad Set</TableHead>
                                 <TableHead className="text-xs">Status</TableHead>
                                 <TableHead className="text-xs text-right">Spend</TableHead>
@@ -307,7 +307,7 @@ export default function MetaPage() {
                                   <TableCell>{statusBadge(a.status)}</TableCell>
                                   <TableCell className="text-xs text-right">{formatCurrency(a.insights.spend)}</TableCell>
                                   <TableCell className="text-xs text-right">{formatCurrency(a.insights.revenue)}</TableCell>
-                                  <TableCell className="text-xs text-right font-semibold text-green-600">{roas(a.insights)}x</TableCell>
+                                  <TableCell className="text-xs text-right font-semibold text-green-400">{roas(a.insights)}x</TableCell>
                                   <TableCell className="text-xs text-right">{a.insights.purchases}</TableCell>
                                   <TableCell className="text-xs text-right">{fmt(a.insights.clicks)}</TableCell>
                                   <TableCell className="text-xs text-right">{Number(a.insights.ctr).toFixed(2)}%</TableCell>
@@ -330,7 +330,7 @@ export default function MetaPage() {
                 {filteredAds.map((ad) => {
                   const camp = data.campaigns.find(c => c.id === ad.campaignId)
                   return (
-                    <div key={ad.id} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden flex flex-col">
+                    <div key={ad.id} className="bg-zinc-900 dark:bg-gray-900 rounded-xl border border-white/10 dark:border-gray-700 overflow-hidden flex flex-col">
                       {/* Creative preview */}
                       <div className="relative bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700 h-36 flex items-center justify-center overflow-hidden">
                         {ad.creative.thumbnailUrl || ad.creative.imageUrl ? (
@@ -340,7 +340,7 @@ export default function MetaPage() {
                             <div className="w-12 h-12 mx-auto mb-2 bg-[#1877F2] rounded-xl flex items-center justify-center">
                               <svg viewBox="0 0 24 24" className="w-6 h-6 fill-white"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
                             </div>
-                            {ad.creative.title && <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 line-clamp-1">{ad.creative.title}</p>}
+                            {ad.creative.title && <p className="text-xs font-semibold text-zinc-300 dark:text-gray-300 line-clamp-1">{ad.creative.title}</p>}
                           </div>
                         )}
                         <div className="absolute top-2 right-2">{statusBadge(ad.status)}</div>
@@ -348,39 +348,39 @@ export default function MetaPage() {
 
                       {/* Ad copy */}
                       <div className="p-4 flex-1">
-                        <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 line-clamp-1 mb-0.5">{ad.name}</p>
+                        <p className="text-sm font-semibold text-white dark:text-gray-100 line-clamp-1 mb-0.5">{ad.name}</p>
                         {ad.creative.title && <p className="text-xs font-medium text-[#1877F2] line-clamp-1">{ad.creative.title}</p>}
-                        {ad.creative.body && <p className="text-xs text-gray-500 mt-1 line-clamp-2">{ad.creative.body}</p>}
-                        {camp && <p className="text-xs text-gray-400 mt-2 truncate">📁 {camp.name}</p>}
+                        {ad.creative.body && <p className="text-xs text-zinc-400 mt-1 line-clamp-2">{ad.creative.body}</p>}
+                        {camp && <p className="text-xs text-zinc-500 mt-2 truncate">📁 {camp.name}</p>}
                       </div>
 
                       {/* Metrics */}
-                      <div className="border-t border-gray-100 dark:border-gray-800 px-4 py-3 grid grid-cols-3 gap-2">
+                      <div className="border-t border-white/5 dark:border-gray-800 px-4 py-3 grid grid-cols-3 gap-2">
                         <div className="text-center">
-                          <p className="text-xs text-gray-400">Spend</p>
-                          <p className="text-sm font-bold text-gray-900 dark:text-gray-100">{formatCurrency(ad.insights.spend)}</p>
+                          <p className="text-xs text-zinc-500">Spend</p>
+                          <p className="text-sm font-bold text-white dark:text-gray-100">{formatCurrency(ad.insights.spend)}</p>
                         </div>
-                        <div className="text-center border-x border-gray-100 dark:border-gray-800">
-                          <p className="text-xs text-gray-400">ROAS</p>
-                          <p className="text-sm font-bold text-green-600">{roas(ad.insights)}x</p>
+                        <div className="text-center border-x border-white/5 dark:border-gray-800">
+                          <p className="text-xs text-zinc-500">ROAS</p>
+                          <p className="text-sm font-bold text-green-400">{roas(ad.insights)}x</p>
                         </div>
                         <div className="text-center">
-                          <p className="text-xs text-gray-400">Purchases</p>
-                          <p className="text-sm font-bold text-gray-900 dark:text-gray-100">{ad.insights.purchases}</p>
+                          <p className="text-xs text-zinc-500">Purchases</p>
+                          <p className="text-sm font-bold text-white dark:text-gray-100">{ad.insights.purchases}</p>
                         </div>
                       </div>
                       <div className="px-4 pb-3 grid grid-cols-3 gap-2">
                         <div className="text-center">
-                          <p className="text-xs text-gray-400">Impressions</p>
-                          <p className="text-xs font-semibold text-gray-700 dark:text-gray-300">{ad.insights.impressions >= 1000 ? `${(ad.insights.impressions/1000).toFixed(0)}K` : ad.insights.impressions}</p>
+                          <p className="text-xs text-zinc-500">Impressions</p>
+                          <p className="text-xs font-semibold text-zinc-300 dark:text-gray-300">{ad.insights.impressions >= 1000 ? `${(ad.insights.impressions/1000).toFixed(0)}K` : ad.insights.impressions}</p>
                         </div>
                         <div className="text-center">
-                          <p className="text-xs text-gray-400">CTR</p>
-                          <p className="text-xs font-semibold text-gray-700 dark:text-gray-300">{Number(ad.insights.ctr).toFixed(2)}%</p>
+                          <p className="text-xs text-zinc-500">CTR</p>
+                          <p className="text-xs font-semibold text-zinc-300 dark:text-gray-300">{Number(ad.insights.ctr).toFixed(2)}%</p>
                         </div>
                         <div className="text-center">
-                          <p className="text-xs text-gray-400">CPC</p>
-                          <p className="text-xs font-semibold text-gray-700 dark:text-gray-300">{formatCurrency(ad.insights.cpc)}</p>
+                          <p className="text-xs text-zinc-500">CPC</p>
+                          <p className="text-xs font-semibold text-zinc-300 dark:text-gray-300">{formatCurrency(ad.insights.cpc)}</p>
                         </div>
                       </div>
                     </div>

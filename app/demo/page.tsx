@@ -31,13 +31,13 @@ export default function DemoPage() {
   const productPerf = getProductPerformance(demoOrders)
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-zinc-950">
       
       <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Demo Dashboard</h1>
-            <p className="text-sm text-gray-500 mt-1">Sample ecommerce data — this is what your dashboard will look like</p>
+            <h1 className="text-2xl font-bold text-white">Demo Dashboard</h1>
+            <p className="text-sm text-zinc-400 mt-1">Sample ecommerce data — this is what your dashboard will look like</p>
           </div>
           <LinkButton href="/signup" size="lg">Start Free Trial With My Data</LinkButton>
         </div>
@@ -61,33 +61,33 @@ export default function DemoPage() {
 
         {/* Charts */}
         <div className="grid md:grid-cols-2 gap-6 mb-8">
-          <div className="bg-white rounded-lg p-4 shadow-sm">
+          <div className="bg-zinc-900 rounded-lg p-4 shadow-sm">
             <SimpleBarChart data={getRevenueByDay(demoOrders)} title="Revenue by Day" />
           </div>
-          <div className="bg-white rounded-lg p-4 shadow-sm">
-            <SimpleBarChart data={getOrdersByDay(demoOrders)} title="Orders by Day" color="#16a34a" />
+          <div className="bg-zinc-900 rounded-lg p-4 shadow-sm">
+            <SimpleBarChart data={getOrdersByDay(demoOrders)} title="Orders by Day" color="#fbbf24" />
           </div>
-          <div className="bg-white rounded-lg p-4 shadow-sm">
+          <div className="bg-zinc-900 rounded-lg p-4 shadow-sm">
             <SimpleBarChart data={getAdSpendByCampaign(demoAds)} title="Ad Spend by Campaign" color="#f59e0b" />
           </div>
-          <div className="bg-white rounded-lg p-4 shadow-sm">
-            <SimpleBarChart data={getROASByCampaign(demoAds)} title="ROAS by Campaign" color="#8b5cf6" />
+          <div className="bg-zinc-900 rounded-lg p-4 shadow-sm">
+            <SimpleBarChart data={getROASByCampaign(demoAds)} title="ROAS by Campaign" color="#d97706" />
           </div>
-          <div className="bg-white rounded-lg p-4 shadow-sm">
+          <div className="bg-zinc-900 rounded-lg p-4 shadow-sm">
             <SimpleBarChart
               data={productPerf.map((p) => ({ label: p.name, value: p.revenue }))}
               title="Top Products by Revenue"
             />
           </div>
-          <div className="bg-white rounded-lg p-4 shadow-sm">
+          <div className="bg-zinc-900 rounded-lg p-4 shadow-sm">
             <SimplePieChart data={getCODStatusBreakdown(demoOrders)} title="COD Status Breakdown" />
           </div>
         </div>
 
         {/* Tables */}
         <div className="grid md:grid-cols-2 gap-6 mb-8">
-          <div className="bg-white rounded-lg p-4 shadow-sm">
-            <h3 className="text-sm font-medium text-gray-700 mb-4">Top Products</h3>
+          <div className="bg-zinc-900 rounded-lg p-4 shadow-sm">
+            <h3 className="text-sm font-medium text-zinc-300 mb-4">Top Products</h3>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -108,8 +108,8 @@ export default function DemoPage() {
             </Table>
           </div>
 
-          <div className="bg-white rounded-lg p-4 shadow-sm">
-            <h3 className="text-sm font-medium text-gray-700 mb-4">Low Stock Products</h3>
+          <div className="bg-zinc-900 rounded-lg p-4 shadow-sm">
+            <h3 className="text-sm font-medium text-zinc-300 mb-4">Low Stock Products</h3>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -122,7 +122,7 @@ export default function DemoPage() {
                 {lowStock.map((p) => (
                   <TableRow key={p.sku}>
                     <TableCell>{p.product_name}</TableCell>
-                    <TableCell className="text-right text-red-600 font-medium">{p.current_stock}</TableCell>
+                    <TableCell className="text-right text-red-400 font-medium">{p.current_stock}</TableCell>
                     <TableCell className="text-right">{p.reorder_level}</TableCell>
                   </TableRow>
                 ))}
@@ -132,8 +132,8 @@ export default function DemoPage() {
         </div>
 
         {/* Actions */}
-        <div className="bg-white rounded-lg p-4 shadow-sm mb-8">
-          <h3 className="text-sm font-medium text-gray-700 mb-4">Next 5 Actions</h3>
+        <div className="bg-zinc-900 rounded-lg p-4 shadow-sm mb-8">
+          <h3 className="text-sm font-medium text-zinc-300 mb-4">Next 5 Actions</h3>
           <Table>
             <TableHeader>
               <TableRow>
@@ -161,9 +161,9 @@ export default function DemoPage() {
         </div>
 
         {/* CTA */}
-        <div className="text-center py-12 bg-white rounded-lg shadow-sm">
-          <h2 className="text-xl font-bold text-gray-900">Like what you see?</h2>
-          <p className="text-gray-600 mt-2">Start your free trial and see your own business data here.</p>
+        <div className="text-center py-12 bg-zinc-900 rounded-lg shadow-sm">
+          <h2 className="text-xl font-bold text-white">Like what you see?</h2>
+          <p className="text-zinc-400 mt-2">Start your free trial and see your own business data here.</p>
           <div className="mt-6">
             <LinkButton href="/signup" size="lg">Start Free Trial With My Business Data</LinkButton>
           </div>

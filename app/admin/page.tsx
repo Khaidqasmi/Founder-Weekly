@@ -98,11 +98,11 @@ export default function AdminPage() {
     loadAdmin()
   }
 
-  if (loading) return <div className="min-h-screen bg-gray-50 p-8"><p>Loading admin...</p></div>
+  if (loading) return <div className="min-h-screen bg-zinc-950 p-8"><p>Loading admin...</p></div>
   if (!isAdmin) return null
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-zinc-950">
       <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           <KPICard title="Total Signups" value={String(stats.total)} />
@@ -170,12 +170,12 @@ export default function AdminPage() {
             <DialogHeader><DialogTitle>Admin Notes</DialogTitle></DialogHeader>
             <div className="space-y-3 max-h-60 overflow-y-auto">
               {noteModal.notes.map((n) => (
-                <div key={n.id} className="bg-gray-50 p-3 rounded text-sm">
+                <div key={n.id} className="bg-zinc-950 p-3 rounded text-sm">
                   <p>{n.note}</p>
-                  <p className="text-xs text-gray-400 mt-1">{new Date(n.created_at).toLocaleString()}</p>
+                  <p className="text-xs text-zinc-500 mt-1">{new Date(n.created_at).toLocaleString()}</p>
                 </div>
               ))}
-              {noteModal.notes.length === 0 && <p className="text-gray-400 text-sm">No notes yet</p>}
+              {noteModal.notes.length === 0 && <p className="text-zinc-500 text-sm">No notes yet</p>}
             </div>
             <div className="flex gap-2">
               <Textarea value={newNote} onChange={(e) => setNewNote(e.target.value)} placeholder="Add a note..." />
