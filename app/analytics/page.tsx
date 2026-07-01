@@ -42,28 +42,28 @@ function HorizontalFunnel({ steps }: { steps: { step: string; count: number; rat
   const max = steps[0]?.count || 1
   const colors = ['#f59e0b', '#fbbf24', '#d97706', '#a8a29e', '#78716c']
   return (
-    <div className="w-full overflow-x-auto pb-1">
-      <div className="flex min-w-[430px] items-stretch gap-0">
+    <div className="w-full overflow-hidden">
+      <div className="grid w-full grid-cols-5 gap-2 sm:gap-0">
         {steps.map((s, i) => {
-          const heightPct = Math.max((s.count / max) * 100, 16)
+          const heightPct = Math.max((s.count / max) * 100, 18)
           const isLast = i === steps.length - 1
           return (
-            <div key={s.step} className="flex flex-1 min-w-0">
-              <div className="grid h-[190px] flex-1 grid-rows-[50px_96px_44px] min-w-0">
+            <div key={s.step} className="relative min-w-0">
+              <div className="grid h-[180px] min-w-0 grid-rows-[48px_88px_44px] sm:h-[190px] sm:grid-rows-[50px_96px_44px]">
                 <div className="self-end text-center">
-                  <p className="text-base font-bold text-white dark:text-gray-100">{formatNumber(s.count)}</p>
+                  <p className="truncate text-sm font-bold text-white dark:text-gray-100 sm:text-base">{formatNumber(s.count)}</p>
                   <p className="text-xs text-zinc-500">{s.rate}%</p>
                 </div>
                 <div className="flex items-end justify-center">
                   <div
-                    className="w-full max-w-[64px] rounded-t-md transition-all"
+                    className="w-[72%] max-w-[58px] rounded-t-md transition-all sm:max-w-[64px]"
                     style={{ height: `${heightPct}%`, minHeight: 28, backgroundColor: colors[i] || colors[4] }}
                   />
                 </div>
-                <p className="pt-2 text-center text-xs font-medium leading-tight text-zinc-400 dark:text-zinc-500">{s.step}</p>
+                <p className="break-words pt-2 text-center text-[10px] font-medium leading-tight text-zinc-400 dark:text-zinc-500 sm:text-xs">{s.step}</p>
               </div>
               {!isLast && (
-                <div className="flex w-5 shrink-0 items-center justify-center pb-[44px] pt-[50px]">
+                <div className="pointer-events-none absolute right-[-10px] top-[86px] z-10 hidden w-5 items-center justify-center sm:flex">
                   <ArrowRight className="w-3 h-3 text-gray-300 shrink-0" />
                 </div>
               )}
@@ -277,14 +277,14 @@ function ShopifyTab() {
           </div>
 
           {/* Sessions chart + Funnel */}
-          <div className="grid md:grid-cols-2 gap-5 mb-6">
-            <div className="bg-zinc-900 dark:bg-gray-900 rounded-xl border border-white/10 dark:border-gray-700 p-5">
+          <div className="grid min-w-0 md:grid-cols-2 gap-5 mb-6">
+            <div className="min-w-0 overflow-hidden bg-zinc-900 dark:bg-gray-900 rounded-xl border border-white/10 dark:border-gray-700 p-4 sm:p-5">
               <SimpleBarChart
                 data={data.sessionsByDay.map((d) => ({ label: d.date.slice(5), value: d.sessions }))}
                 title="Sessions by Day"
               />
             </div>
-            <div className="bg-zinc-900 dark:bg-gray-900 rounded-xl border border-white/10 dark:border-gray-700 p-5">
+            <div className="min-w-0 overflow-hidden bg-zinc-900 dark:bg-gray-900 rounded-xl border border-white/10 dark:border-gray-700 p-4 sm:p-5">
               <p className="text-sm font-semibold text-zinc-300 dark:text-gray-300 mb-5">Conversion Funnel</p>
               <HorizontalFunnel steps={data.conversionFunnel} />
             </div>
