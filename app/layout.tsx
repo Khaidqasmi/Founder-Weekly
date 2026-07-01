@@ -16,8 +16,8 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: "Founder Weekly Growth Report",
-  description: "Weekly business growth reports for ecommerce founders",
+  title: "Ecom Panel — Ecommerce Analytics Dashboard",
+  description: "Track Shopify orders, Meta Ads, Google Analytics, courier performance, revenue, ROAS, and business reports in one clean panel.",
 }
 
 export default function RootLayout({

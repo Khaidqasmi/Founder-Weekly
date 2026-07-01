@@ -57,6 +57,9 @@ export function SiteHeader() {
     setOpen(false)
   }, [pathname])
 
+  // Homepage renders its own marketing header
+  if (pathname === '/') return null
+
   const inApp = isAppPage(pathname)
   const links = inApp
     ? appLinks.filter((l) => !l.authOnly || isLoggedIn)
