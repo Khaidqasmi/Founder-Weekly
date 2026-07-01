@@ -100,6 +100,8 @@ function IntegrationCard({
   syncing,
   syncEnabled = true,
   formHeader,
+  embeddedRedirectUrl,
+  initialValues,
 }: {
   provider: string
   name: string
@@ -113,10 +115,12 @@ function IntegrationCard({
   syncing: boolean
   syncEnabled?: boolean
   formHeader?: React.ReactNode
+  embeddedRedirectUrl?: string
+  initialValues?: Record<string, string>
 }) {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(() => !!(initialValues && Object.keys(initialValues).length > 0))
   const [saving, setSaving] = useState(false)
-  const [values, setValues] = useState<Record<string, string>>({})
+  const [values, setValues] = useState<Record<string, string>>(initialValues || {})
   const isConnected = connection?.status === 'connected'
   const detail = detailFor(connection)
 
@@ -167,7 +171,32 @@ function IntegrationCard({
         </div>
       )}
 
-      {!isConnected && open && (
+      {!isConnected && embeddedRedirectUrl && (
+        <div className="px-5 pt-4 pb-1 space-y-2">
+          <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 text-xs text-amber-800">
+            <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+            <span>
+              Credentials cannot be saved inside the Shopify admin panel because browser cookies
+              are blocked in embedded iframes. Open Founder Weekly directly to connect.
+            </span>
+          </div>
+          <a
+            href={embeddedRedirectUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-2 w-full text-sm font-semibold text-white rounded-xl px-5 py-2.5 transition-all hover:opacity-90"
+            style={{ background: '#5e8e3e' }}
+          >
+            Open Founder Weekly to Connect Shopify
+            <ChevronRight className="w-4 h-4" />
+          </a>
+          <p className="text-xs text-gray-400 text-center pb-1">
+            Sign in if prompted, then paste your credentials on the Integrations page.
+          </p>
+        </div>
+      )}
+
+      {!isConnected && !embeddedRedirectUrl && open && (
         <div className="px-5 pt-4 space-y-3">
           <p className="text-xs text-gray-500">
             Paste credentials from your own {name} account. They are saved only for your workspace.
@@ -211,7 +240,7 @@ function IntegrationCard({
               Disconnect
             </button>
           </>
-        ) : open ? (
+        ) : embeddedRedirectUrl ? null : open ? (
           <>
             <button
               onClick={handleSave}
@@ -371,6 +400,13 @@ export default function IntegrationsPage() {
   const [syncing, setSyncing] = useState<Record<string, boolean>>({})
   const [loggedIn, setLoggedIn] = useState(false)
   const [shopifyMode, setShopifyMode] = useState<'dev' | 'token'>('dev')
+  const [isEmbedded, setIsEmbedded] = useState(false)
+  // Read synchronously so IntegrationCard receives the correct initialValues on its first render.
+  // useEffect runs after mount, which is too late for useState lazy initialisers inside the card.
+  const [shopParam, setShopParam] = useState(() => {
+    if (typeof window === 'undefined') return ''
+    return new URLSearchParams(window.location.search).get('shop') || ''
+  })
 
   async function loadStatus() {
     try {
@@ -394,7 +430,20 @@ export default function IntegrationsPage() {
   useEffect(() => {
     loadStatus()
 
+    // Detect Shopify embedded iframe context.
+    // Supabase auth cookies use SameSite=Lax which blocks them in cross-origin iframes,
+    // so credential saves will always fail when embedded inside Shopify Admin.
+    const inIframe = typeof window !== 'undefined' && window.self !== window.top
     const params = new URLSearchParams(window.location.search)
+
+    // Shopify passes `shop` (and optionally `host`, `embedded=1`) to embedded apps.
+    // Only treat as embedded if inside an actual iframe or Shopify signals it via `embedded=1`.
+    // The `shop` param alone is used for pre-fill when the user opens the top-level redirect link.
+    const shop = params.get('shop') || ''
+    const isShopifyEmbed = inIframe || params.get('embedded') === '1'
+
+    setIsEmbedded(isShopifyEmbed)
+
     const error = params.get('error')
     if (error) {
       toast.error(decodeURIComponent(error))
@@ -456,6 +505,12 @@ export default function IntegrationsPage() {
 
   const connectedCount = connections.filter((connection) => connection.status === 'connected').length
 
+  // Build the top-level Founder Weekly integrations URL that escapes the iframe.
+  // Only computed when embedded; uses origin so it works on any deployment host.
+  const shopifyEmbeddedRedirectUrl = isEmbedded
+    ? `/integrations${shopParam ? `?shop=${encodeURIComponent(shopParam)}` : ''}`
+    : undefined
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
       <div className="max-w-2xl mx-auto px-4 py-8">
@@ -469,7 +524,7 @@ export default function IntegrationsPage() {
               <CheckCircle className="w-3 h-3" /> {connectedCount} integration{connectedCount !== 1 ? 's' : ''} connected
             </div>
           )}
-          {!loggedIn && (
+          {!loggedIn && !isEmbedded && (
             <div className="mt-3 flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-800 rounded-lg px-4 py-3 text-sm">
               <AlertCircle className="w-4 h-4 shrink-0" />
               <span>
@@ -477,7 +532,7 @@ export default function IntegrationsPage() {
                 <a href="/login" target="_blank" rel="noopener noreferrer" className="underline font-medium">
                   sign in to Founder Weekly
                 </a>{' '}
-                before connecting integrations. If you are inside the Shopify admin app, open the link in a new tab, sign in, then return here.
+                before connecting integrations.
               </span>
             </div>
           )}
@@ -491,6 +546,8 @@ export default function IntegrationsPage() {
             tagline="Orders, products, inventory and store analytics"
             color="bg-[#f0f9eb]"
             connection={getConn('shopify')}
+            initialValues={shopParam ? { shop_domain: shopParam } : undefined}
+            embeddedRedirectUrl={shopifyEmbeddedRedirectUrl}
             formHeader={
               <div className="flex rounded-lg border border-gray-200 overflow-hidden text-xs font-medium">
                 <button
@@ -510,11 +567,11 @@ export default function IntegrationsPage() {
               </div>
             }
             fields={shopifyMode === 'dev' ? [
-              { label: 'Store domain', key: 'shop_domain', placeholder: 'yourstore.myshopify.com' },
+              { label: 'Store domain', key: 'shop_domain', placeholder: shopParam || 'yourstore.myshopify.com' },
               { label: 'Client ID', key: 'client_id', placeholder: '32-char hex — Dev Dashboard → your app → Client credentials' },
               { label: 'Client secret', key: 'client_secret', placeholder: '32-char hex — Dev Dashboard → your app → Client credentials', type: 'password' },
             ] : [
-              { label: 'Store domain', key: 'shop_domain', placeholder: 'yourstore.myshopify.com' },
+              { label: 'Store domain', key: 'shop_domain', placeholder: shopParam || 'yourstore.myshopify.com' },
               { label: 'Admin API access token', key: 'access_token', placeholder: 'shpat_… — Settings → Apps → Develop apps → your app → API credentials', type: 'password' },
             ]}
             onSave={async (credentials) => {
