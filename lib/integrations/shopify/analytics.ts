@@ -33,27 +33,29 @@ function sinceUntil(from: string, to: string) {
 }
 
 async function shopifyQL(domain: string, token: string, qlQuery: string) {
-  const res = await fetch(`https://${domain}/admin/api/2024-10/graphql.json`, {
+  const res = await fetch(`https://${domain}/admin/api/2026-07/graphql.json`, {
     method: 'POST',
     headers: { 'X-Shopify-Access-Token': token, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       query: `query { shopifyqlQuery(query: ${JSON.stringify(qlQuery)}) {
-        ... on TableResponse { tableData { rowData columns { name dataType } } }
-        ... on ParseErrorResponse { parseErrors { code message } }
+        tableData { rows columns { name dataType displayName } }
+        parseErrors
       } }`,
     }),
   })
   if (!res.ok) throw new Error(`ShopifyQL error: ${res.status}`)
   const json = await res.json()
   const result = json?.data?.shopifyqlQuery
-  if (result?.parseErrors?.length) throw new Error(`ShopifyQL parse error: ${result.parseErrors[0].message}`)
+  if (result?.parseErrors?.length) throw new Error(`ShopifyQL parse error: ${String(result.parseErrors[0])}`)
   return result?.tableData
 }
 
 function tableToObjects(tableData: any): Record<string, any>[] {
-  if (!tableData?.rowData || !tableData?.columns) return []
+  const rows = tableData?.rows || tableData?.rowData
+  if (!rows || !tableData?.columns) return []
+  if (rows.length > 0 && !Array.isArray(rows[0])) return rows
   const cols: string[] = tableData.columns.map((c: any) => c.name)
-  return tableData.rowData.map((row: any[]) => {
+  return rows.map((row: any[]) => {
     const obj: Record<string, any> = {}
     cols.forEach((col, i) => { obj[col] = row[i] })
     return obj
@@ -68,7 +70,7 @@ export async function fetchShopifyAnalytics(
 ): Promise<ShopifyAnalytics> {
   if (!shopDomain || !accessToken) throw new Error('Shopify credentials not configured')
 
-  const baseUrl = `https://${shopDomain}/admin/api/2024-10`
+  const baseUrl = `https://${shopDomain}/admin/api/2026-07`
   const headers = { 'X-Shopify-Access-Token': accessToken, 'Content-Type': 'application/json' }
   const range = sinceUntil(dateFrom, dateTo)
 
@@ -82,7 +84,7 @@ export async function fetchShopifyAnalytics(
 
   try {
     const sessionsTable = await shopifyQL(shopDomain, accessToken,
-      `FROM sessions ${range} DIMENSIONS BY day ORDER BY day ASC`
+      `FROM sessions SHOW online_store_visitors, sessions, pageviews, bounce_rate, conversion_rate GROUP BY day TIMESERIES day ${range} ORDER BY day ASC`
     )
     sessionRows = tableToObjects(sessionsTable)
 
@@ -91,7 +93,7 @@ export async function fetchShopifyAnalytics(
       sessionsByDay = sessionRows.map((r) => ({
         date: r.day || r.date || '',
         sessions: Number(r.sessions || 0),
-        visitors: Number(r.visitors || r.users || 0),
+        visitors: Number(r.online_store_visitors || r.visitors || r.users || 0),
         bounceRate: Number(r.bounce_rate || 0),
         conversionRate: Number(r.conversion_rate || 0),
       }))
@@ -102,12 +104,12 @@ export async function fetchShopifyAnalytics(
   let totalSessions = 0, totalVisitors = 0
   try {
     const summaryTable = await shopifyQL(shopDomain, accessToken,
-      `FROM sessions ${range}`
+      `FROM sessions SHOW online_store_visitors, sessions, pageviews, average_session_duration, sessions_with_cart_additions, sessions_that_reached_checkout, sessions_that_completed_checkout, conversion_rate, bounce_rate ${range}`
     )
     const rows = tableToObjects(summaryTable)
     if (rows[0]) {
       totalSessions = Number(rows[0].sessions || 0)
-      totalVisitors = Number(rows[0].visitors || rows[0].users || 0)
+      totalVisitors = Number(rows[0].online_store_visitors || rows[0].visitors || rows[0].users || 0)
       bounceRate = Number(rows[0].bounce_rate || 0)
       avgSessionDuration = Number(rows[0].avg_session_duration || 0)
       conversionRate = Number(rows[0].conversion_rate || 0)
@@ -119,7 +121,7 @@ export async function fetchShopifyAnalytics(
   let topReferrers: ShopifyAnalytics['topReferrers'] = []
   try {
     const refTable = await shopifyQL(shopDomain, accessToken,
-      `FROM sessions ${range} DIMENSIONS BY utm_source ORDER BY sessions DESC LIMIT 10`
+      `FROM sessions SHOW sessions GROUP BY utm_source ${range} ORDER BY sessions DESC LIMIT 10`
     )
     const rows = tableToObjects(refTable)
     topReferrers = rows.map((r) => ({
@@ -134,7 +136,7 @@ export async function fetchShopifyAnalytics(
   let deviceBreakdown: ShopifyAnalytics['deviceBreakdown'] = []
   try {
     const devTable = await shopifyQL(shopDomain, accessToken,
-      `FROM sessions ${range} DIMENSIONS BY device_type ORDER BY sessions DESC`
+      `FROM sessions SHOW sessions GROUP BY device_type ${range} ORDER BY sessions DESC`
     )
     const rows = tableToObjects(devTable)
     const total = rows.reduce((s, r) => s + Number(r.sessions || 0), 0) || 1
@@ -261,7 +263,7 @@ export async function fetchShopifyAnalytics(
     sessions: totalSessions,
     visitors: totalVisitors,
     pageViews: Math.round(totalSessions * 3.2),
-    bounceRate: bounceRate || 42,
+    bounceRate: bounceRate || 0,
     avgSessionDuration: avgSessionDuration || 0,
     addedToCart,
     reachedCheckout,

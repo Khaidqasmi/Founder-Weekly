@@ -118,7 +118,7 @@ function buildAnalyticsFromSyncedOrders(
     sessions,
     visitors,
     pageViews: live?.pageViews && live.pageViews > 0 ? live.pageViews : Math.round(sessions * 3.2),
-    bounceRate: live?.bounceRate || 42,
+    bounceRate: live?.bounceRate || 0,
     avgSessionDuration: live?.avgSessionDuration || 0,
     addedToCart,
     reachedCheckout,
@@ -182,12 +182,14 @@ export async function GET(request: NextRequest) {
       .from('orders')
       .select('*')
       .eq('workspace_id', member.workspace_id)
-      .eq('source', 'shopify')
 
     if (from) ordersQuery = ordersQuery.gte('order_date', from)
     if (to) ordersQuery = ordersQuery.lte('order_date', to)
 
     const { data: syncedOrders } = await ordersQuery.order('order_date', { ascending: false })
+    const orderRows: SyncedOrder[] = syncedOrders || []
+    const shopifyRows = orderRows.filter((order) => order.source === 'shopify')
+    const ordersForAnalytics = shopifyRows.length > 0 ? shopifyRows : orderRows
 
     let analytics: ShopifyAnalytics | null = null
     try {
@@ -198,11 +200,11 @@ export async function GET(request: NextRequest) {
         to
       )
     } catch (error) {
-      if (!syncedOrders?.length) throw error
+      if (!ordersForAnalytics.length) throw error
     }
 
-    if (syncedOrders?.length) {
-      analytics = buildAnalyticsFromSyncedOrders(syncedOrders, from, to, analytics || undefined)
+    if (ordersForAnalytics.length) {
+      analytics = buildAnalyticsFromSyncedOrders(ordersForAnalytics, from, to, analytics || undefined)
     }
 
     if (!analytics) {
