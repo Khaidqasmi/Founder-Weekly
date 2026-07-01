@@ -158,9 +158,30 @@ function LandingPageChange({ change }: { change?: number | null }) {
 
 // ─── Shopify Analytics Tab ───────────────────────────────────────────────────
 
+// Module-scope cache so revisiting a recently viewed range is instant
+const ANALYTICS_CACHE_TTL_MS = 60_000
+const analyticsCache = new Map<string, { data: ShopifyAnalytics; ts: number }>()
+type AnalyticsResult = { status: number; ok: boolean; body: any }
+const analyticsInflight = new Map<string, Promise<AnalyticsResult>>()
+
+// Dedupes concurrent requests for the same range; body is parsed once and shared.
+function fetchAnalyticsDeduped(from: string, to: string): Promise<AnalyticsResult> {
+  const key = `${from}|${to}`
+  const existing = analyticsInflight.get(key)
+  if (existing) return existing
+  const p = (async () => {
+    const res = await fetch(`/api/analytics?from=${from}&to=${to}`)
+    const body = await res.json().catch(() => ({}))
+    return { status: res.status, ok: res.ok, body }
+  })().finally(() => analyticsInflight.delete(key))
+  analyticsInflight.set(key, p)
+  return p
+}
+
 function ShopifyTab({ tab, setTab }: { tab: Tab; setTab: (tab: Tab) => void }) {
   const [data, setData] = useState<ShopifyAnalytics>(demoAnalytics)
   const [loading, setLoading] = useState(true)
+  const [initialLoad, setInitialLoad] = useState(true)
   const [isDemo, setIsDemo] = useState(true)
   const [error, setError] = useState('')
   const [warning, setWarning] = useState('')
@@ -171,22 +192,41 @@ function ShopifyTab({ tab, setTab }: { tab: Tab; setTab: (tab: Tab) => void }) {
   const [dataSource, setDataSource] = useState<'shopifyql' | 'estimated' | 'demo'>('demo')
   const fetchSeqRef = useRef(0)
 
+  function applyAnalytics(d: ShopifyAnalytics) {
+    setData(d)
+    setConnected(true)
+    setIsDemo(false)
+    setDataSource((d as any).dataSource || 'estimated')
+    if ((d as any).shopDomain) setShopDomain((d as any).shopDomain)
+  }
+
   async function fetchData(from: string, to: string) {
     const seq = ++fetchSeqRef.current
     const isStale = () => seq !== fetchSeqRef.current
+
+    // Serve cached range instantly; skip network entirely while still fresh
+    const cached = analyticsCache.get(`${from}|${to}`)
+    if (cached) {
+      applyAnalytics(cached.data)
+      setInitialLoad(false)
+      if (Date.now() - cached.ts < ANALYTICS_CACHE_TTL_MS) return
+    }
+
     setLoading(true)
     setError('')
     setWarning('')
     try {
-      const res = await fetch(`/api/analytics?from=${from}&to=${to}`)
+      const res = await fetchAnalyticsDeduped(from, to)
+      if (isStale()) return
       if (res.status === 401) {
         setConnected(false)
         setIsDemo(true)
         setLoading(false)
+        setInitialLoad(false)
         return
       }
       if (res.status === 400 || res.status === 404) {
-        const e = await res.json()
+        const e = res.body
         setConnected(false)
         setIsDemo(true)
         // Surface non-connection errors (e.g. missing read_analytics scope) as a warning
@@ -194,21 +234,18 @@ function ShopifyTab({ tab, setTab }: { tab: Tab; setTab: (tab: Tab) => void }) {
           setError(e.error)
         }
         setLoading(false)
+        setInitialLoad(false)
         return
       }
       if (!res.ok) {
-        const e = await res.json()
-        setError(e.error || 'Failed to fetch analytics')
+        setError(res.body.error || 'Failed to fetch analytics')
         setLoading(false)
+        setInitialLoad(false)
         return
       }
-      const d: ShopifyAnalytics = await res.json()
-      if (isStale()) return
-      setData(d)
-      setConnected(true)
-      setIsDemo(false)
-      setDataSource((d as any).dataSource || 'estimated')
-      if ((d as any).shopDomain) setShopDomain((d as any).shopDomain)
+      const d: ShopifyAnalytics = res.body
+      analyticsCache.set(`${from}|${to}`, { data: d, ts: Date.now() })
+      applyAnalytics(d)
       if (d.syncedOrderFallback) {
         setWarning(
           d.analyticsAccessLimited
@@ -223,9 +260,12 @@ function ShopifyTab({ tab, setTab }: { tab: Tab; setTab: (tab: Tab) => void }) {
         )
       }
     } catch (e: any) {
-      setError(e.message)
+      if (!isStale()) setError(e.message)
     }
-    setLoading(false)
+    if (!isStale()) {
+      setLoading(false)
+      setInitialLoad(false)
+    }
   }
 
   useEffect(() => { fetchData(dateFrom, dateTo) }, [])
@@ -359,8 +399,8 @@ function ShopifyTab({ tab, setTab }: { tab: Tab; setTab: (tab: Tab) => void }) {
         </div>
       )}
 
-      {loading ? <LoadingSpinner /> : (
-        <>
+      {loading && initialLoad ? <LoadingSpinner /> : (
+        <div className={`transition-opacity duration-200 ${loading ? 'pointer-events-none opacity-50' : 'opacity-100'}`}>
           {/* KPI row 1 — Traffic */}
           <div className="mb-2">
             <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Traffic</p>
@@ -533,7 +573,7 @@ function ShopifyTab({ tab, setTab }: { tab: Tab; setTab: (tab: Tab) => void }) {
               </a>
             </div>
           )}
-        </>
+        </div>
       )}
     </div>
   )

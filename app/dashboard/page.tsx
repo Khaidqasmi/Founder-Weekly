@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts'
 import { LinkButton } from '@/components/link-button'
 import { formatCurrency, formatNumber, formatPercent, getTrialDaysRemaining } from '@/lib/utils'
@@ -88,7 +88,7 @@ function Panel({ children, className = '' }: { children: React.ReactNode; classN
   )
 }
 
-function StatCard({ title, value, icon: Icon, accent = false }: { title: string; value: string; icon: React.ElementType; accent?: boolean }) {
+const StatCard = memo(function StatCard({ title, value, icon: Icon, accent = false }: { title: string; value: string; icon: React.ElementType; accent?: boolean }) {
   return (
     <Panel className="p-4 transition-colors hover:border-amber-500/30">
       <div className="flex items-center justify-between">
@@ -98,7 +98,7 @@ function StatCard({ title, value, icon: Icon, accent = false }: { title: string;
       <p className={`mt-2 truncate text-xl font-semibold sm:text-2xl ${accent ? 'text-amber-400' : 'text-white'}`} title={value}>{value}</p>
     </Panel>
   )
-}
+})
 
 const tooltipStyle = {
   backgroundColor: '#18181b',
@@ -108,7 +108,7 @@ const tooltipStyle = {
   fontSize: 12,
 }
 
-function DarkBarChart({ data, title, color = AMBER }: { data: any[]; title: string; color?: string }) {
+const DarkBarChart = memo(function DarkBarChart({ data, title, color = AMBER }: { data: any[]; title: string; color?: string }) {
   return (
     <Panel className="p-5">
       <h3 className="mb-4 text-sm font-medium text-zinc-300">{title}</h3>
@@ -123,9 +123,9 @@ function DarkBarChart({ data, title, color = AMBER }: { data: any[]; title: stri
       </ResponsiveContainer>
     </Panel>
   )
-}
+})
 
-function DarkPieChart({ data, title }: { data: any[]; title: string }) {
+const DarkPieChart = memo(function DarkPieChart({ data, title }: { data: any[]; title: string }) {
   return (
     <Panel className="p-5">
       <h3 className="mb-4 text-sm font-medium text-zinc-300">{title}</h3>
@@ -142,7 +142,7 @@ function DarkPieChart({ data, title }: { data: any[]; title: string }) {
       </ResponsiveContainer>
     </Panel>
   )
-}
+})
 
 const thClass = 'px-3 py-2 text-left text-[11px] font-medium uppercase tracking-wider text-zinc-500'
 const tdClass = 'px-3 py-2.5 text-sm text-zinc-300 border-t border-white/[0.06]'
@@ -155,6 +155,46 @@ function PriorityBadge({ priority }: { priority: string }) {
         ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
         : 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20'
   return <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${styles}`}>{priority}</span>
+}
+
+/* ---------- Client-side range cache (module scope: survives remounts) ---------- */
+
+const CACHE_TTL_MS = 60_000
+const rangeCache = new Map<string, { data: any; ts: number }>()
+const inflight = new Map<string, Promise<any | null>>()
+
+function rangeKey(from?: string, to?: string) {
+  return `${from || ''}|${to || ''}`
+}
+
+// Single fetch per range: dedupes concurrent requests for the same key.
+function fetchRange(from?: string, to?: string): Promise<any | null> {
+  const key = rangeKey(from, to)
+  const existing = inflight.get(key)
+  if (existing) return existing
+
+  let url = '/api/dashboard'
+  const params: string[] = []
+  if (from) params.push(`from=${from}`)
+  if (to) params.push(`to=${to}`)
+  if (params.length) url += '?' + params.join('&')
+
+  const p = (async () => {
+    try {
+      const res = await fetch(url)
+      if (!res.ok) return null
+      const apiData = await res.json()
+      if (!apiData.metrics) return null
+      rangeCache.set(key, { data: apiData, ts: Date.now() })
+      return apiData
+    } catch {
+      return null
+    } finally {
+      inflight.delete(key)
+    }
+  })()
+  inflight.set(key, p)
+  return p
 }
 
 /* ---------- Page ---------- */
@@ -171,33 +211,32 @@ export default function DashboardPage() {
 
   async function fetchDashboard(from?: string, to?: string) {
     const seq = ++fetchSeq.current
-    try {
-      let url = '/api/dashboard'
-      const params: string[] = []
-      if (from) params.push(`from=${from}`)
-      if (to) params.push(`to=${to}`)
-      if (params.length) url += '?' + params.join('&')
-
-      const res = await fetch(url)
-      if (res.ok) {
-        const apiData = await res.json()
-        // Ignore responses that arrive after a newer request (fast date switching)
-        if (seq !== fetchSeq.current) return true
-        if (apiData.metrics) {
-          setData({ ...apiData, isDemo: false })
-          setIsLoggedIn(true)
-          setLoading(false)
-          return true
-        }
-      }
-    } catch {}
+    const apiData = await fetchRange(from, to)
+    // Ignore responses that arrive after a newer request (fast date switching)
+    if (seq !== fetchSeq.current) return true
+    if (apiData) {
+      setData({ ...apiData, isDemo: false })
+      setIsLoggedIn(true)
+      setLoading(false)
+      return true
+    }
     return false
   }
 
   async function switchRange(from: string, to: string) {
     setDateFrom(from)
     setDateTo(to)
-    setRefreshing(true)
+
+    // Serve from cache instantly, then revalidate in the background
+    const cached = rangeCache.get(rangeKey(from || undefined, to || undefined))
+    const fresh = cached && Date.now() - cached.ts < CACHE_TTL_MS
+    if (cached) {
+      fetchSeq.current++ // invalidate any in-flight older request
+      setData({ ...cached.data, isDemo: false })
+    }
+    if (fresh) return
+
+    if (!cached) setRefreshing(true)
     await fetchDashboard(from || undefined, to || undefined)
     setRefreshing(false)
   }
@@ -213,6 +252,7 @@ export default function DashboardPage() {
       const result = await res.json()
       if (res.ok) {
         toast.success(`${provider} synced: ${result.result?.new || 0} new, ${result.result?.updated || 0} updated`)
+        rangeCache.clear() // synced data invalidates every cached range
         fetchDashboard(dateFrom || undefined, dateTo || undefined)
       } else {
         toast.error(result.error)
@@ -229,6 +269,17 @@ export default function DashboardPage() {
       if (!found) {
         setData(buildDemoData())
         setLoading(false)
+      } else {
+        // Warm the cache for the common presets so switching is instant
+        const idle = () => {
+          for (const p of DATE_PRESETS.slice(0, 5)) {
+            const from = p.all ? undefined : daysAgoStr(p.fromDays || 0)
+            const to = p.all ? undefined : daysAgoStr(p.toDays || 0)
+            if (!rangeCache.has(rangeKey(from, to))) fetchRange(from, to)
+          }
+        }
+        if ('requestIdleCallback' in window) (window as any).requestIdleCallback(idle, { timeout: 3000 })
+        else setTimeout(idle, 1500)
       }
     }
     init()
@@ -245,6 +296,12 @@ export default function DashboardPage() {
     return () => clearInterval(interval)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoggedIn, dateFrom, dateTo])
+
+  // Stable identity for the mapped chart array so the memoized chart skips re-render
+  const topProductsChart = useMemo(
+    () => (data?.charts?.productPerformance || []).map((p: any) => ({ label: p.name, value: p.revenue })),
+    [data?.charts?.productPerformance]
+  )
 
   if (loading) {
     return (
@@ -419,10 +476,7 @@ export default function DashboardPage() {
             <DarkBarChart data={data.charts.ordersByDay} title="Orders by Day" color="#fbbf24" />
             <DarkBarChart data={data.charts.adSpendByCampaign} title="Ad Spend by Campaign" color="#d97706" />
             <DarkBarChart data={data.charts.roasByCampaign} title="ROAS by Campaign" color="#f59e0b" />
-            <DarkBarChart
-              data={data.charts.productPerformance.map((p: any) => ({ label: p.name, value: p.revenue }))}
-              title="Top Products by Revenue"
-            />
+            <DarkBarChart data={topProductsChart} title="Top Products by Revenue" />
             <DarkPieChart data={data.charts.codStatusBreakdown} title="COD Status Breakdown" />
           </div>
 
