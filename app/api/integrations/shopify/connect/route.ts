@@ -18,7 +18,16 @@ import { createServerSupabaseClient } from '@/lib/supabase/server'
 export async function POST(req: NextRequest) {
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!user) {
+    return NextResponse.json(
+      {
+        error:
+          'You are not signed in to Founder Weekly. Please sign in at /login before connecting integrations. ' +
+          'If you are accessing this from the Shopify admin embedded app, open Founder Weekly in a new browser tab, sign in or create an account, and then return here to connect your store.',
+      },
+      { status: 401 }
+    )
+  }
 
   let shopDomain: string,
     accessToken: string | undefined,

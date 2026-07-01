@@ -5,20 +5,21 @@ export async function GET() {
   try {
     const supabase = await createServerSupabaseClient()
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ connections: [] })
+    // Return authenticated:false so the UI can distinguish "not logged in" from "logged in, no connections"
+    if (!user) return NextResponse.json({ connections: [], authenticated: false })
 
     const { data: member } = await supabase
       .from('workspace_members').select('workspace_id').eq('user_id', user.id).single()
-    if (!member) return NextResponse.json({ connections: [] })
+    if (!member) return NextResponse.json({ connections: [], authenticated: true })
 
     const { data: connections } = await supabase
       .from('integration_connections')
       .select('provider, status, shop_domain, ad_account_id, ga4_property_id, last_sync_at')
       .eq('workspace_id', member.workspace_id)
 
-    return NextResponse.json({ connections: connections || [] })
+    return NextResponse.json({ connections: connections || [], authenticated: true })
   } catch {
-    return NextResponse.json({ connections: [] })
+    return NextResponse.json({ connections: [], authenticated: false })
   }
 }
 

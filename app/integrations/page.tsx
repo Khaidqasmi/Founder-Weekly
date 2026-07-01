@@ -381,9 +381,10 @@ export default function IntegrationsPage() {
         return
       }
       if (res.ok) {
-        const { connections: data } = await res.json()
-        setConnections(data || [])
-        setLoggedIn(true)
+        const data = await res.json()
+        setConnections(data.connections || [])
+        // authenticated field: false means no Supabase session; missing/true means signed in
+        setLoggedIn(data.authenticated !== false)
       }
     } catch {
       setConnections([])
@@ -471,7 +472,13 @@ export default function IntegrationsPage() {
           {!loggedIn && (
             <div className="mt-3 flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-800 rounded-lg px-4 py-3 text-sm">
               <AlertCircle className="w-4 h-4 shrink-0" />
-              <span>You need to <a href="/login" className="underline font-medium">sign in</a> before connecting integrations.</span>
+              <span>
+                You need to{' '}
+                <a href="/login" target="_blank" rel="noopener noreferrer" className="underline font-medium">
+                  sign in to Founder Weekly
+                </a>{' '}
+                before connecting integrations. If you are inside the Shopify admin app, open the link in a new tab, sign in, then return here.
+              </span>
             </div>
           )}
         </div>
@@ -511,6 +518,12 @@ export default function IntegrationsPage() {
               { label: 'Admin API access token', key: 'access_token', placeholder: 'shpat_… — Settings → Apps → Develop apps → your app → API credentials', type: 'password' },
             ]}
             onSave={async (credentials) => {
+              if (!loggedIn) {
+                throw new Error(
+                  'You need to sign in to your Founder Weekly account before connecting Shopify. ' +
+                  'Open the sign-in page in a new tab, sign in or create an account, then return here and try again.'
+                )
+              }
               const body =
                 shopifyMode === 'dev'
                   ? { shopDomain: credentials.shop_domain, clientId: credentials.client_id, clientSecret: credentials.client_secret }
