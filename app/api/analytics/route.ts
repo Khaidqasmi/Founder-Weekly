@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
       to
     )
 
-    return NextResponse.json(analytics)
+    return NextResponse.json({ ...analytics, shopDomain: connection.shop_domain })
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 })
   }

@@ -62,50 +62,66 @@ function HorizontalFunnel({ steps }: { steps: { step: string; count: number; rat
 
 function ShopifyTab() {
   const [data, setData] = useState<ShopifyAnalytics>(demoAnalytics)
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [isDemo, setIsDemo] = useState(true)
   const [error, setError] = useState('')
+  const [connected, setConnected] = useState<boolean | null>(null)
+  const [shopDomain, setShopDomain] = useState('')
   const [dateFrom, setDateFrom] = useState(daysAgoStr(30))
   const [dateTo, setDateTo] = useState(new Date().toISOString().split('T')[0])
   const [dataSource, setDataSource] = useState<'shopifyql' | 'estimated' | 'demo'>('demo')
 
-  const domain = typeof window !== 'undefined' ? localStorage.getItem('fwgr_shopify_store_domain') || '' : ''
-  const token = typeof window !== 'undefined' ? localStorage.getItem('fwgr_shopify_access_token') || '' : ''
-  const connected = !!(domain && token)
-
   async function fetchData(from: string, to: string) {
-    if (!connected) return
     setLoading(true)
     setError('')
     try {
-      const res = await fetch(`/api/shopify-analytics?from=${from}&to=${to}`, {
-        headers: { 'x-shopify-domain': domain, 'x-shopify-token': token },
-      })
+      const res = await fetch(`/api/analytics?from=${from}&to=${to}`)
+      if (res.status === 401) {
+        setConnected(false)
+        setIsDemo(true)
+        setLoading(false)
+        return
+      }
+      if (res.status === 400 || res.status === 404) {
+        const e = await res.json()
+        setConnected(false)
+        setIsDemo(true)
+        // Surface non-connection errors (e.g. missing read_analytics scope) as a warning
+        if (e.error && e.error !== 'Shopify not connected' && e.error !== 'No workspace') {
+          setError(e.error)
+        }
+        setLoading(false)
+        return
+      }
       if (!res.ok) {
         const e = await res.json()
-        throw new Error(e.error || 'Failed to fetch analytics')
+        setError(e.error || 'Failed to fetch analytics')
+        setLoading(false)
+        return
       }
       const d: ShopifyAnalytics = await res.json()
       setData(d)
+      setConnected(true)
       setIsDemo(false)
       setDataSource((d as any).dataSource || 'estimated')
+      if ((d as any).shopDomain) setShopDomain((d as any).shopDomain)
     } catch (e: any) {
       setError(e.message)
     }
     setLoading(false)
   }
 
-  useEffect(() => { if (connected) fetchData(dateFrom, dateTo) }, [])
+  useEffect(() => { fetchData(dateFrom, dateTo) }, [])
 
   return (
     <div>
       {/* Status bar */}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
         <div className="flex items-center gap-2">
-          {connected ? (
+          {connected === true ? (
             <>
               <span className="inline-flex items-center gap-1.5 text-xs bg-green-50 border border-green-200 text-green-700 rounded-full px-3 py-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block" /> Connected · {domain}
+                <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block" /> Connected{shopDomain ? ` · ${shopDomain}` : ''}
               </span>
               {dataSource === 'shopifyql' && (
                 <span className="text-xs text-blue-600 bg-blue-50 border border-blue-200 rounded-full px-2 py-0.5">Live ShopifyQL data</span>
@@ -114,15 +130,15 @@ function ShopifyTab() {
                 <span className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5">Estimated from orders</span>
               )}
             </>
-          ) : (
+          ) : connected === false ? (
             <span className="inline-flex items-center gap-1.5 text-xs bg-gray-100 text-gray-500 rounded-full px-3 py-1">
               Not connected — <a href="/integrations" className="underline font-medium">connect Shopify</a>
             </span>
-          )}
-          {isDemo && <Badge variant="secondary" className="text-xs">Demo Data</Badge>}
+          ) : null}
+          {isDemo && connected !== null && <Badge variant="secondary" className="text-xs">Demo Data</Badge>}
         </div>
 
-        {connected && (
+        {connected === true && (
           <button
             onClick={() => fetchData(dateFrom, dateTo)}
             disabled={loading}
@@ -140,7 +156,7 @@ function ShopifyTab() {
           {DATE_PRESETS.map((p) => (
             <button
               key={p.label}
-              onClick={() => { const f = p.days === 0 ? dateTo : daysAgoStr(p.days); setDateFrom(f); if (connected) fetchData(f, dateTo) }}
+              onClick={() => { const f = p.days === 0 ? dateTo : daysAgoStr(p.days); setDateFrom(f); fetchData(f, dateTo) }}
               className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
                 dateFrom === (p.days === 0 ? dateTo : daysAgoStr(p.days))
                   ? 'bg-gray-900 text-white border-gray-900 dark:bg-white dark:text-gray-900'
@@ -152,7 +168,7 @@ function ShopifyTab() {
             <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="h-7 text-xs w-[130px]" />
             <span className="text-xs text-gray-400">to</span>
             <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="h-7 text-xs w-[130px]" />
-            <button onClick={() => { if (connected) fetchData(dateFrom, dateTo) }} className="h-7 px-3 text-xs bg-gray-900 text-white rounded-md hover:bg-gray-700 dark:bg-white dark:text-gray-900">Apply</button>
+            <button onClick={() => { fetchData(dateFrom, dateTo) }} className="h-7 px-3 text-xs bg-gray-900 text-white rounded-md hover:bg-gray-700 dark:bg-white dark:text-gray-900">Apply</button>
           </div>
         </div>
       </div>
@@ -307,7 +323,7 @@ function ShopifyTab() {
           )}
 
           {/* Connect CTA */}
-          {!connected && (
+          {connected === false && (
             <div className="mt-6 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 p-8 text-center">
               <ShoppingBag className="w-10 h-10 text-gray-300 mx-auto mb-3" />
               <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">Connect your Shopify store</h3>

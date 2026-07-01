@@ -96,8 +96,8 @@ export default function DashboardPage() {
       const res = await fetch(url)
       if (res.ok) {
         const apiData = await res.json()
-        if (apiData.metrics && apiData.metrics.orders > 0) {
-          setData(apiData)
+        if (apiData.metrics) {
+          setData({ ...apiData, isDemo: false })
           setIsLoggedIn(true)
           setLoading(false)
           return true
