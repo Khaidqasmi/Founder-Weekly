@@ -293,7 +293,7 @@ function CodReceiptsSection({ couriers }: { couriers: string[] }) {
   )
 }
 
-function CourierSetupCard({ provider }: { provider: CourierProvider }) {
+function CourierSetupCard({ provider, onCredentialsChange }: { provider: CourierProvider; onCredentialsChange?: () => void }) {
   const [values, setValues] = useState<Record<string, string>>({})
   const [showKeys, setShowKeys] = useState<Record<string, boolean>>({})
   const [saved, setSaved] = useState(false)
@@ -317,6 +317,7 @@ function CourierSetupCard({ provider }: { provider: CourierProvider }) {
       else localStorage.removeItem(`fwgr_${f.key}`)
     })
     setSaved(Object.values(values).some((v) => v.trim()))
+    onCredentialsChange?.()
     toast.success(`${provider.name} credentials saved`)
   }
 
@@ -324,6 +325,7 @@ function CourierSetupCard({ provider }: { provider: CourierProvider }) {
     provider.fields.forEach((f) => localStorage.removeItem(`fwgr_${f.key}`))
     setValues({})
     setSaved(false)
+    onCredentialsChange?.()
     toast.success(`${provider.name} disconnected`)
   }
 
@@ -382,15 +384,29 @@ export default function CouriersPage() {
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState<string[]>([])
   const [isDemo, setIsDemo] = useState(true)
+  const [connectedCouriers, setConnectedCouriers] = useState<string[]>([])
   const [showSetup, setShowSetup] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [courierFilter, setCourierFilter] = useState('all')
   const [dateFilter, setDateFilter] = useState('all')
 
+  function readConnectedCouriers() {
+    if (typeof window === 'undefined') return []
+    return COURIER_PROVIDERS
+      .filter((provider) => provider.fields.some((field) => localStorage.getItem(`fwgr_${field.key}`)))
+      .map((provider) => provider.name)
+  }
+
+  function refreshConnectedCouriers() {
+    setConnectedCouriers(readConnectedCouriers())
+  }
+
   async function refreshData() {
     setLoading(true)
     setErrors([])
+    const connected = readConnectedCouriers()
+    setConnectedCouriers(connected)
     try {
       const result = await fetchAllShipments()
       if (result.shipments.length > 0) {
@@ -398,9 +414,11 @@ export default function CouriersPage() {
         setIsDemo(false)
       } else if (result.errors.length > 0) {
         setErrors(result.errors)
+        setShipments(connected.length > 0 ? [] : DEMO_SHIPMENTS)
+        setIsDemo(connected.length === 0)
       } else {
-        setShipments(DEMO_SHIPMENTS)
-        setIsDemo(true)
+        setShipments(connected.length > 0 ? [] : DEMO_SHIPMENTS)
+        setIsDemo(connected.length === 0)
       }
       if (result.errors.length > 0) {
         setErrors(result.errors)
@@ -412,9 +430,9 @@ export default function CouriersPage() {
   }
 
   useEffect(() => {
-    const hasAnyKey = COURIER_PROVIDERS.some((p) =>
-      p.fields.some((f) => localStorage.getItem(`fwgr_${f.key}`))
-    )
+    const connected = readConnectedCouriers()
+    setConnectedCouriers(connected)
+    const hasAnyKey = connected.length > 0
     if (hasAnyKey) refreshData()
   }, [])
 
@@ -504,6 +522,19 @@ export default function CouriersPage() {
             <p className="text-xs text-amber-200/70 mt-0.5">Connect your courier accounts below to see real tracking data.</p>
           </div>
         )}
+        {!isDemo && connectedCouriers.length > 0 && shipments.length === 0 && !loading && (
+          <div className="bg-green-500/10 border border-green-500/25 rounded-lg p-4 mb-6">
+            <p className="text-sm font-medium text-green-300">Courier connected: {connectedCouriers.join(', ')}</p>
+            <p className="text-xs text-green-200/70 mt-0.5">
+              No shipments were returned yet. Use Refresh after creating or booking orders in your courier portal.
+            </p>
+          </div>
+        )}
+        {!isDemo && connectedCouriers.length > 0 && shipments.length > 0 && (
+          <div className="bg-green-500/10 border border-green-500/25 rounded-lg p-3 mb-6">
+            <p className="text-xs font-medium text-green-300">Connected couriers: {connectedCouriers.join(', ')}</p>
+          </div>
+        )}
 
         {/* Errors */}
         {errors.length > 0 && (
@@ -522,7 +553,7 @@ export default function CouriersPage() {
             <CardContent>
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {COURIER_PROVIDERS.map((p) => (
-                  <CourierSetupCard key={p.id} provider={p} />
+                  <CourierSetupCard key={p.id} provider={p} onCredentialsChange={refreshConnectedCouriers} />
                 ))}
               </div>
             </CardContent>
