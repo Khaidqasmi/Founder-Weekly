@@ -1,8 +1,10 @@
 import type { NextConfig } from "next";
 
 const securityHeaders = [
-  // Prevent the dashboard from being embedded in iframes (clickjacking)
-  { key: "X-Frame-Options", value: "DENY" },
+  // Clickjacking protection lives in CSP frame-ancestors below, which allows
+  // ONLY Shopify admin to embed the app (it runs as an embedded Shopify app).
+  // X-Frame-Options is intentionally omitted: it can't express an allowlist
+  // and would override the CSP in some browsers, breaking the embedded app.
   // Stop browsers from MIME-sniffing responses
   { key: "X-Content-Type-Options", value: "nosniff" },
   // Only send the origin as referrer to external sites
@@ -20,7 +22,7 @@ const securityHeaders = [
       "img-src 'self' data: blob: https:",
       "font-src 'self' data:",
       "connect-src 'self' https:",
-      "frame-ancestors 'none'",
+      "frame-ancestors https://admin.shopify.com https://*.myshopify.com",
       "base-uri 'self'",
       "form-action 'self'",
     ].join("; "),
