@@ -25,6 +25,9 @@ export async function syncShopifyData(ctx: SyncContext) {
 
     // Fetch orders
     const ordersRes = await fetchWithReadableError(`${baseUrl}/orders.json?status=any&limit=250`, { headers }, 'Shopify orders API')
+    if (ordersRes.status === 401) {
+      throw new Error('Shopify rejected the saved access token — it may have expired or been revoked. Please reconnect Shopify from the Integrations page.')
+    }
     if (!ordersRes.ok) throw new Error(await formatHttpError(ordersRes, 'Shopify orders API'))
     const ordersData = await ordersRes.json()
     const shopifyOrders = ordersData.orders || []
@@ -310,11 +313,13 @@ async function formatHttpError(response: Response, label: string) {
   return `${label}: ${response.status} ${message}`
 }
 
-async function resolveShopifyAccessToken(shopDomain: string, accessTokenOrClientId: string, clientSecret: string) {
+export async function resolveShopifyAccessToken(shopDomain: string, accessTokenOrClientId: string, clientSecret: string) {
   const accessToken = accessTokenOrClientId.trim()
   const secret = clientSecret.trim()
 
-  if (!secret) return accessToken
+  // A shpat_/shpca_ token is a real Admin API access token — use it directly,
+  // even if a stale client secret is still stored on the connection row.
+  if (!secret || /^shp(at|ca)_/.test(accessToken)) return accessToken
   if (!shopDomain || !accessToken) return ''
 
   const tokenRes = await fetchWithReadableError(

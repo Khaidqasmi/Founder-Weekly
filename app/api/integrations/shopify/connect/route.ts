@@ -233,12 +233,18 @@ export async function POST(req: NextRequest) {
     await purgeProviderTemporaryData(createServiceRoleClient(), member.workspace_id, 'shopify')
   }
 
+  // Client-credentials tokens expire (~24h), so never store the exchanged token.
+  // Store the Client ID + Secret instead — the sync engine re-exchanges a fresh
+  // token on every run (resolveShopifyAccessToken). Direct Admin API tokens
+  // (shpat_) are permanent and stored as-is; clear any stale secret so token
+  // resolution can't mistake them for a Client ID.
   const record = {
     workspace_id: member.workspace_id,
     provider: 'shopify',
     status: 'connected',
     shop_domain: domain,
-    access_token_encrypted: encryptToken(resolvedToken),
+    access_token_encrypted: useClientCredentials ? encryptToken(clientId!) : encryptToken(resolvedToken),
+    refresh_token_encrypted: useClientCredentials ? encryptToken(clientSecret!) : '',
     last_sync_at: new Date().toISOString(),
   }
 

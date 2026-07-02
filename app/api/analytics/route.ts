@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { fetchShopifyAnalytics, type ShopifyAnalytics } from '@/lib/integrations/shopify/analytics'
+import { resolveShopifyAccessToken } from '@/lib/integrations/sync-engine'
 import { decryptToken } from '@/lib/crypto'
 import type { Order } from '@/lib/types'
 
@@ -219,13 +220,17 @@ export async function GET(request: NextRequest) {
 
     let analytics: ShopifyAnalytics | null = null
     try {
-      analytics = await fetchShopifyAnalytics(
+      // Same token resolution as sync: direct Admin tokens are used as-is,
+      // client-credentials connections exchange a fresh short-lived token.
+      const accessToken = await resolveShopifyAccessToken(
         connection.shop_domain,
         decryptToken(connection.access_token_encrypted),
-        from,
-        to
+        decryptToken(connection.refresh_token_encrypted || '')
       )
+      analytics = await fetchShopifyAnalytics(connection.shop_domain, accessToken, from, to)
     } catch (error) {
+      // Live Shopify fetch failed (expired/revoked token, etc.) — fall back to
+      // synced orders so the dashboard keeps showing data instead of breaking.
       if (!ordersForAnalytics.length) throw error
     }
 

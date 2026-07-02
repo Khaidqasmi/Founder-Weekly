@@ -43,12 +43,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: `${provider} is not connected. Save your API keys first.` }, { status: 400 })
     }
 
+    const accessToken = decryptToken(connection.access_token_encrypted || '').trim()
+
+    // Stored token exists but can no longer be decrypted (e.g. encryption key
+    // changed) — tell the user to reconnect instead of sending garbage upstream.
+    if (connection.access_token_encrypted && !accessToken) {
+      return NextResponse.json(
+        { error: `Your ${provider} connection could not be read. Please reconnect it from the Integrations page.` },
+        { status: 400 }
+      )
+    }
+
     const ctx = {
       supabase: admin,
       workspaceId: member.workspace_id,
       provider,
-      accessToken: decryptToken(connection.access_token_encrypted || ''),
-      refreshToken: decryptToken(connection.refresh_token_encrypted || ''),
+      accessToken,
+      refreshToken: decryptToken(connection.refresh_token_encrypted || '').trim(),
       shopDomain: connection.shop_domain || '',
       adAccountId: connection.ad_account_id || '',
       ga4PropertyId: connection.ga4_property_id || '',

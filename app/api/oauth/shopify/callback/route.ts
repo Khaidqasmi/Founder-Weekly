@@ -80,6 +80,9 @@ export async function GET(req: NextRequest) {
     status: 'connected',
     shop_domain: shop,
     access_token_encrypted: encryptToken(accessToken),
+    // OAuth tokens are permanent — clear any stale client secret from a previous
+    // save so token resolution never mistakes this token for a Client ID.
+    refresh_token_encrypted: '',
     last_sync_at: new Date().toISOString(),
   }
 
