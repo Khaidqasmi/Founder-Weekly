@@ -34,6 +34,7 @@ interface Ad {
     imageSourceUrl?: string
     videoId?: string
     videoSourceUrl?: string
+    videoEmbedUrl?: string
     previewUrl?: string
     permalinkUrl?: string
     title: string
@@ -144,6 +145,14 @@ function CreativePreview({ ad }: { ad: Ad }) {
         >
           <source src={media.videoSourceUrl} />
         </video>
+      ) : isVideo && media.videoEmbedUrl ? (
+        <iframe
+          src={media.videoEmbedUrl}
+          className="w-full h-full bg-black"
+          allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
+          allowFullScreen
+          title={ad.name}
+        />
       ) : poster ? (
         <img src={poster} alt={ad.name} className="w-full h-full object-contain bg-black" decoding="async" />
       ) : (
@@ -155,7 +164,7 @@ function CreativePreview({ ad }: { ad: Ad }) {
         </div>
       )}
 
-      {isVideo && !media.videoSourceUrl && (
+      {isVideo && !media.videoSourceUrl && !media.videoEmbedUrl && (
         <div className="absolute inset-0 bg-black/35 flex items-center justify-center">
           <div className="rounded-full bg-black/70 border border-white/15 px-3 py-2 flex items-center gap-2 text-xs font-semibold text-white">
             <PlayCircle className="w-4 h-4 text-amber-400" />
@@ -168,7 +177,7 @@ function CreativePreview({ ad }: { ad: Ad }) {
       <div className="absolute top-2 left-2 rounded-full bg-black/70 border border-white/10 px-2 py-1 text-[11px] font-semibold text-zinc-100">
         {isVideo ? 'Video' : 'Image'}
       </div>
-      {isVideo && !media.videoSourceUrl && media.previewUrl && (
+      {isVideo && !media.videoSourceUrl && !media.videoEmbedUrl && media.previewUrl && (
         <a
           href={media.previewUrl}
           target="_blank"

@@ -9,11 +9,13 @@ function dateKey(date: Date) {
   return date.toISOString().split('T')[0]
 }
 
-function defaultOrderRange() {
+function orderRanges() {
   const to = new Date()
-  const from = new Date()
-  from.setFullYear(from.getFullYear() - 1)
-  return { fromDate: dateKey(from), toDate: dateKey(to) }
+  return [30, 365, 1095].map((days) => {
+    const from = new Date()
+    from.setDate(from.getDate() - days)
+    return { fromDate: dateKey(from), toDate: dateKey(to) }
+  })
 }
 
 function postexError(body: any, fallback: string) {
@@ -62,6 +64,28 @@ async function fetchPostEx(url: string, token: string, init?: RequestInit) {
   return { res, data }
 }
 
+function shipmentAttempts(token: string) {
+  const statuses = [0, 2, 3, 4, 5, 6, 15, 16, 17, 18]
+  const attempts: Array<() => Promise<{ res: Response; data: any }>> = []
+
+  for (const range of orderRanges()) {
+    const allParams = new URLSearchParams({ orderStatusID: '0', ...range })
+    attempts.push(() => fetchPostEx(`${POSTEX_ENDPOINTS.shipments}?${allParams.toString()}`, token))
+    attempts.push(() => fetchPostEx(POSTEX_ENDPOINTS.shipments, token, {
+      method: 'POST',
+      body: JSON.stringify({ orderStatusID: 0, ...range }),
+    }))
+
+    for (const status of statuses.slice(1)) {
+      const params = new URLSearchParams({ orderStatusID: String(status), ...range })
+      attempts.push(() => fetchPostEx(`${POSTEX_ENDPOINTS.shipments}?${params.toString()}`, token))
+    }
+  }
+
+  attempts.push(() => fetchPostEx(POSTEX_ENDPOINTS.shipments, token))
+  return attempts
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { token, resource } = await request.json()
@@ -72,22 +96,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'PostEx API token is missing.' }, { status: 400 })
     }
 
-    const range = defaultOrderRange()
-    const shipmentParams = new URLSearchParams({
-      orderStatusID: '0',
-      fromDate: range.fromDate,
-      toDate: range.toDate,
-    })
-
     const attempts = type === 'shipments'
-      ? [
-          () => fetchPostEx(`${POSTEX_ENDPOINTS.shipments}?${shipmentParams.toString()}`, cleanToken),
-          () => fetchPostEx(POSTEX_ENDPOINTS.shipments, cleanToken, {
-            method: 'POST',
-            body: JSON.stringify({ orderStatusID: 0, ...range }),
-          }),
-          () => fetchPostEx(POSTEX_ENDPOINTS.shipments, cleanToken),
-        ]
+      ? shipmentAttempts(cleanToken)
       : [
           () => fetchPostEx(POSTEX_ENDPOINTS.remittances, cleanToken),
         ]
@@ -97,9 +107,7 @@ export async function POST(request: NextRequest) {
       const result = await attempt()
       lastResult = result
       const rows = extractRows(result.data)
-      const message = String(postexError(result.data, '') || '').toLowerCase()
       if (result.res.ok && rows.length > 0) return NextResponse.json(result.data)
-      if (result.res.ok && type === 'shipments' && !message.includes('no message available')) return NextResponse.json(result.data)
     }
 
     const res = lastResult!.res

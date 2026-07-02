@@ -26,13 +26,18 @@ async function graphGetAll(url: string, maxPages = 8) {
 }
 
 async function fetchAdsWithCreativeMeta(base: string, encodedToken: string) {
-  const richFields = 'id,name,status,adset_id,campaign_id,creative{id,name,thumbnail_url,image_url,image_hash,body,title,object_story_spec,asset_feed_spec,effective_object_story_id}'
+  const videoFields = 'id,name,status,adset_id,campaign_id,creative{id,name,thumbnail_url,image_url,image_hash,body,title,video_id,object_story_id,effective_object_story_id,object_story_spec,asset_feed_spec}'
+  const richFields = 'id,name,status,adset_id,campaign_id,creative{id,name,thumbnail_url,image_url,image_hash,body,title,object_story_id,effective_object_story_id,object_story_spec,asset_feed_spec}'
   const basicFields = 'id,name,status,adset_id,campaign_id,creative{id,name,thumbnail_url,image_url,image_hash,body,title,object_story_spec}'
 
   try {
-    return await graphGetAll(`${base}/ads?fields=${richFields}&limit=500&access_token=${encodedToken}`)
+    return await graphGetAll(`${base}/ads?fields=${videoFields}&limit=500&access_token=${encodedToken}`)
   } catch {
-    return graphGetAll(`${base}/ads?fields=${basicFields}&limit=500&access_token=${encodedToken}`)
+    try {
+      return await graphGetAll(`${base}/ads?fields=${richFields}&limit=500&access_token=${encodedToken}`)
+    } catch {
+      return graphGetAll(`${base}/ads?fields=${basicFields}&limit=500&access_token=${encodedToken}`)
+    }
   }
 }
 
@@ -87,7 +92,7 @@ function extractCreativeMedia(creative: any = {}) {
   const photoData = storySpec.photo_data || {}
   const assetVideo = creative.asset_feed_spec?.videos?.[0] || {}
   const assetImage = creative.asset_feed_spec?.images?.[0] || {}
-  const videoId = videoData.video_id || linkData.video_id || assetVideo.video_id || ''
+  const videoId = creative.video_id || videoData.video_id || linkData.video_id || assetVideo.video_id || assetVideo.id || ''
   const imageHash = creative.image_hash || linkData.image_hash || photoData.image_hash || assetImage.hash || ''
   const imageUrl =
     creative.image_url ||
@@ -106,6 +111,7 @@ function extractCreativeMedia(creative: any = {}) {
     imageSourceUrl: '',
     videoId,
     videoSourceUrl: '',
+    videoEmbedUrl: '',
     previewUrl: '',
     permalinkUrl: '',
     title: creative.title || videoData.title || linkData.name || '',
@@ -135,12 +141,16 @@ async function enrichCreativeMedia(media: ReturnType<typeof extractCreativeMedia
 
   try {
     const video = await graphGet(
-      `https://graph.facebook.com/v19.0/${media.videoId}?fields=source,picture,permalink_url&access_token=${encodeURIComponent(token)}`
+      `https://graph.facebook.com/v19.0/${media.videoId}?fields=source,picture,permalink_url,embed_html&access_token=${encodeURIComponent(token)}`
     )
+    const embedUrl = typeof video.embed_html === 'string'
+      ? video.embed_html.match(/src="([^"]+)"/)?.[1] || ''
+      : ''
 
     return {
       ...media,
       videoSourceUrl: video.source || '',
+      videoEmbedUrl: embedUrl,
       thumbnailUrl: media.thumbnailUrl || video.picture || '',
       previewUrl: video.permalink_url || '',
       permalinkUrl: video.permalink_url || '',
@@ -148,11 +158,12 @@ async function enrichCreativeMedia(media: ReturnType<typeof extractCreativeMedia
   } catch {
     try {
       const fallback = await graphGet(
-        `https://graph.facebook.com/v19.0/${media.videoId}?fields=picture,permalink_url&access_token=${encodeURIComponent(token)}`
+        `https://graph.facebook.com/v19.0/${media.videoId}?fields=source,picture,permalink_url&access_token=${encodeURIComponent(token)}`
       )
 
       return {
         ...media,
+        videoSourceUrl: fallback.source || '',
         thumbnailUrl: media.thumbnailUrl || fallback.picture || '',
         previewUrl: fallback.permalink_url || '',
         permalinkUrl: fallback.permalink_url || '',
