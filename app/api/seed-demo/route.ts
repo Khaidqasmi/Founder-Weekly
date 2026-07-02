@@ -19,6 +19,16 @@ export async function POST(request: NextRequest) {
 
   if (!member) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
 
+  // Only seed once — repeated calls must not flood the workspace with duplicate rows
+  const { count } = await supabase
+    .from('orders')
+    .select('id', { count: 'exact', head: true })
+    .eq('workspace_id', workspace_id)
+
+  if (count && count > 0) {
+    return NextResponse.json({ success: true, skipped: 'Workspace already has data' })
+  }
+
   await supabase.from('orders').insert(
     demoOrders.map((o) => ({ ...o, workspace_id }))
   )
