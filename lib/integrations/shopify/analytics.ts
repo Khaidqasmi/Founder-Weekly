@@ -39,20 +39,24 @@ function addDays(date: string, days: number) {
 }
 
 function getTimeZoneOffset(date: string, timeZone: string) {
-  const utcDate = new Date(`${date}T12:00:00Z`)
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone,
-    timeZoneName: 'shortOffset',
-    hour: '2-digit',
-  }).formatToParts(utcDate)
-  const tz = parts.find((part) => part.type === 'timeZoneName')?.value || 'GMT'
-  const match = tz.match(/GMT([+-])(\d{1,2})(?::?(\d{2}))?/)
-  if (!match) return '+00:00'
+  try {
+    const utcDate = new Date(`${date}T12:00:00Z`)
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone,
+      timeZoneName: 'shortOffset',
+      hour: '2-digit',
+    }).formatToParts(utcDate)
+    const tz = parts.find((part) => part.type === 'timeZoneName')?.value || 'GMT'
+    const match = tz.match(/GMT([+-])(\d{1,2})(?::?(\d{2}))?/)
+    if (!match) return '+00:00'
 
-  const sign = match[1]
-  const hours = match[2].padStart(2, '0')
-  const minutes = (match[3] || '00').padStart(2, '0')
-  return `${sign}${hours}:${minutes}`
+    const sign = match[1]
+    const hours = match[2].padStart(2, '0')
+    const minutes = (match[3] || '00').padStart(2, '0')
+    return `${sign}${hours}:${minutes}`
+  } catch {
+    return '+00:00'
+  }
 }
 
 function sinceUntil(from: string, to: string) {
@@ -304,7 +308,11 @@ export async function fetchShopifyAnalytics(
   }
 
   let orderCount = 0
-  const restRange = shopifyRestDateRange(dateFrom, dateTo, shopTimeZone)
+  const restRange = (() => {
+    try { return shopifyRestDateRange(dateFrom, dateTo, shopTimeZone) } catch { /* fall through */ }
+    try { return shopifyRestDateRange(dateFrom, dateTo, 'UTC') } catch { /* fall through */ }
+    return { min: `${dateFrom}T00:00:00+00:00`, max: `${addDays(dateTo, 1)}T00:00:00+00:00` }
+  })()
   try {
     const countRes = await fetch(
       `${baseUrl}/orders/count.json?created_at_min=${encodeURIComponent(restRange.min)}&created_at_max=${encodeURIComponent(restRange.max)}&status=any`,
@@ -320,7 +328,7 @@ export async function fetchShopifyAnalytics(
     `${baseUrl}/orders.json?created_at_min=${encodeURIComponent(restRange.min)}&created_at_max=${encodeURIComponent(restRange.max)}&status=any&limit=250&fields=id,total_price,financial_status,source_name,shipping_address,billing_address,line_items,created_at,customer`,
     { headers }
   )
-  const orders = ordersRes.ok ? (await ordersRes.json()).orders || [] : []
+  const orders = ordersRes.ok ? (await ordersRes.json().catch(() => ({}))).orders || [] : []
 
   // Detect "count > 0 but list empty": Shopify has orders but token lacks
   // read_all_orders — only the last 60 days of order details are accessible by default.
