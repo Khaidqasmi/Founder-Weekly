@@ -25,6 +25,17 @@ async function graphGetAll(url: string, maxPages = 8) {
   return { ...firstPage, data }
 }
 
+async function fetchAdsWithCreativeMeta(base: string, encodedToken: string) {
+  const richFields = 'id,name,status,adset_id,campaign_id,creative{id,name,thumbnail_url,image_url,body,title,object_story_spec,asset_feed_spec,effective_object_story_id}'
+  const basicFields = 'id,name,status,adset_id,campaign_id,creative{id,name,thumbnail_url,image_url,body,title,object_story_spec}'
+
+  try {
+    return await graphGetAll(`${base}/ads?fields=${richFields}&limit=500&access_token=${encodedToken}`)
+  } catch {
+    return graphGetAll(`${base}/ads?fields=${basicFields}&limit=500&access_token=${encodedToken}`)
+  }
+}
+
 function getActions(actions: any[] = [], type: string) {
   return actions.find((a: any) => a.action_type === type)?.value || 0
 }
@@ -67,6 +78,69 @@ function hasDelivery(insights: ReturnType<typeof normalizeInsightsRow>) {
     insights.addToCart > 0 ||
     insights.leads > 0
   )
+}
+
+function extractCreativeMedia(creative: any = {}) {
+  const storySpec = creative.object_story_spec || {}
+  const videoData = storySpec.video_data || {}
+  const linkData = storySpec.link_data || {}
+  const photoData = storySpec.photo_data || {}
+  const assetVideo = creative.asset_feed_spec?.videos?.[0] || {}
+  const assetImage = creative.asset_feed_spec?.images?.[0] || {}
+  const videoId = videoData.video_id || linkData.video_id || assetVideo.video_id || ''
+  const imageUrl =
+    creative.image_url ||
+    linkData.picture ||
+    photoData.url ||
+    assetImage.url ||
+    creative.thumbnail_url ||
+    videoData.image_url ||
+    ''
+
+  return {
+    mediaType: videoId ? 'video' : 'image',
+    thumbnailUrl: creative.thumbnail_url || videoData.image_url || imageUrl,
+    imageUrl,
+    videoId,
+    videoSourceUrl: '',
+    previewUrl: '',
+    permalinkUrl: '',
+    title: creative.title || videoData.title || linkData.name || '',
+    body: creative.body || videoData.message || linkData.message || '',
+  }
+}
+
+async function enrichVideoMedia(media: ReturnType<typeof extractCreativeMedia>, token: string) {
+  if (!media.videoId) return media
+
+  try {
+    const video = await graphGet(
+      `https://graph.facebook.com/v19.0/${media.videoId}?fields=source,picture,permalink_url&access_token=${encodeURIComponent(token)}`
+    )
+
+    return {
+      ...media,
+      videoSourceUrl: video.source || '',
+      thumbnailUrl: media.thumbnailUrl || video.picture || '',
+      previewUrl: video.permalink_url || '',
+      permalinkUrl: video.permalink_url || '',
+    }
+  } catch {
+    try {
+      const fallback = await graphGet(
+        `https://graph.facebook.com/v19.0/${media.videoId}?fields=picture,permalink_url&access_token=${encodeURIComponent(token)}`
+      )
+
+      return {
+        ...media,
+        thumbnailUrl: media.thumbnailUrl || fallback.picture || '',
+        previewUrl: fallback.permalink_url || '',
+        permalinkUrl: fallback.permalink_url || '',
+      }
+    } catch {
+      return media
+    }
+  }
 }
 
 function dateKey(date: Date) {
@@ -171,7 +245,7 @@ export async function GET(req: NextRequest) {
     const [campaignMeta, adsetMeta, adMeta, campaignInsights, adsetInsights, adInsights] = await Promise.all([
       graphGetAll(`${base}/campaigns?fields=id,name,status,objective,daily_budget,lifetime_budget&limit=200&access_token=${encodedToken}`),
       graphGetAll(`${base}/adsets?fields=id,name,status,campaign_id,daily_budget,optimization_goal&limit=300&access_token=${encodedToken}`),
-      graphGetAll(`${base}/ads?fields=id,name,status,adset_id,campaign_id,creative{id,name,thumbnail_url,image_url,body,title,object_story_spec}&limit=500&access_token=${encodedToken}`),
+      fetchAdsWithCreativeMeta(base, encodedToken),
       graphGetAll(`${base}/insights?fields=campaign_id,campaign_name,${insightFields}&${dateParam}&level=campaign&limit=500&access_token=${encodedToken}`),
       graphGetAll(`${base}/insights?fields=adset_id,adset_name,campaign_id,${insightFields}&${dateParam}&level=adset&limit=500&access_token=${encodedToken}`),
       graphGetAll(`${base}/insights?fields=ad_id,ad_name,adset_id,campaign_id,${insightFields}&${dateParam}&level=ad&limit=500&access_token=${encodedToken}`),
@@ -215,27 +289,30 @@ export async function GET(req: NextRequest) {
       .filter((adset: any) => adset.id && hasDelivery(adset.insights))
       .sort((a: any, b: any) => b.insights.spend - a.insights.spend)
 
-    const ads = (adInsights.data || [])
+    const adsBase = (adInsights.data || [])
       .map((row: any) => {
         const insights = normalizeInsightsRow(row)
         const meta: any = adById.get(row.ad_id) || {}
+        const media = extractCreativeMedia(meta.creative)
         return {
           id: row.ad_id,
           name: meta.name || row.ad_name || 'Ad creative',
           status: meta.status || 'UNKNOWN',
           adsetId: meta.adset_id || row.adset_id,
           campaignId: meta.campaign_id || row.campaign_id,
-          creative: {
-            thumbnailUrl: meta.creative?.thumbnail_url || '',
-            imageUrl: meta.creative?.image_url || '',
-            title: meta.creative?.title || meta.creative?.object_story_spec?.link_data?.name || '',
-            body: meta.creative?.body || meta.creative?.object_story_spec?.link_data?.message || '',
-          },
+          creative: media,
           insights,
         }
       })
       .filter((ad: any) => ad.id && hasDelivery(ad.insights))
       .sort((a: any, b: any) => b.insights.spend - a.insights.spend)
+
+    const ads = await Promise.all(
+      adsBase.map(async (ad: any) => ({
+        ...ad,
+        creative: await enrichVideoMedia(ad.creative, token),
+      }))
+    )
 
     const totalInsights = (() => {
       return normalizeInsightsRow(ai)

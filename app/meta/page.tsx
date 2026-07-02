@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge'
 import { LoadingSpinner } from '@/components/loading'
 import { formatCurrency, formatNumber, formatPercent } from '@/lib/utils'
-import { RefreshCw, AlertCircle, Target, Image, LayoutGrid, ChevronDown, ChevronRight, ExternalLink, Zap } from 'lucide-react'
+import { RefreshCw, AlertCircle, Target, Image, LayoutGrid, ChevronDown, ChevronRight, ExternalLink, Zap, PlayCircle } from 'lucide-react'
 import { toast } from 'sonner'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -20,7 +20,25 @@ interface Insights {
 
 interface Campaign { id: string; name: string; status: string; objective: string; dailyBudget: number; lifetimeBudget: number; insights: Insights }
 interface AdSet { id: string; name: string; status: string; campaignId: string; dailyBudget: number; optimizationGoal: string; insights: Insights }
-interface Ad { id: string; name: string; status: string; adsetId: string; campaignId: string; creative: { thumbnailUrl: string; imageUrl: string; title: string; body: string }; insights: Insights }
+interface Ad {
+  id: string
+  name: string
+  status: string
+  adsetId: string
+  campaignId: string
+  creative: {
+    mediaType?: 'image' | 'video'
+    thumbnailUrl: string
+    imageUrl: string
+    videoId?: string
+    videoSourceUrl?: string
+    previewUrl?: string
+    permalinkUrl?: string
+    title: string
+    body: string
+  }
+  insights: Insights
+}
 
 interface MetaData { adAccountId: string; totalInsights: Insights; campaigns: Campaign[]; adsets: AdSet[]; ads: Ad[] }
 
@@ -103,6 +121,60 @@ function EmptyRangeState({ title, body }: { title: string; body: string }) {
     <div className="bg-zinc-900 dark:bg-gray-900 rounded-xl border border-white/10 dark:border-gray-700 p-6 text-center">
       <p className="text-sm font-semibold text-white dark:text-gray-100">{title}</p>
       <p className="text-xs text-zinc-400 mt-1">{body}</p>
+    </div>
+  )
+}
+
+function CreativePreview({ ad }: { ad: Ad }) {
+  const media = ad.creative
+  const poster = media.thumbnailUrl || media.imageUrl
+  const isVideo = media.mediaType === 'video'
+
+  return (
+    <div className="relative bg-zinc-950 h-64 sm:h-72 flex items-center justify-center overflow-hidden border-b border-white/5">
+      {isVideo && media.videoSourceUrl ? (
+        <video
+          className="w-full h-full object-contain bg-black"
+          controls
+          preload="metadata"
+          poster={poster || undefined}
+        >
+          <source src={media.videoSourceUrl} />
+        </video>
+      ) : poster ? (
+        <img src={poster} alt={ad.name} className="w-full h-full object-cover" />
+      ) : (
+        <div className="text-center px-4">
+          <div className="w-12 h-12 mx-auto mb-2 bg-[#1877F2] rounded-xl flex items-center justify-center">
+            {isVideo ? <PlayCircle className="w-6 h-6 text-white" /> : <Image className="w-6 h-6 text-white" />}
+          </div>
+          {media.title && <p className="text-xs font-semibold text-zinc-300 dark:text-gray-300 line-clamp-1">{media.title}</p>}
+        </div>
+      )}
+
+      {isVideo && !media.videoSourceUrl && (
+        <div className="absolute inset-0 bg-black/35 flex items-center justify-center">
+          <div className="rounded-full bg-black/70 border border-white/15 px-3 py-2 flex items-center gap-2 text-xs font-semibold text-white">
+            <PlayCircle className="w-4 h-4 text-amber-400" />
+            Video creative
+          </div>
+        </div>
+      )}
+
+      <div className="absolute top-2 right-2">{statusBadge(ad.status)}</div>
+      <div className="absolute top-2 left-2 rounded-full bg-black/70 border border-white/10 px-2 py-1 text-[11px] font-semibold text-zinc-100">
+        {isVideo ? 'Video' : 'Image'}
+      </div>
+      {isVideo && !media.videoSourceUrl && media.previewUrl && (
+        <a
+          href={media.previewUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="absolute bottom-2 right-2 rounded-full bg-amber-500 text-black px-3 py-1.5 text-xs font-semibold flex items-center gap-1"
+        >
+          Open preview <ExternalLink className="w-3 h-3" />
+        </a>
+      )}
     </div>
   )
 }
@@ -354,20 +426,7 @@ export default function MetaPage() {
                   const camp = data.campaigns.find(c => c.id === ad.campaignId)
                   return (
                     <div key={ad.id} className="bg-zinc-900 dark:bg-gray-900 rounded-xl border border-white/10 dark:border-gray-700 overflow-hidden flex flex-col">
-                      {/* Creative preview */}
-                      <div className="relative bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700 h-36 flex items-center justify-center overflow-hidden">
-                        {ad.creative.thumbnailUrl || ad.creative.imageUrl ? (
-                          <img src={ad.creative.thumbnailUrl || ad.creative.imageUrl} alt={ad.name} className="w-full h-full object-cover" />
-                        ) : (
-                          <div className="text-center px-4">
-                            <div className="w-12 h-12 mx-auto mb-2 bg-[#1877F2] rounded-xl flex items-center justify-center">
-                              <svg viewBox="0 0 24 24" className="w-6 h-6 fill-white"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
-                            </div>
-                            {ad.creative.title && <p className="text-xs font-semibold text-zinc-300 dark:text-gray-300 line-clamp-1">{ad.creative.title}</p>}
-                          </div>
-                        )}
-                        <div className="absolute top-2 right-2">{statusBadge(ad.status)}</div>
-                      </div>
+                      <CreativePreview ad={ad} />
 
                       {/* Ad copy */}
                       <div className="p-4 flex-1">

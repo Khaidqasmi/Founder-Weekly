@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerSupabaseClient } from '@/lib/supabase/server'
+import { createServerSupabaseClient, createServiceRoleClient } from '@/lib/supabase/server'
 import { encryptToken } from '@/lib/crypto'
+import { purgeProviderTemporaryData } from '@/lib/temporary-data'
 
 const APP_ID = process.env.META_APP_ID!
 const APP_SECRET = process.env.META_APP_SECRET!
@@ -69,8 +70,12 @@ export async function GET(req: NextRequest) {
   }
 
   const { data: existing } = await supabase
-    .from('integration_connections').select('id')
+    .from('integration_connections').select('id, ad_account_id')
     .eq('workspace_id', member.workspace_id).eq('provider', 'meta').single()
+
+  if (existing?.ad_account_id && existing.ad_account_id !== adAccountId) {
+    await purgeProviderTemporaryData(createServiceRoleClient(), member.workspace_id, 'meta')
+  }
 
   if (existing) {
     await supabase.from('integration_connections').update(record).eq('id', existing.id)
