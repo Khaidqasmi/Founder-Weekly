@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
+import { encryptToken } from '@/lib/crypto'
 
 const CLIENT_ID = process.env.SHOPIFY_CLIENT_ID!
 const CLIENT_SECRET = process.env.SHOPIFY_CLIENT_SECRET!
@@ -73,7 +74,7 @@ export async function GET(req: NextRequest) {
     provider: 'shopify',
     status: 'connected',
     shop_domain: shop,
-    access_token_encrypted: accessToken,
+    access_token_encrypted: encryptToken(accessToken),
     last_sync_at: new Date().toISOString(),
   }
 

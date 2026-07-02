@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
+import { encryptToken } from '@/lib/crypto'
 
 const APP_ID = process.env.META_APP_ID!
 const APP_SECRET = process.env.META_APP_SECRET!
@@ -62,7 +63,7 @@ export async function GET(req: NextRequest) {
     workspace_id: member.workspace_id,
     provider: 'meta',
     status: 'connected',
-    access_token_encrypted: accessToken,
+    access_token_encrypted: encryptToken(accessToken),
     ad_account_id: adAccountId,
     last_sync_at: new Date().toISOString(),
   }

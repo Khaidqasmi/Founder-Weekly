@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient, createServiceRoleClient } from '@/lib/supabase/server'
 import { syncShopifyData, syncMetaAdsData } from '@/lib/integrations/sync-engine'
+import { decryptToken } from '@/lib/crypto'
+
+const SYNC_PROVIDERS = new Set(['shopify', 'meta'])
 
 export async function POST(request: NextRequest) {
   try {
@@ -11,7 +14,9 @@ export async function POST(request: NextRequest) {
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const { provider } = await request.json()
-    if (!provider) return NextResponse.json({ error: 'Missing provider' }, { status: 400 })
+    if (!provider || !SYNC_PROVIDERS.has(provider)) {
+      return NextResponse.json({ error: 'Missing or unsupported provider' }, { status: 400 })
+    }
 
     const admin = createServiceRoleClient()
 
@@ -42,8 +47,8 @@ export async function POST(request: NextRequest) {
       supabase: admin,
       workspaceId: member.workspace_id,
       provider,
-      accessToken: connection.access_token_encrypted || '',
-      refreshToken: connection.refresh_token_encrypted || '',
+      accessToken: decryptToken(connection.access_token_encrypted || ''),
+      refreshToken: decryptToken(connection.refresh_token_encrypted || ''),
       shopDomain: connection.shop_domain || '',
       adAccountId: connection.ad_account_id || '',
       ga4PropertyId: connection.ga4_property_id || '',

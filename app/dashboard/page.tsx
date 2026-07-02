@@ -1,7 +1,7 @@
 'use client'
 
 import { memo, useEffect, useMemo, useRef, useState } from 'react'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts'
+import dynamic from 'next/dynamic'
 import { LinkButton } from '@/components/link-button'
 import { formatCurrency, formatNumber, formatPercent, getTrialDaysRemaining } from '@/lib/utils'
 import { toast } from 'sonner'
@@ -16,8 +16,13 @@ import {
   calculateCODOrders, calculateConfirmedCODOrders, calculateCancelledOrders,
 } from '@/lib/calculations'
 
-const AMBER = '#f59e0b'
-const PIE_COLORS = ['#f59e0b', '#fbbf24', '#78716c', '#d97706', '#a8a29e']
+// Charts are code-split so recharts stays out of the initial bundle — the
+// KPIs and layout paint immediately while the chart chunk loads in parallel.
+const chartSkeleton = () => (
+  <div className="h-[322px] animate-pulse rounded-xl border border-white/[0.06] bg-zinc-900/60" />
+)
+const DarkBarChart = dynamic(() => import('@/components/dashboard/dark-charts').then((m) => m.DarkBarChart), { ssr: false, loading: chartSkeleton })
+const DarkPieChart = dynamic(() => import('@/components/dashboard/dark-charts').then((m) => m.DarkPieChart), { ssr: false, loading: chartSkeleton })
 
 function buildDemoData() {
   const orders = demoOrders
@@ -96,50 +101,6 @@ const StatCard = memo(function StatCard({ title, value, icon: Icon, accent = fal
         <Icon className={`h-4 w-4 ${accent ? 'text-amber-500' : 'text-zinc-600'}`} />
       </div>
       <p className={`mt-2 truncate text-xl font-semibold sm:text-2xl ${accent ? 'text-amber-400' : 'text-white'}`} title={value}>{value}</p>
-    </Panel>
-  )
-})
-
-const tooltipStyle = {
-  backgroundColor: '#18181b',
-  border: '1px solid rgba(255,255,255,0.1)',
-  borderRadius: 8,
-  color: '#fafafa',
-  fontSize: 12,
-}
-
-const DarkBarChart = memo(function DarkBarChart({ data, title, color = AMBER }: { data: any[]; title: string; color?: string }) {
-  return (
-    <Panel className="p-5">
-      <h3 className="mb-4 text-sm font-medium text-zinc-300">{title}</h3>
-      <ResponsiveContainer width="100%" height={250}>
-        <BarChart data={data}>
-          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" vertical={false} />
-          <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#71717a' }} axisLine={{ stroke: 'rgba(255,255,255,0.1)' }} tickLine={false} />
-          <YAxis tick={{ fontSize: 11, fill: '#71717a' }} axisLine={false} tickLine={false} />
-          <Tooltip contentStyle={tooltipStyle} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
-          <Bar dataKey="value" fill={color} radius={[4, 4, 0, 0]} maxBarSize={40} />
-        </BarChart>
-      </ResponsiveContainer>
-    </Panel>
-  )
-})
-
-const DarkPieChart = memo(function DarkPieChart({ data, title }: { data: any[]; title: string }) {
-  return (
-    <Panel className="p-5">
-      <h3 className="mb-4 text-sm font-medium text-zinc-300">{title}</h3>
-      <ResponsiveContainer width="100%" height={250}>
-        <PieChart>
-          <Pie data={data} cx="50%" cy="50%" outerRadius={80} innerRadius={45} paddingAngle={2} dataKey="value" nameKey="label" stroke="none" label={{ fill: '#a1a1aa', fontSize: 11 }}>
-            {data.map((_, i) => (
-              <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
-            ))}
-          </Pie>
-          <Tooltip contentStyle={tooltipStyle} />
-          <Legend wrapperStyle={{ fontSize: 12, color: '#a1a1aa' }} />
-        </PieChart>
-      </ResponsiveContainer>
     </Panel>
   )
 })

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
+import { decryptToken } from '@/lib/crypto'
 
 async function graphGet(url: string) {
   const res = await fetch(url)
@@ -18,27 +19,28 @@ export async function GET(req: NextRequest) {
   const since = searchParams.get('since') || ''
   const until = searchParams.get('until') || ''
 
-  // Get token — try Supabase first, fall back to header
+  // Require a signed-in user — this route must not act as an open proxy to the Meta API
+  const supabase = await createServerSupabaseClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  // Get token — try Supabase first, fall back to header (authenticated users only)
   let token = req.headers.get('x-meta-token') || ''
   let adAccountId = req.headers.get('x-meta-account') || ''
 
   if (!token) {
     try {
-      const supabase = await createServerSupabaseClient()
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
-        const { data: member } = await supabase
-          .from('workspace_members').select('workspace_id').eq('user_id', user.id).single()
-        if (member) {
-          const { data: conn } = await supabase
-            .from('integration_connections')
-            .select('access_token_encrypted, ad_account_id')
-            .eq('workspace_id', member.workspace_id)
-            .eq('provider', 'meta')
-            .eq('status', 'connected')
-            .single()
-          if (conn) { token = conn.access_token_encrypted; adAccountId = conn.ad_account_id || '' }
-        }
+      const { data: member } = await supabase
+        .from('workspace_members').select('workspace_id').eq('user_id', user.id).single()
+      if (member) {
+        const { data: conn } = await supabase
+          .from('integration_connections')
+          .select('access_token_encrypted, ad_account_id')
+          .eq('workspace_id', member.workspace_id)
+          .eq('provider', 'meta')
+          .eq('status', 'connected')
+          .single()
+        if (conn) { token = decryptToken(conn.access_token_encrypted); adAccountId = conn.ad_account_id || '' }
       }
     } catch {}
   }

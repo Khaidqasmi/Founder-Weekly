@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
+import { encryptToken } from '@/lib/crypto'
 
 /**
  * POST /api/integrations/shopify/connect
@@ -232,7 +233,7 @@ export async function POST(req: NextRequest) {
     provider: 'shopify',
     status: 'connected',
     shop_domain: domain,
-    access_token_encrypted: resolvedToken,
+    access_token_encrypted: encryptToken(resolvedToken),
     last_sync_at: new Date().toISOString(),
   }
 

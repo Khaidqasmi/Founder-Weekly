@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { fetchShopifyAnalytics, type ShopifyAnalytics } from '@/lib/integrations/shopify/analytics'
+import { decryptToken } from '@/lib/crypto'
 import type { Order } from '@/lib/types'
 
 type SyncedOrder = Partial<Order> & { source?: string }
@@ -214,7 +215,7 @@ export async function GET(request: NextRequest) {
     try {
       analytics = await fetchShopifyAnalytics(
         connection.shop_domain,
-        connection.access_token_encrypted,
+        decryptToken(connection.access_token_encrypted),
         from,
         to
       )

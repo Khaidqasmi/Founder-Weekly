@@ -23,13 +23,20 @@ export async function GET(request: NextRequest) {
 
   const wsId = member.workspace_id
 
-  // Date range from query params
+  // Date range from query params — only accept YYYY-MM-DD
+  const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
   const url = new URL(request.url)
-  const from = url.searchParams.get('from')
-  const to = url.searchParams.get('to')
+  const fromRaw = url.searchParams.get('from')
+  const toRaw = url.searchParams.get('to')
+  const from = fromRaw && DATE_RE.test(fromRaw) ? fromRaw : null
+  const to = toRaw && DATE_RE.test(toRaw) ? toRaw : null
 
-  let ordersQuery = supabase.from('orders').select('*').eq('workspace_id', wsId)
-  let adsQuery = supabase.from('ads').select('*').eq('workspace_id', wsId)
+  // Fetch only the columns the calculations use — keeps payloads small and queries fast
+  const ORDER_COLS = 'order_date, order_status, revenue, payment_method, cod_status, product_name, quantity, source'
+  const AD_COLS = 'date, campaign_name, ad_spend, purchase_revenue, source'
+
+  let ordersQuery = supabase.from('orders').select(ORDER_COLS).eq('workspace_id', wsId)
+  let adsQuery = supabase.from('ads').select(AD_COLS).eq('workspace_id', wsId)
 
   if (from) {
     ordersQuery = ordersQuery.gte('order_date', from)
@@ -46,10 +53,10 @@ export async function GET(request: NextRequest) {
   const [ordersRes, adsRes, leadsRes, inventoryRes, actionsRes, trialRes, syncRes] = await Promise.all([
     ordersQuery,
     adsQuery,
-    supabase.from('leads').select('*').eq('workspace_id', wsId),
-    supabase.from('inventory').select('*').eq('workspace_id', wsId),
+    supabase.from('leads').select('follow_up_status').eq('workspace_id', wsId),
+    supabase.from('inventory').select('product_name, sku, current_stock, reorder_level').eq('workspace_id', wsId),
     supabase.from('action_items').select('*').eq('workspace_id', wsId).neq('status', 'Done').order('created_at', { ascending: false }).limit(5),
-    supabase.from('trial_subscriptions').select('*').eq('workspace_id', wsId).single(),
+    supabase.from('trial_subscriptions').select('*').eq('workspace_id', wsId).maybeSingle(),
     supabase.from('integration_connections').select('provider, status, last_sync_at').eq('workspace_id', wsId),
   ])
 

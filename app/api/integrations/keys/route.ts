@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient, createServiceRoleClient } from '@/lib/supabase/server'
+import { encryptToken } from '@/lib/crypto'
 
 const VALID_PROVIDERS = new Set(['shopify', 'meta', 'google'])
 
@@ -131,7 +132,10 @@ function normalizeShopifyDomain(input: string) {
 function ensureShopifyHostname(hostname: string) {
   const clean = hostname.replace(/^www\./i, '').toLowerCase()
   if (!clean) return ''
-  return clean.includes('.') ? clean : `${clean}.myshopify.com`
+  const domain = clean.includes('.') ? clean : `${clean}.myshopify.com`
+  // Only allow real Shopify store domains — the server sends the access token
+  // to this host, so it must never point anywhere else.
+  return /^[a-z0-9][a-z0-9-]*\.myshopify\.com$/.test(domain) ? domain : ''
 }
 
 async function validateShopifyCredentials(shopDomain: string, accessToken: string) {
@@ -283,9 +287,14 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Encrypt tokens at rest (validation above used the plaintext values)
     const { error } = await admin
       .from('integration_connections')
-      .upsert(record, { onConflict: 'workspace_id,provider' })
+      .upsert({
+        ...record,
+        access_token_encrypted: encryptToken(record.access_token_encrypted),
+        refresh_token_encrypted: encryptToken(record.refresh_token_encrypted),
+      }, { onConflict: 'workspace_id,provider' })
 
     if (error) throw error
 

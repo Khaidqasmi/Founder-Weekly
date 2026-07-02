@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
+import { encryptToken } from '@/lib/crypto'
 
 const CLIENT_ID = process.env.GA4_CLIENT_ID!
 const CLIENT_SECRET = process.env.GA4_CLIENT_SECRET!
@@ -59,8 +60,8 @@ export async function GET(req: NextRequest) {
     workspace_id: member.workspace_id,
     provider: 'google',
     status: 'connected',
-    access_token_encrypted: accessToken,
-    refresh_token_encrypted: refreshToken,
+    access_token_encrypted: encryptToken(accessToken),
+    refresh_token_encrypted: encryptToken(refreshToken),
     shop_domain: email,
     last_sync_at: new Date().toISOString(),
   }
