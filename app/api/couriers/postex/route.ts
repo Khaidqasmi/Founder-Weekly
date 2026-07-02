@@ -5,16 +5,26 @@ const POSTEX_ENDPOINTS = {
   remittances: 'https://api.postex.pk/services/integration/api/order/v3/remittance',
 }
 
-function dateKey(date: Date) {
+function isoDateKey(date: Date) {
   return date.toISOString().split('T')[0]
+}
+
+function dmyDateKey(date: Date) {
+  const dd = String(date.getDate()).padStart(2, '0')
+  const mm = String(date.getMonth() + 1).padStart(2, '0')
+  const yyyy = date.getFullYear()
+  return `${dd}-${mm}-${yyyy}`
 }
 
 function orderRanges() {
   const to = new Date()
-  return [30, 365, 1095].map((days) => {
+  return [30, 90, 365, 1095].flatMap((days) => {
     const from = new Date()
     from.setDate(from.getDate() - days)
-    return { fromDate: dateKey(from), toDate: dateKey(to) }
+    return [
+      { fromDate: isoDateKey(from), toDate: isoDateKey(to) },
+      { fromDate: dmyDateKey(from), toDate: dmyDateKey(to) },
+    ]
   })
 }
 
@@ -65,24 +75,23 @@ async function fetchPostEx(url: string, token: string, init?: RequestInit) {
 }
 
 function shipmentAttempts(token: string) {
-  const statuses = [0, 2, 3, 4, 5, 6, 15, 16, 17, 18]
   const attempts: Array<() => Promise<{ res: Response; data: any }>> = []
 
+  // PostEx account/API versions differ on date format and GET vs POST.
+  // Try the documented JSON body first, then the query-string fallback.
   for (const range of orderRanges()) {
-    const allParams = new URLSearchParams({ orderStatusID: '0', ...range })
-    attempts.push(() => fetchPostEx(`${POSTEX_ENDPOINTS.shipments}?${allParams.toString()}`, token))
     attempts.push(() => fetchPostEx(POSTEX_ENDPOINTS.shipments, token, {
       method: 'POST',
       body: JSON.stringify({ orderStatusID: 0, ...range }),
     }))
-
-    for (const status of statuses.slice(1)) {
-      const params = new URLSearchParams({ orderStatusID: String(status), ...range })
-      attempts.push(() => fetchPostEx(`${POSTEX_ENDPOINTS.shipments}?${params.toString()}`, token))
-    }
   }
 
-  attempts.push(() => fetchPostEx(POSTEX_ENDPOINTS.shipments, token))
+  // GET fallback with query params (some integration tiers support this)
+  for (const range of orderRanges()) {
+    const params = new URLSearchParams({ orderStatusID: '0', ...range })
+    attempts.push(() => fetchPostEx(`${POSTEX_ENDPOINTS.shipments}?${params.toString()}`, token))
+  }
+
   return attempts
 }
 

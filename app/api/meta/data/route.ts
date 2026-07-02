@@ -143,8 +143,10 @@ async function enrichCreativeMedia(media: ReturnType<typeof extractCreativeMedia
     const video = await graphGet(
       `https://graph.facebook.com/v19.0/${media.videoId}?fields=source,picture,permalink_url,embed_html&access_token=${encodeURIComponent(token)}`
     )
+    // Facebook embed_html contains &amp; entities in the src URL; decode them
+    // so the iframe src attribute is a valid URL when React sets it via setAttribute
     const embedUrl = typeof video.embed_html === 'string'
-      ? video.embed_html.match(/src="([^"]+)"/)?.[1] || ''
+      ? (video.embed_html.match(/src="([^"]+)"/)?.[1] || '').replace(/&amp;/g, '&')
       : ''
 
     return {
