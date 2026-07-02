@@ -94,6 +94,7 @@ function extractCreativeMedia(creative: any = {}) {
   const assetImage = creative.asset_feed_spec?.images?.[0] || {}
   const videoId = creative.video_id || videoData.video_id || linkData.video_id || assetVideo.video_id || assetVideo.id || ''
   const imageHash = creative.image_hash || linkData.image_hash || photoData.image_hash || assetImage.hash || ''
+  const storyId = creative.effective_object_story_id || creative.object_story_id || ''
   const imageUrl =
     creative.image_url ||
     linkData.picture ||
@@ -109,6 +110,7 @@ function extractCreativeMedia(creative: any = {}) {
     imageUrl,
     imageHash,
     imageSourceUrl: '',
+    storyId,
     videoId,
     videoSourceUrl: '',
     videoEmbedUrl: '',
@@ -119,59 +121,113 @@ function extractCreativeMedia(creative: any = {}) {
   }
 }
 
-async function enrichCreativeMedia(media: ReturnType<typeof extractCreativeMedia>, base: string, token: string) {
-  if (!media.videoId && !media.imageHash) return media
+function decodeHtmlUrl(url: string) {
+  return url
+    .replace(/&amp;/g, '&')
+    .replace(/\\\//g, '/')
+}
 
-  if (!media.videoId && media.imageHash) {
+function iframeSrcFromHtml(html = '') {
+  const match = html.match(/src=(?:"([^"]+)"|'([^']+)')/)
+  return decodeHtmlUrl(match?.[1] || match?.[2] || '')
+}
+
+function videoIdFromAttachments(attachments: any) {
+  const rows = attachments?.data || []
+  for (const row of rows) {
+    const mediaType = String(row.media_type || row.type || '').toLowerCase()
+    const targetId = row.target?.id || row.media?.target?.id || ''
+    if (targetId && mediaType.includes('video')) return targetId
+
+    const subRows = row.subattachments?.data || []
+    for (const sub of subRows) {
+      const subType = String(sub.media_type || sub.type || '').toLowerCase()
+      const subTargetId = sub.target?.id || sub.media?.target?.id || ''
+      if (subTargetId && subType.includes('video')) return subTargetId
+    }
+  }
+  return ''
+}
+
+async function fetchAdPreviewEmbed(adId: string, token: string) {
+  if (!adId) return ''
+  try {
+    const preview = await graphGet(
+      `https://graph.facebook.com/v19.0/${adId}/previews?ad_format=DESKTOP_FEED_STANDARD&access_token=${encodeURIComponent(token)}`
+    )
+    return iframeSrcFromHtml(preview.data?.[0]?.body || '')
+  } catch {
+    return ''
+  }
+}
+
+async function enrichCreativeMedia(media: ReturnType<typeof extractCreativeMedia>, base: string, token: string, adId: string) {
+  let resolvedMedia = media
+
+  if (!resolvedMedia.videoId && resolvedMedia.storyId) {
+    try {
+      const story = await graphGet(
+        `https://graph.facebook.com/v19.0/${resolvedMedia.storyId}?fields=attachments{media_type,type,target,media,subattachments}&access_token=${encodeURIComponent(token)}`
+      )
+      const storyVideoId = videoIdFromAttachments(story.attachments)
+      if (storyVideoId) {
+        resolvedMedia = { ...resolvedMedia, mediaType: 'video', videoId: storyVideoId }
+      }
+    } catch {}
+  }
+
+  if (!resolvedMedia.videoId && resolvedMedia.imageHash) {
     try {
       const image = await graphGet(
-        `${base}/adimages?hashes=${encodeURIComponent(JSON.stringify([media.imageHash]))}&fields=url,url_128,width,height&access_token=${encodeURIComponent(token)}`
+        `${base}/adimages?hashes=${encodeURIComponent(JSON.stringify([resolvedMedia.imageHash]))}&fields=url,url_128,width,height&access_token=${encodeURIComponent(token)}`
       )
       const highRes = image.data?.[0]?.url || image.data?.[0]?.url_128 || ''
 
       return {
-        ...media,
-        imageSourceUrl: highRes || media.imageUrl,
-        imageUrl: highRes || media.imageUrl,
+        ...resolvedMedia,
+        imageSourceUrl: highRes || resolvedMedia.imageUrl,
+        imageUrl: highRes || resolvedMedia.imageUrl,
       }
     } catch {
-      return media
+      return resolvedMedia
     }
   }
 
+  if (!resolvedMedia.videoId) return resolvedMedia
+
   try {
     const video = await graphGet(
-      `https://graph.facebook.com/v19.0/${media.videoId}?fields=source,picture,permalink_url,embed_html&access_token=${encodeURIComponent(token)}`
+      `https://graph.facebook.com/v19.0/${resolvedMedia.videoId}?fields=source,picture,permalink_url,embed_html&access_token=${encodeURIComponent(token)}`
     )
-    // Facebook embed_html contains &amp; entities in the src URL; decode them
-    // so the iframe src attribute is a valid URL when React sets it via setAttribute
-    const embedUrl = typeof video.embed_html === 'string'
-      ? (video.embed_html.match(/src="([^"]+)"/)?.[1] || '').replace(/&amp;/g, '&')
-      : ''
+    const embedUrl = iframeSrcFromHtml(video.embed_html || '') || await fetchAdPreviewEmbed(adId, token)
 
     return {
-      ...media,
+      ...resolvedMedia,
       videoSourceUrl: video.source || '',
       videoEmbedUrl: embedUrl,
-      thumbnailUrl: media.thumbnailUrl || video.picture || '',
+      thumbnailUrl: resolvedMedia.thumbnailUrl || video.picture || '',
       previewUrl: video.permalink_url || '',
       permalinkUrl: video.permalink_url || '',
     }
   } catch {
     try {
       const fallback = await graphGet(
-        `https://graph.facebook.com/v19.0/${media.videoId}?fields=source,picture,permalink_url&access_token=${encodeURIComponent(token)}`
+        `https://graph.facebook.com/v19.0/${resolvedMedia.videoId}?fields=source,picture,permalink_url&access_token=${encodeURIComponent(token)}`
       )
 
       return {
-        ...media,
+        ...resolvedMedia,
         videoSourceUrl: fallback.source || '',
-        thumbnailUrl: media.thumbnailUrl || fallback.picture || '',
+        videoEmbedUrl: await fetchAdPreviewEmbed(adId, token),
+        thumbnailUrl: resolvedMedia.thumbnailUrl || fallback.picture || '',
         previewUrl: fallback.permalink_url || '',
         permalinkUrl: fallback.permalink_url || '',
       }
     } catch {
-      return media
+      return {
+        ...resolvedMedia,
+        videoEmbedUrl: await fetchAdPreviewEmbed(adId, token),
+      }
     }
   }
 }
@@ -343,7 +399,7 @@ export async function GET(req: NextRequest) {
     const ads = await Promise.all(
       adsBase.map(async (ad: any) => ({
         ...ad,
-        creative: await enrichCreativeMedia(ad.creative, base, token),
+        creative: await enrichCreativeMedia(ad.creative, base, token, ad.id),
       }))
     )
 
