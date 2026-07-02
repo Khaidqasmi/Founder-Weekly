@@ -98,6 +98,15 @@ function Tab({ active, onClick, icon, label, count }: { active: boolean; onClick
 
 type ActiveTab = 'overview' | 'campaigns' | 'ads'
 
+function EmptyRangeState({ title, body }: { title: string; body: string }) {
+  return (
+    <div className="bg-zinc-900 dark:bg-gray-900 rounded-xl border border-white/10 dark:border-gray-700 p-6 text-center">
+      <p className="text-sm font-semibold text-white dark:text-gray-100">{title}</p>
+      <p className="text-xs text-zinc-400 mt-1">{body}</p>
+    </div>
+  )
+}
+
 export default function MetaPage() {
   const [data, setData] = useState<MetaData>(DEMO)
   const [loading, setLoading] = useState(false)
@@ -255,6 +264,12 @@ export default function MetaPage() {
             {/* ── Campaigns Tab ── */}
             {tab === 'campaigns' && (
               <div className="space-y-3">
+                {filteredCampaigns.length === 0 && (
+                  <EmptyRangeState
+                    title="No campaigns delivered in this range"
+                    body="Campaigns appear here only when Meta reports spend, impressions, clicks, purchases, or other activity for the selected dates."
+                  />
+                )}
                 {filteredCampaigns.map((c) => {
                   const isOpen = expandedCampaign === c.id
                   const campaignAdsets = data.adsets.filter(a => a.campaignId === c.id)
@@ -327,6 +342,14 @@ export default function MetaPage() {
             {/* ── Creatives Tab ── */}
             {tab === 'ads' && (
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredAds.length === 0 && (
+                  <div className="sm:col-span-2 lg:col-span-3">
+                    <EmptyRangeState
+                      title="No creatives delivered in this range"
+                      body="Paused and past creatives still show here when they have historical stats inside the selected dates."
+                    />
+                  </div>
+                )}
                 {filteredAds.map((ad) => {
                   const camp = data.campaigns.find(c => c.id === ad.campaignId)
                   return (

@@ -9,8 +9,64 @@ async function graphGet(url: string) {
   return json
 }
 
+async function graphGetAll(url: string, maxPages = 8) {
+  const firstPage = await graphGet(url)
+  const data = [...(firstPage.data || [])]
+  let next = firstPage.paging?.next
+  let pages = 1
+
+  while (next && pages < maxPages) {
+    const page = await graphGet(next)
+    data.push(...(page.data || []))
+    next = page.paging?.next
+    pages += 1
+  }
+
+  return { ...firstPage, data }
+}
+
 function getActions(actions: any[] = [], type: string) {
   return actions.find((a: any) => a.action_type === type)?.value || 0
+}
+
+function getAnyAction(actions: any[] = [], types: string[]) {
+  for (const type of types) {
+    const value = Number(getActions(actions, type))
+    if (value > 0) return value
+  }
+  return 0
+}
+
+function normalizeInsightsRow(ins: any = {}) {
+  const actions = ins.actions || []
+  const actionValues = ins.action_values || []
+  return {
+    spend: Number(ins.spend || 0),
+    impressions: Number(ins.impressions || 0),
+    clicks: Number(ins.clicks || 0),
+    ctr: Number(ins.ctr || 0),
+    cpc: Number(ins.cpc || 0),
+    cpm: Number(ins.cpm || 0),
+    reach: Number(ins.reach || 0),
+    frequency: Number(ins.frequency || 0),
+    purchases: getAnyAction(actions, ['purchase', 'omni_purchase', 'offsite_conversion.fb_pixel_purchase', 'onsite_conversion.purchase']),
+    revenue: getAnyAction(actionValues, ['purchase', 'omni_purchase', 'offsite_conversion.fb_pixel_purchase', 'onsite_conversion.purchase']),
+    addToCart: getAnyAction(actions, ['add_to_cart', 'omni_add_to_cart', 'offsite_conversion.fb_pixel_add_to_cart', 'onsite_conversion.add_to_cart']),
+    leads: getAnyAction(actions, ['lead', 'omni_lead', 'offsite_conversion.fb_pixel_lead', 'onsite_conversion.lead_grouped']),
+  }
+}
+
+function hasDelivery(insights: ReturnType<typeof normalizeInsightsRow>) {
+  return (
+    insights.spend > 0 ||
+    insights.impressions > 0 ||
+    insights.clicks > 0 ||
+    insights.reach > 0 ||
+    insights.purchases > 0 ||
+    insights.revenue > 0 ||
+    insights.addToCart > 0 ||
+    insights.leads > 0
+  )
 }
 
 function dateKey(date: Date) {
@@ -101,96 +157,96 @@ export async function GET(req: NextRequest) {
 
     const base = `https://graph.facebook.com/v19.0/${adAccountId}`
     const insightFields = 'spend,impressions,clicks,ctr,cpc,cpm,reach,frequency,actions,action_values,cost_per_action_type'
+    const encodedToken = encodeURIComponent(token)
 
     // 2. Account-level insights
     const accountInsights = await graphGet(
-      `${base}/insights?fields=${insightFields}&${dateParam}&access_token=${encodeURIComponent(token)}`
+      `${base}/insights?fields=${insightFields}&${dateParam}&access_token=${encodedToken}`
     )
     const ai = accountInsights.data?.[0] || {}
 
-    // 3. Campaigns with insights
-    const campaigns = await graphGet(
-      `${base}/campaigns?fields=id,name,status,objective,daily_budget,lifetime_budget,created_time&` +
-      `insights.fields(${insightFields})&${dateParam}&access_token=${encodeURIComponent(token)}&limit=50`
-    )
+    // Fetch object metadata separately, but only render objects that have
+    // insights rows in the selected date range. This keeps paused/old ads with
+    // historical stats visible while hiding creatives that did not run.
+    const [campaignMeta, adsetMeta, adMeta, campaignInsights, adsetInsights, adInsights] = await Promise.all([
+      graphGetAll(`${base}/campaigns?fields=id,name,status,objective,daily_budget,lifetime_budget&limit=200&access_token=${encodedToken}`),
+      graphGetAll(`${base}/adsets?fields=id,name,status,campaign_id,daily_budget,optimization_goal&limit=300&access_token=${encodedToken}`),
+      graphGetAll(`${base}/ads?fields=id,name,status,adset_id,campaign_id,creative{id,name,thumbnail_url,image_url,body,title,object_story_spec}&limit=500&access_token=${encodedToken}`),
+      graphGetAll(`${base}/insights?fields=campaign_id,campaign_name,${insightFields}&${dateParam}&level=campaign&limit=500&access_token=${encodedToken}`),
+      graphGetAll(`${base}/insights?fields=adset_id,adset_name,campaign_id,${insightFields}&${dateParam}&level=adset&limit=500&access_token=${encodedToken}`),
+      graphGetAll(`${base}/insights?fields=ad_id,ad_name,adset_id,campaign_id,${insightFields}&${dateParam}&level=ad&limit=500&access_token=${encodedToken}`),
+    ])
 
-    // 4. Ad sets
-    const adsets = await graphGet(
-      `${base}/adsets?fields=id,name,status,campaign_id,daily_budget,targeting,optimization_goal,billing_event&` +
-      `insights.fields(${insightFields})&${dateParam}&access_token=${encodeURIComponent(token)}&limit=100`
-    )
+    const campaignById = new Map((campaignMeta.data || []).map((c: any) => [c.id, c]))
+    const adsetById = new Map((adsetMeta.data || []).map((a: any) => [a.id, a]))
+    const adById = new Map((adMeta.data || []).map((a: any) => [a.id, a]))
 
-    // 5. Ads with creative thumbnails
-    const ads = await graphGet(
-      `${base}/ads?fields=id,name,status,adset_id,campaign_id,` +
-      `creative{id,name,thumbnail_url,image_url,body,title,object_story_spec}&` +
-      `insights.fields(${insightFields})&${dateParam}&access_token=${encodeURIComponent(token)}&limit=100`
-    )
+    const campaigns = (campaignInsights.data || [])
+      .map((row: any) => {
+        const insights = normalizeInsightsRow(row)
+        const meta: any = campaignById.get(row.campaign_id) || {}
+        return {
+          id: row.campaign_id,
+          name: meta.name || row.campaign_name || 'Campaign',
+          status: meta.status || 'UNKNOWN',
+          objective: meta.objective || '',
+          dailyBudget: Number(meta.daily_budget || 0) / 100,
+          lifetimeBudget: Number(meta.lifetime_budget || 0) / 100,
+          insights,
+        }
+      })
+      .filter((campaign: any) => campaign.id && hasDelivery(campaign.insights))
+      .sort((a: any, b: any) => b.insights.spend - a.insights.spend)
 
-    // Normalise helper
-    function normalizeInsights(raw: any) {
-      const ins = raw?.insights?.data?.[0] || {}
-      const actions = ins.actions || []
-      const actionValues = ins.action_values || []
-      return {
-        spend: Number(ins.spend || 0),
-        impressions: Number(ins.impressions || 0),
-        clicks: Number(ins.clicks || 0),
-        ctr: Number(ins.ctr || 0),
-        cpc: Number(ins.cpc || 0),
-        cpm: Number(ins.cpm || 0),
-        reach: Number(ins.reach || 0),
-        frequency: Number(ins.frequency || 0),
-        purchases: Number(getActions(actions, 'purchase') || getActions(actions, 'offsite_conversion.fb_pixel_purchase')),
-        revenue: Number(getActions(actionValues, 'purchase') || getActions(actionValues, 'offsite_conversion.fb_pixel_purchase')),
-        addToCart: Number(getActions(actions, 'add_to_cart') || getActions(actions, 'offsite_conversion.fb_pixel_add_to_cart')),
-        leads: Number(getActions(actions, 'lead')),
-      }
-    }
+    const adsets = (adsetInsights.data || [])
+      .map((row: any) => {
+        const insights = normalizeInsightsRow(row)
+        const meta: any = adsetById.get(row.adset_id) || {}
+        return {
+          id: row.adset_id,
+          name: meta.name || row.adset_name || 'Ad set',
+          status: meta.status || 'UNKNOWN',
+          campaignId: meta.campaign_id || row.campaign_id,
+          dailyBudget: Number(meta.daily_budget || 0) / 100,
+          optimizationGoal: meta.optimization_goal || '',
+          insights,
+        }
+      })
+      .filter((adset: any) => adset.id && hasDelivery(adset.insights))
+      .sort((a: any, b: any) => b.insights.spend - a.insights.spend)
+
+    const ads = (adInsights.data || [])
+      .map((row: any) => {
+        const insights = normalizeInsightsRow(row)
+        const meta: any = adById.get(row.ad_id) || {}
+        return {
+          id: row.ad_id,
+          name: meta.name || row.ad_name || 'Ad creative',
+          status: meta.status || 'UNKNOWN',
+          adsetId: meta.adset_id || row.adset_id,
+          campaignId: meta.campaign_id || row.campaign_id,
+          creative: {
+            thumbnailUrl: meta.creative?.thumbnail_url || '',
+            imageUrl: meta.creative?.image_url || '',
+            title: meta.creative?.title || meta.creative?.object_story_spec?.link_data?.name || '',
+            body: meta.creative?.body || meta.creative?.object_story_spec?.link_data?.message || '',
+          },
+          insights,
+        }
+      })
+      .filter((ad: any) => ad.id && hasDelivery(ad.insights))
+      .sort((a: any, b: any) => b.insights.spend - a.insights.spend)
 
     const totalInsights = (() => {
-      const actions = ai.actions || []
-      const actionValues = ai.action_values || []
-      return {
-        spend: Number(ai.spend || 0),
-        impressions: Number(ai.impressions || 0),
-        clicks: Number(ai.clicks || 0),
-        ctr: Number(ai.ctr || 0),
-        cpc: Number(ai.cpc || 0),
-        cpm: Number(ai.cpm || 0),
-        reach: Number(ai.reach || 0),
-        purchases: Number(getActions(actions, 'purchase') || getActions(actions, 'offsite_conversion.fb_pixel_purchase')),
-        revenue: Number(getActions(actionValues, 'purchase') || getActions(actionValues, 'offsite_conversion.fb_pixel_purchase')),
-        addToCart: Number(getActions(actions, 'add_to_cart')),
-        leads: Number(getActions(actions, 'lead')),
-      }
+      return normalizeInsightsRow(ai)
     })()
 
     return NextResponse.json({
       adAccountId,
       totalInsights,
-      campaigns: (campaigns.data || []).map((c: any) => ({
-        id: c.id, name: c.name, status: c.status, objective: c.objective,
-        dailyBudget: Number(c.daily_budget || 0) / 100,
-        lifetimeBudget: Number(c.lifetime_budget || 0) / 100,
-        insights: normalizeInsights(c),
-      })),
-      adsets: (adsets.data || []).map((a: any) => ({
-        id: a.id, name: a.name, status: a.status, campaignId: a.campaign_id,
-        dailyBudget: Number(a.daily_budget || 0) / 100,
-        optimizationGoal: a.optimization_goal,
-        insights: normalizeInsights(a),
-      })),
-      ads: (ads.data || []).map((a: any) => ({
-        id: a.id, name: a.name, status: a.status, adsetId: a.adset_id, campaignId: a.campaign_id,
-        creative: {
-          thumbnailUrl: a.creative?.thumbnail_url || '',
-          imageUrl: a.creative?.image_url || '',
-          title: a.creative?.title || a.creative?.object_story_spec?.link_data?.name || '',
-          body: a.creative?.body || a.creative?.object_story_spec?.link_data?.message || '',
-        },
-        insights: normalizeInsights(a),
-      })),
+      campaigns,
+      adsets,
+      ads,
     })
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 })
