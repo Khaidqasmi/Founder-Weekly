@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { LinkButton } from '@/components/link-button'
 import { signOut } from '@/lib/auth/actions'
 import { BarChart3, FileText, Upload, ListChecks, Settings, CreditCard, Plug, Menu, X, Truck, Clock, TrendingUp } from 'lucide-react'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
 const appLinks = [
@@ -44,28 +44,38 @@ export function SiteHeader() {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [checked, setChecked] = useState(false)
 
-  useEffect(() => {
+  const refreshAuth = useCallback(async () => {
     try {
       const supabase = createClient()
-      supabase.auth.getUser().then(({ data: { user } }) => {
-        setIsLoggedIn(!!user)
-        setChecked(true)
-      })
+      const { data: { user } } = await supabase.auth.getUser()
+      setIsLoggedIn(!!user)
     } catch {
+      setIsLoggedIn(false)
+    } finally {
       setChecked(true)
     }
   }, [])
+
+  useEffect(() => {
+    refreshAuth()
+  }, [pathname, refreshAuth])
+
+  useEffect(() => {
+    const supabase = createClient()
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
+      refreshAuth()
+    })
+
+    return () => subscription.unsubscribe()
+  }, [refreshAuth])
 
   useEffect(() => {
     setOpen(false)
   }, [pathname])
 
   const inApp = isAppPage(pathname)
-  const links = isLoggedIn
-    ? appLinks.filter((l) => !l.authOnly || isLoggedIn)
-    : inApp
-    ? appLinks.filter((l) => !l.authOnly || isLoggedIn)
-    : marketingLinks
+  const showAppLinks = isLoggedIn || (inApp && !checked)
+  const links = showAppLinks ? appLinks : inApp ? appLinks.filter((l) => !l.authOnly) : marketingLinks
 
   return (
     <nav className="border-b border-white/10 bg-zinc-900 sticky top-0 z-50">
