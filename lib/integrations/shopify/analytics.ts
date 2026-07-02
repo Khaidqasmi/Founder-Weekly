@@ -179,6 +179,8 @@ export async function fetchShopifyAnalytics(
 
   // ── 2. Summary sessions via ShopifyQL ───────────────────────────────────
   let totalSessions = 0, totalVisitors = 0
+  let liveAddedToCart = 0
+  let liveReachedCheckout = 0
   try {
     const summaryTable = await shopifyQL(shopDomain, accessToken,
       `FROM sessions SHOW online_store_visitors, sessions, pageviews, average_session_duration, sessions_with_cart_additions, sessions_that_reached_checkout, sessions_that_completed_checkout, conversion_rate, bounce_rate ${range}`
@@ -190,6 +192,8 @@ export async function fetchShopifyAnalytics(
       bounceRate = normalizePercent(rows[0].bounce_rate)
       avgSessionDuration = Number(rows[0].avg_session_duration || 0)
       conversionRate = normalizePercent(rows[0].conversion_rate)
+      liveAddedToCart = Number(rows[0].sessions_with_cart_additions || 0)
+      liveReachedCheckout = Number(rows[0].sessions_that_reached_checkout || 0)
       dataSource = 'shopifyql'
     }
   } catch (err: any) {
@@ -353,14 +357,14 @@ export async function fetchShopifyAnalytics(
 
   if (deviceBreakdown.length === 0) {
     deviceBreakdown = [
-      { device: 'Mobile', sessions: Math.round(totalSessions * 0.68), percentage: 68 },
-      { device: 'Desktop', sessions: Math.round(totalSessions * 0.27), percentage: 27 },
-      { device: 'Tablet', sessions: Math.round(totalSessions * 0.05), percentage: 5 },
+      { device: 'Mobile', sessions: Math.round(totalSessions * 0.68), percentage: totalSessions > 0 ? 68 : 0 },
+      { device: 'Desktop', sessions: Math.round(totalSessions * 0.27), percentage: totalSessions > 0 ? 27 : 0 },
+      { device: 'Tablet', sessions: Math.round(totalSessions * 0.05), percentage: totalSessions > 0 ? 5 : 0 },
     ]
   }
 
-  const addedToCart = Math.round(totalSessions * 0.08)
-  const reachedCheckout = Math.round(totalSessions * 0.04)
+  const addedToCart = liveAddedToCart > 0 ? liveAddedToCart : Math.round(totalSessions * 0.08)
+  const reachedCheckout = liveReachedCheckout > 0 ? liveReachedCheckout : Math.round(totalSessions * 0.04)
 
   return {
     sessions: totalSessions,

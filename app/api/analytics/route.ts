@@ -58,8 +58,10 @@ function buildAnalyticsFromSyncedOrders(
       : 0
   const visitors = live?.visitors && live.visitors > 0 ? live.visitors : Math.round(sessions * 0.85)
   const conversionRate = sessions > 0 ? Number(((totalOrders / sessions) * 100).toFixed(2)) : 0
-  const addedToCart = Math.round(sessions * 0.08)
-  const reachedCheckout = Math.round(sessions * 0.04)
+  const liveProductViews = live?.conversionFunnel?.find((step) => step.step.toLowerCase().includes('product'))?.count || 0
+  const productViews = liveProductViews > 0 ? liveProductViews : Math.round(sessions * 0.45)
+  const addedToCart = live?.addedToCart && live.addedToCart > 0 ? live.addedToCart : Math.round(sessions * 0.08)
+  const reachedCheckout = live?.reachedCheckout && live.reachedCheckout > 0 ? live.reachedCheckout : Math.round(sessions * 0.04)
 
   const productMap: Record<string, { title: string; views: number; addedToCart: number; purchases: number; revenue: number }> = {}
   validOrders.forEach((order) => {
@@ -124,9 +126,9 @@ function buildAnalyticsFromSyncedOrders(
   const deviceBreakdown = live?.deviceBreakdown?.some((device) => device.sessions > 0)
     ? live.deviceBreakdown
     : [
-        { device: 'Mobile', sessions: Math.round(sessions * 0.68), percentage: 68 },
-        { device: 'Desktop', sessions: Math.round(sessions * 0.27), percentage: 27 },
-        { device: 'Tablet', sessions: Math.round(sessions * 0.05), percentage: 5 },
+        { device: 'Mobile', sessions: Math.round(sessions * 0.68), percentage: sessions > 0 ? 68 : 0 },
+        { device: 'Desktop', sessions: Math.round(sessions * 0.27), percentage: sessions > 0 ? 27 : 0 },
+        { device: 'Tablet', sessions: Math.round(sessions * 0.05), percentage: sessions > 0 ? 5 : 0 },
       ]
 
   return {
@@ -151,7 +153,7 @@ function buildAnalyticsFromSyncedOrders(
     countryBreakdown,
     conversionFunnel: [
       { step: 'Sessions', count: sessions, rate: 100 },
-      { step: 'Product Views', count: Math.round(sessions * 0.45), rate: 45 },
+      { step: 'Product Views', count: productViews, rate: Number(((productViews / Math.max(sessions, 1)) * 100).toFixed(1)) },
       { step: 'Added to Cart', count: addedToCart, rate: Number(((addedToCart / Math.max(sessions, 1)) * 100).toFixed(1)) },
       { step: 'Reached Checkout', count: reachedCheckout, rate: Number(((reachedCheckout / Math.max(sessions, 1)) * 100).toFixed(1)) },
       { step: 'Purchased', count: totalOrders, rate: conversionRate },

@@ -97,6 +97,11 @@ function DeviceIcon({ device }: { device: string }) {
   return <Tablet className="w-4 h-4 text-purple-500" />
 }
 
+function clampPercent(value: number) {
+  if (!Number.isFinite(value)) return 0
+  return Math.min(100, Math.max(0, value))
+}
+
 function HorizontalFunnel({ steps }: { steps: { step: string; count: number; rate: number }[] }) {
   const max = steps[0]?.count || 1
   const colors = ['#f59e0b', '#fbbf24', '#d97706', '#a8a29e', '#78716c']
@@ -104,7 +109,8 @@ function HorizontalFunnel({ steps }: { steps: { step: string; count: number; rat
     <div className="w-full overflow-hidden">
       <div className="grid w-full grid-cols-5 gap-2 sm:gap-0">
         {steps.map((s, i) => {
-          const heightPct = Math.max((s.count / max) * 100, 18)
+          const ratio = Math.max(0, s.count) / Math.max(max, 1)
+          const heightPct = s.count > 0 ? Math.max(Math.sqrt(ratio) * 100, 10) : 0
           const isLast = i === steps.length - 1
           return (
             <div key={s.step} className="relative min-w-0">
@@ -116,7 +122,7 @@ function HorizontalFunnel({ steps }: { steps: { step: string; count: number; rat
                 <div className="flex items-end justify-center">
                   <div
                     className="w-[72%] max-w-[58px] rounded-t-md transition-all sm:max-w-[64px]"
-                    style={{ height: `${heightPct}%`, minHeight: 28, backgroundColor: colors[i] || colors[4] }}
+                    style={{ height: `${clampPercent(heightPct)}%`, minHeight: s.count > 0 ? 8 : 0, backgroundColor: colors[i] || colors[4] }}
                   />
                 </div>
                 <p className="break-words pt-2 text-center text-[10px] font-medium leading-tight text-zinc-400 dark:text-zinc-500 sm:text-xs">{s.step}</p>
@@ -475,7 +481,10 @@ function ShopifyTab({ tab, setTab }: { tab: Tab; setTab: (tab: Tab) => void }) {
                         <span className="text-zinc-400">{formatNumber(d.sessions)} · {d.percentage}%</span>
                       </div>
                       <div className="h-2 bg-zinc-800 dark:bg-gray-800 rounded-full overflow-hidden">
-                        <div className="h-full bg-blue-500 rounded-full" style={{ width: `${d.percentage}%` }} />
+                        <div
+                          className="h-full rounded-full bg-blue-500 transition-[width] duration-500 ease-out"
+                          style={{ width: `${clampPercent(Number(d.percentage))}%` }}
+                        />
                       </div>
                     </div>
                   </div>
