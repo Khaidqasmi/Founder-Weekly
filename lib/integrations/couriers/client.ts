@@ -40,6 +40,32 @@ function statusColor(status: string): 'green' | 'yellow' | 'red' | 'blue' | 'gra
   return map[status] || 'gray'
 }
 
+function firstArray(...values: any[]) {
+  for (const value of values) {
+    if (Array.isArray(value)) return value
+    if (value && typeof value === 'object') {
+      const nested = Object.values(value).find(Array.isArray)
+      if (Array.isArray(nested)) return nested
+    }
+  }
+  return []
+}
+
+function firstString(...values: any[]) {
+  return values.find((value) => typeof value === 'string' && value.trim()) || ''
+}
+
+async function postexProxy(resource: 'shipments' | 'remittances', token: string) {
+  const res = await fetch('/api/couriers/postex', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ resource, token }),
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(data.error || `PostEx ${resource} error: ${res.status}`)
+  return data
+}
+
 export async function fetchTraxShipments(): Promise<Shipment[]> {
   const apiKey = getStoredKey('trax_api_key')
   if (!apiKey) throw new Error('Trax API key not configured')
@@ -138,29 +164,25 @@ export async function fetchPostExShipments(): Promise<Shipment[]> {
   const token = getStoredKey('postex_api_token')
   if (!token) throw new Error('PostEx API token not configured')
 
-  const res = await fetch('https://api.postex.pk/services/integration/api/order/v3/all-orders', {
-    headers: { token, 'Content-Type': 'application/json' },
-  })
+  const data = await postexProxy('shipments', token)
+  const rows = firstArray(data.dist, data.data, data.orders, data.shipments, data)
 
-  if (!res.ok) throw new Error(`PostEx API error: ${res.status}`)
-  const data = await res.json()
-
-  return (data.dist || []).map((s: any) => ({
-    id: s.trackingNumber || s.orderRefNumber,
+  return rows.map((s: any) => ({
+    id: firstString(s.trackingNumber, s.tracking_number, s.cn, s.orderRefNumber, s.orderReferenceNumber, s.id),
     courier: 'PostEx',
-    trackingNumber: s.trackingNumber || '',
-    orderId: s.orderRefNumber || '',
-    customerName: s.customerName || '',
-    customerPhone: s.customerPhone || '',
-    city: s.deliveryAddress?.cityName || '',
-    productName: s.orderDetail || '',
-    amount: Number(s.orderAmount) || 0,
-    deliveryStatus: normalizeStatus(s.orderStatus || ''),
-    statusColor: statusColor(normalizeStatus(s.orderStatus || '')),
-    bookedAt: s.createdAt || '',
-    deliveredAt: s.deliveredAt || undefined,
-    lastUpdate: s.updatedAt || s.createdAt || '',
-    remarks: s.orderStatus || '',
+    trackingNumber: firstString(s.trackingNumber, s.tracking_number, s.cn),
+    orderId: firstString(s.orderRefNumber, s.orderReferenceNumber, s.order_id, s.invoiceReference),
+    customerName: firstString(s.customerName, s.consigneeName, s.name),
+    customerPhone: firstString(s.customerPhone, s.consigneePhone, s.phone),
+    city: firstString(s.deliveryAddress?.cityName, s.cityName, s.city, s.destinationCity),
+    productName: firstString(s.orderDetail, s.productName, s.itemDescription, s.items),
+    amount: Number(s.orderAmount || s.invoicePayment || s.codAmount || s.amount) || 0,
+    deliveryStatus: normalizeStatus(firstString(s.orderStatus, s.transactionStatus, s.status)),
+    statusColor: statusColor(normalizeStatus(firstString(s.orderStatus, s.transactionStatus, s.status))),
+    bookedAt: firstString(s.createdAt, s.orderDate, s.bookingDate, s.bookedAt),
+    deliveredAt: firstString(s.deliveredAt, s.deliveryDate) || undefined,
+    lastUpdate: firstString(s.updatedAt, s.statusDate, s.createdAt, s.orderDate),
+    remarks: firstString(s.orderStatus, s.transactionStatus, s.status, s.statusMessage),
   }))
 }
 
@@ -220,21 +242,18 @@ export async function fetchPostExRemittances(): Promise<Remittance[]> {
   const token = getStoredKey('postex_api_token')
   if (!token) throw new Error('PostEx API token not configured')
 
-  const res = await fetch('https://api.postex.pk/services/integration/api/order/v3/remittance', {
-    headers: { token, 'Content-Type': 'application/json' },
-  })
-  if (!res.ok) throw new Error(`PostEx remittance error: ${res.status}`)
-  const data = await res.json()
+  const data = await postexProxy('remittances', token)
+  const rows = firstArray(data.dist, data.data, data.remittances, data)
 
-  return (data.dist || data.data || []).map((r: any) => ({
-    id: r.remittanceRefNumber || r.id,
+  return rows.map((r: any) => ({
+    id: firstString(r.remittanceRefNumber, r.remittanceNo, r.id, r.cprNumber_1, r.cprNumber),
     courier: 'PostEx',
-    remittanceNo: r.remittanceRefNumber || r.id || '',
-    date: r.remittanceDate || r.createdAt || '',
-    amount: Number(r.remittanceAmount || r.amount) || 0,
-    shipmentCount: Number(r.orderCount || r.shipments) || 0,
-    status: r.status?.toLowerCase().includes('paid') ? 'paid' : 'pending',
-    pdfUrl: r.slipUrl || undefined,
+    remittanceNo: firstString(r.remittanceRefNumber, r.remittanceNo, r.id, r.cprNumber_1, r.cprNumber),
+    date: firstString(r.remittanceDate, r.settlementDate, r.upfrontPaymentDate, r.createdAt),
+    amount: Number(r.remittanceAmount || r.amount || r.invoicePayment || r.codAmount) || 0,
+    shipmentCount: Number(r.orderCount || r.shipments || r.shipmentCount) || 0,
+    status: firstString(r.status, r.paymentStatus).toLowerCase().includes('paid') || r.settle === true ? 'paid' : 'pending',
+    pdfUrl: firstString(r.slipUrl, r.pdfUrl, r.url) || undefined,
   }))
 }
 
