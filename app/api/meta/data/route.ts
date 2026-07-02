@@ -26,8 +26,8 @@ async function graphGetAll(url: string, maxPages = 8) {
 }
 
 async function fetchAdsWithCreativeMeta(base: string, encodedToken: string) {
-  const richFields = 'id,name,status,adset_id,campaign_id,creative{id,name,thumbnail_url,image_url,body,title,object_story_spec,asset_feed_spec,effective_object_story_id}'
-  const basicFields = 'id,name,status,adset_id,campaign_id,creative{id,name,thumbnail_url,image_url,body,title,object_story_spec}'
+  const richFields = 'id,name,status,adset_id,campaign_id,creative{id,name,thumbnail_url,image_url,image_hash,body,title,object_story_spec,asset_feed_spec,effective_object_story_id}'
+  const basicFields = 'id,name,status,adset_id,campaign_id,creative{id,name,thumbnail_url,image_url,image_hash,body,title,object_story_spec}'
 
   try {
     return await graphGetAll(`${base}/ads?fields=${richFields}&limit=500&access_token=${encodedToken}`)
@@ -88,6 +88,7 @@ function extractCreativeMedia(creative: any = {}) {
   const assetVideo = creative.asset_feed_spec?.videos?.[0] || {}
   const assetImage = creative.asset_feed_spec?.images?.[0] || {}
   const videoId = videoData.video_id || linkData.video_id || assetVideo.video_id || ''
+  const imageHash = creative.image_hash || linkData.image_hash || photoData.image_hash || assetImage.hash || ''
   const imageUrl =
     creative.image_url ||
     linkData.picture ||
@@ -101,6 +102,8 @@ function extractCreativeMedia(creative: any = {}) {
     mediaType: videoId ? 'video' : 'image',
     thumbnailUrl: creative.thumbnail_url || videoData.image_url || imageUrl,
     imageUrl,
+    imageHash,
+    imageSourceUrl: '',
     videoId,
     videoSourceUrl: '',
     previewUrl: '',
@@ -110,8 +113,25 @@ function extractCreativeMedia(creative: any = {}) {
   }
 }
 
-async function enrichVideoMedia(media: ReturnType<typeof extractCreativeMedia>, token: string) {
-  if (!media.videoId) return media
+async function enrichCreativeMedia(media: ReturnType<typeof extractCreativeMedia>, base: string, token: string) {
+  if (!media.videoId && !media.imageHash) return media
+
+  if (!media.videoId && media.imageHash) {
+    try {
+      const image = await graphGet(
+        `${base}/adimages?hashes=${encodeURIComponent(JSON.stringify([media.imageHash]))}&fields=url,url_128,width,height&access_token=${encodeURIComponent(token)}`
+      )
+      const highRes = image.data?.[0]?.url || image.data?.[0]?.url_128 || ''
+
+      return {
+        ...media,
+        imageSourceUrl: highRes || media.imageUrl,
+        imageUrl: highRes || media.imageUrl,
+      }
+    } catch {
+      return media
+    }
+  }
 
   try {
     const video = await graphGet(
@@ -310,7 +330,7 @@ export async function GET(req: NextRequest) {
     const ads = await Promise.all(
       adsBase.map(async (ad: any) => ({
         ...ad,
-        creative: await enrichVideoMedia(ad.creative, token),
+        creative: await enrichCreativeMedia(ad.creative, base, token),
       }))
     )
 

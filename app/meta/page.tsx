@@ -30,6 +30,8 @@ interface Ad {
     mediaType?: 'image' | 'video'
     thumbnailUrl: string
     imageUrl: string
+    imageHash?: string
+    imageSourceUrl?: string
     videoId?: string
     videoSourceUrl?: string
     previewUrl?: string
@@ -127,8 +129,9 @@ function EmptyRangeState({ title, body }: { title: string; body: string }) {
 
 function CreativePreview({ ad }: { ad: Ad }) {
   const media = ad.creative
-  const poster = media.thumbnailUrl || media.imageUrl
   const isVideo = media.mediaType === 'video'
+  const imageSource = media.imageSourceUrl || media.imageUrl
+  const poster = isVideo ? (media.thumbnailUrl || imageSource) : (imageSource || media.thumbnailUrl)
 
   return (
     <div className="relative bg-zinc-950 h-64 sm:h-72 flex items-center justify-center overflow-hidden border-b border-white/5">
@@ -142,7 +145,7 @@ function CreativePreview({ ad }: { ad: Ad }) {
           <source src={media.videoSourceUrl} />
         </video>
       ) : poster ? (
-        <img src={poster} alt={ad.name} className="w-full h-full object-cover" />
+        <img src={poster} alt={ad.name} className="w-full h-full object-contain bg-black" decoding="async" />
       ) : (
         <div className="text-center px-4">
           <div className="w-12 h-12 mx-auto mb-2 bg-[#1877F2] rounded-xl flex items-center justify-center">
