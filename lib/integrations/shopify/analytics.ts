@@ -38,16 +38,36 @@ function addDays(date: string, days: number) {
   return d.toISOString().split('T')[0]
 }
 
+function getTimeZoneOffset(date: string, timeZone: string) {
+  const utcDate = new Date(`${date}T12:00:00Z`)
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    timeZoneName: 'shortOffset',
+    hour: '2-digit',
+  }).formatToParts(utcDate)
+  const tz = parts.find((part) => part.type === 'timeZoneName')?.value || 'GMT'
+  const match = tz.match(/GMT([+-])(\d{1,2})(?::?(\d{2}))?/)
+  if (!match) return '+00:00'
+
+  const sign = match[1]
+  const hours = match[2].padStart(2, '0')
+  const minutes = (match[3] || '00').padStart(2, '0')
+  return `${sign}${hours}:${minutes}`
+}
+
 function sinceUntil(from: string, to: string) {
   // ShopifyQL treats UNTIL like an upper boundary in several reports. Extending
   // by one day makes Today/Yesterday ranges include the whole selected date.
   return `SINCE ${from} UNTIL ${addDays(to, 1)}`
 }
 
-function shopifyRestDateRange(from: string, to: string) {
+function shopifyRestDateRange(from: string, to: string, timeZone = 'UTC') {
+  const offset = getTimeZoneOffset(from, timeZone)
+  const endOffset = getTimeZoneOffset(addDays(to, 1), timeZone)
+
   return {
-    min: `${from}T00:00:00Z`,
-    max: `${addDays(to, 1)}T00:00:00Z`,
+    min: `${from}T00:00:00${offset}`,
+    max: `${addDays(to, 1)}T00:00:00${endOffset}`,
   }
 }
 
@@ -150,6 +170,17 @@ async function fetchLandingPages(shopDomain: string, accessToken: string, range:
   })
 }
 
+async function fetchShopTimeZone(baseUrl: string, headers: Record<string, string>) {
+  try {
+    const res = await fetch(`${baseUrl}/shop.json?fields=iana_timezone,timezone`, { headers })
+    if (!res.ok) return 'UTC'
+    const data = await res.json()
+    return data.shop?.iana_timezone || 'UTC'
+  } catch {
+    return 'UTC'
+  }
+}
+
 export async function fetchShopifyAnalytics(
   shopDomain: string,
   accessToken: string,
@@ -161,6 +192,7 @@ export async function fetchShopifyAnalytics(
   const baseUrl = `https://${shopDomain}/admin/api/2026-07`
   const headers = { 'X-Shopify-Access-Token': accessToken, 'Content-Type': 'application/json' }
   const range = sinceUntil(dateFrom, dateTo)
+  const shopTimeZone = await fetchShopTimeZone(baseUrl, headers)
 
   // ── 1. Try ShopifyQL for real session data ──────────────────────────────
   let sessionRows: Record<string, any>[] = []
@@ -272,7 +304,7 @@ export async function fetchShopifyAnalytics(
   }
 
   let orderCount = 0
-  const restRange = shopifyRestDateRange(dateFrom, dateTo)
+  const restRange = shopifyRestDateRange(dateFrom, dateTo, shopTimeZone)
   try {
     const countRes = await fetch(
       `${baseUrl}/orders/count.json?created_at_min=${restRange.min}&created_at_max=${restRange.max}&status=any`,

@@ -206,13 +206,13 @@ function ShopifyTab({ tab, setTab }: { tab: Tab; setTab: (tab: Tab) => void }) {
     if ((d as any).shopDomain) setShopDomain((d as any).shopDomain)
   }
 
-  async function fetchData(from: string, to: string) {
+  async function fetchData(from: string, to: string, force = false) {
     const seq = ++fetchSeqRef.current
     const isStale = () => seq !== fetchSeqRef.current
 
     // Serve cached range instantly; skip network entirely while still fresh
     const cached = analyticsCache.get(`${from}|${to}`)
-    if (cached) {
+    if (cached && !force) {
       applyAnalytics(cached.data)
       setInitialLoad(false)
       if (Date.now() - cached.ts < ANALYTICS_CACHE_TTL_MS) return
@@ -296,7 +296,7 @@ function ShopifyTab({ tab, setTab }: { tab: Tab; setTab: (tab: Tab) => void }) {
                     <span className="inline-flex items-center rounded-full border border-amber-500/25 bg-amber-500/10 px-2.5 py-1.5 text-xs font-medium text-amber-400 sm:px-3">Synced orders</span>
                   )}
                   <button
-                    onClick={() => fetchData(dateFrom, dateTo)}
+                    onClick={() => fetchData(dateFrom, dateTo, true)}
                     disabled={loading}
                     className="inline-flex items-center gap-1.5 rounded-full border border-white/10 px-2.5 py-1.5 text-xs text-zinc-400 transition-colors hover:border-white/15 hover:text-zinc-300 sm:hidden"
                   >
@@ -314,7 +314,7 @@ function ShopifyTab({ tab, setTab }: { tab: Tab; setTab: (tab: Tab) => void }) {
 
             {connected === true && (
               <button
-                onClick={() => fetchData(dateFrom, dateTo)}
+                onClick={() => fetchData(dateFrom, dateTo, true)}
                 disabled={loading}
                 className="hidden w-fit items-center gap-1.5 rounded-full border border-white/10 px-3 py-1.5 text-xs text-zinc-400 transition-colors hover:border-white/15 hover:text-zinc-300 sm:inline-flex"
               >
@@ -372,7 +372,7 @@ function ShopifyTab({ tab, setTab }: { tab: Tab; setTab: (tab: Tab) => void }) {
             return (
               <button
                 key={p.label}
-                onClick={() => { setDateFrom(from); setDateTo(to); fetchData(from, to) }}
+                onClick={() => { setDateFrom(from); setDateTo(to); fetchData(from, to, p.fromDays <= 1) }}
                 className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
                   active
                     ? 'bg-amber-500 text-black border-amber-500 font-semibold'
@@ -387,7 +387,7 @@ function ShopifyTab({ tab, setTab }: { tab: Tab; setTab: (tab: Tab) => void }) {
               <span className="text-center text-xs text-zinc-500">to</span>
               <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="h-9 min-w-0 text-xs sm:h-7 sm:w-[130px]" />
             </div>
-            <button onClick={() => { fetchData(dateFrom, dateTo) }} className="h-9 w-full px-4 text-xs bg-amber-500 text-black font-medium rounded-md hover:bg-amber-400 transition-colors sm:h-7 sm:w-auto">Apply</button>
+            <button onClick={() => { fetchData(dateFrom, dateTo, true) }} className="h-9 w-full px-4 text-xs bg-amber-500 text-black font-medium rounded-md hover:bg-amber-400 transition-colors sm:h-7 sm:w-auto">Apply</button>
           </div>
         </div>
       </div>
