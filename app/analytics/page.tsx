@@ -171,12 +171,14 @@ type AnalyticsResult = { status: number; ok: boolean; body: any }
 const analyticsInflight = new Map<string, Promise<AnalyticsResult>>()
 
 // Dedupes concurrent requests for the same range; body is parsed once and shared.
-function fetchAnalyticsDeduped(from: string, to: string): Promise<AnalyticsResult> {
+function fetchAnalyticsDeduped(from: string, to: string, force = false): Promise<AnalyticsResult> {
   const key = `${from}|${to}`
   const existing = analyticsInflight.get(key)
-  if (existing) return existing
+  if (existing && !force) return existing
   const p = (async () => {
-    const res = await fetch(`/api/analytics?from=${from}&to=${to}`)
+    const params = new URLSearchParams({ from, to })
+    if (force) params.set('_ts', String(Date.now()))
+    const res = await fetch(`/api/analytics?${params.toString()}`, { cache: 'no-store' })
     const body = await res.json().catch(() => ({}))
     return { status: res.status, ok: res.ok, body }
   })().finally(() => analyticsInflight.delete(key))
@@ -193,7 +195,7 @@ function ShopifyTab({ tab, setTab }: { tab: Tab; setTab: (tab: Tab) => void }) {
   const [warning, setWarning] = useState('')
   const [connected, setConnected] = useState<boolean | null>(null)
   const [shopDomain, setShopDomain] = useState('')
-  const [dateFrom, setDateFrom] = useState(daysAgoStr(30))
+  const [dateFrom, setDateFrom] = useState(daysAgoStr(0))
   const [dateTo, setDateTo] = useState(daysAgoStr(0))
   const [dataSource, setDataSource] = useState<'shopifyql' | 'estimated' | 'demo'>('demo')
   const fetchSeqRef = useRef(0)
@@ -222,7 +224,7 @@ function ShopifyTab({ tab, setTab }: { tab: Tab; setTab: (tab: Tab) => void }) {
     setError('')
     setWarning('')
     try {
-      const res = await fetchAnalyticsDeduped(from, to)
+      const res = await fetchAnalyticsDeduped(from, to, force)
       if (isStale()) return
       if (res.status === 401) {
         setConnected(false)
@@ -274,7 +276,7 @@ function ShopifyTab({ tab, setTab }: { tab: Tab; setTab: (tab: Tab) => void }) {
     }
   }
 
-  useEffect(() => { fetchData(dateFrom, dateTo) }, [])
+  useEffect(() => { fetchData(dateFrom, dateTo, true) }, [])
 
   return (
     <div>

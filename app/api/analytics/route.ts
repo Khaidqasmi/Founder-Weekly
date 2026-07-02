@@ -6,6 +6,12 @@ import type { Order } from '@/lib/types'
 
 type SyncedOrder = Partial<Order> & { source?: string }
 
+function jsonNoStore(body: unknown, init?: ResponseInit) {
+  const headers = new Headers(init?.headers)
+  headers.set('Cache-Control', 'no-store, max-age=0')
+  return NextResponse.json(body, { ...init, headers })
+}
+
 function isValidSalesOrder(order: SyncedOrder) {
   return order.order_status !== 'Cancelled' && order.order_status !== 'Returned'
 }
@@ -176,7 +182,7 @@ export async function GET(request: NextRequest) {
   try {
     const supabase = await createServerSupabaseClient()
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (!user) return jsonNoStore({ error: 'Unauthorized' }, { status: 401 })
 
     const { data: member } = await supabase
       .from('workspace_members')
@@ -184,7 +190,7 @@ export async function GET(request: NextRequest) {
       .eq('user_id', user.id)
       .single()
 
-    if (!member) return NextResponse.json({ error: 'No workspace' }, { status: 404 })
+    if (!member) return jsonNoStore({ error: 'No workspace' }, { status: 404 })
 
     const { data: connection } = await supabase
       .from('integration_connections')
@@ -195,7 +201,7 @@ export async function GET(request: NextRequest) {
       .single()
 
     if (!connection || !connection.shop_domain || !connection.access_token_encrypted) {
-      return NextResponse.json({ error: 'Shopify not connected' }, { status: 400 })
+      return jsonNoStore({ error: 'Shopify not connected' }, { status: 400 })
     }
 
     let ordersQuery = supabase
@@ -228,11 +234,11 @@ export async function GET(request: NextRequest) {
     }
 
     if (!analytics) {
-      return NextResponse.json({ error: 'No Shopify analytics data found' }, { status: 404 })
+      return jsonNoStore({ error: 'No Shopify analytics data found' }, { status: 404 })
     }
 
-    return NextResponse.json({ ...analytics, shopDomain: connection.shop_domain })
+    return jsonNoStore({ ...analytics, shopDomain: connection.shop_domain })
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 })
+    return jsonNoStore({ error: err.message }, { status: 500 })
   }
 }

@@ -307,7 +307,7 @@ export async function fetchShopifyAnalytics(
   const restRange = shopifyRestDateRange(dateFrom, dateTo, shopTimeZone)
   try {
     const countRes = await fetch(
-      `${baseUrl}/orders/count.json?created_at_min=${restRange.min}&created_at_max=${restRange.max}&status=any`,
+      `${baseUrl}/orders/count.json?created_at_min=${encodeURIComponent(restRange.min)}&created_at_max=${encodeURIComponent(restRange.max)}&status=any`,
       { headers }
     )
     if (countRes.ok) {
@@ -317,7 +317,7 @@ export async function fetchShopifyAnalytics(
   } catch {}
 
   const ordersRes = await fetch(
-    `${baseUrl}/orders.json?created_at_min=${restRange.min}&created_at_max=${restRange.max}&status=any&limit=250&fields=id,total_price,financial_status,source_name,shipping_address,billing_address,line_items,created_at,customer`,
+    `${baseUrl}/orders.json?created_at_min=${encodeURIComponent(restRange.min)}&created_at_max=${encodeURIComponent(restRange.max)}&status=any&limit=250&fields=id,total_price,financial_status,source_name,shipping_address,billing_address,line_items,created_at,customer`,
     { headers }
   )
   const orders = ordersRes.ok ? (await ordersRes.json()).orders || [] : []
