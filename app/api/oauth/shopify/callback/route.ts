@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerSupabaseClient } from '@/lib/supabase/server'
+import { createServerSupabaseClient, createServiceRoleClient } from '@/lib/supabase/server'
 import { encryptToken } from '@/lib/crypto'
+import { purgeProviderTemporaryData } from '@/lib/temporary-data'
 
 const CLIENT_ID = process.env.SHOPIFY_CLIENT_ID!
 const CLIENT_SECRET = process.env.SHOPIFY_CLIENT_SECRET!
@@ -66,8 +67,12 @@ export async function GET(req: NextRequest) {
   if (!member) return NextResponse.redirect(`${APP_URL}/integrations?error=No+workspace+found`)
 
   const { data: existing } = await supabase
-    .from('integration_connections').select('id')
+    .from('integration_connections').select('id, shop_domain')
     .eq('workspace_id', member.workspace_id).eq('provider', 'shopify').single()
+
+  if (existing?.shop_domain && existing.shop_domain !== shop) {
+    await purgeProviderTemporaryData(createServiceRoleClient(), member.workspace_id, 'shopify')
+  }
 
   const record = {
     workspace_id: member.workspace_id,

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerSupabaseClient } from '@/lib/supabase/server'
+import { createServerSupabaseClient, createServiceRoleClient } from '@/lib/supabase/server'
 import { encryptToken } from '@/lib/crypto'
+import { purgeProviderTemporaryData } from '@/lib/temporary-data'
 
 /**
  * POST /api/integrations/shopify/connect
@@ -223,10 +224,14 @@ export async function POST(req: NextRequest) {
   // Upsert the integration_connections record — always save the resolved access token
   const { data: existing } = await supabase
     .from('integration_connections')
-    .select('id')
+    .select('id, shop_domain')
     .eq('workspace_id', member.workspace_id)
     .eq('provider', 'shopify')
     .single()
+
+  if (existing?.shop_domain && existing.shop_domain !== domain) {
+    await purgeProviderTemporaryData(createServiceRoleClient(), member.workspace_id, 'shopify')
+  }
 
   const record = {
     workspace_id: member.workspace_id,

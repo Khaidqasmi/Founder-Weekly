@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
-import { createServerSupabaseClient } from '@/lib/supabase/server'
+import { createServerSupabaseClient, createServiceRoleClient } from '@/lib/supabase/server'
+import { purgeProviderTemporaryData } from '@/lib/temporary-data'
 
 export async function GET() {
   try {
@@ -39,6 +40,8 @@ export async function DELETE(req: Request) {
       .update({ status: 'disconnected', access_token_encrypted: '', refresh_token_encrypted: '' })
       .eq('workspace_id', member.workspace_id)
       .eq('provider', provider)
+
+    await purgeProviderTemporaryData(createServiceRoleClient(), member.workspace_id, provider)
 
     return NextResponse.json({ success: true })
   } catch (err: any) {

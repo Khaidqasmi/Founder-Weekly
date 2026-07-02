@@ -51,6 +51,11 @@ export async function syncShopifyData(ctx: SyncContext) {
       }
     }
 
+    await Promise.all([
+      supabase.from('orders').delete().eq('workspace_id', workspaceId).eq('source', 'shopify'),
+      supabase.from('inventory').delete().eq('workspace_id', workspaceId).eq('source', 'shopify'),
+    ])
+
     let newOrders = 0
     let updatedOrders = 0
 

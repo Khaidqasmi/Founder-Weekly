@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient, createServiceRoleClient } from '@/lib/supabase/server'
 import { encryptToken } from '@/lib/crypto'
+import { purgeProviderTemporaryData } from '@/lib/temporary-data'
 
 const VALID_PROVIDERS = new Set(['shopify', 'meta', 'google'])
 
@@ -287,6 +288,20 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const { data: existingConnection } = await admin
+      .from('integration_connections')
+      .select('shop_domain, ad_account_id')
+      .eq('workspace_id', member.workspace_id)
+      .eq('provider', provider)
+      .maybeSingle()
+
+    if (
+      (provider === 'shopify' && existingConnection?.shop_domain && existingConnection.shop_domain !== record.shop_domain) ||
+      (provider === 'meta' && existingConnection?.ad_account_id && existingConnection.ad_account_id !== record.ad_account_id)
+    ) {
+      await purgeProviderTemporaryData(admin, member.workspace_id, provider)
+    }
+
     // Encrypt tokens at rest (validation above used the plaintext values)
     const { error } = await admin
       .from('integration_connections')
@@ -330,6 +345,10 @@ export async function DELETE(request: NextRequest) {
       .eq('provider', provider)
 
     if (error) throw error
+
+    if (provider === 'shopify' || provider === 'meta' || provider === 'google') {
+      await purgeProviderTemporaryData(admin, member.workspace_id, provider)
+    }
 
     return NextResponse.json({ success: true })
   } catch (error) {
