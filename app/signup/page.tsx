@@ -25,7 +25,7 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-zinc-950 px-4 py-12">
+    <div className="min-h-screen flex items-center justify-center bg-[#f5f3fb] px-4 py-12">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl">Start Your Free Trial</CardTitle>
@@ -83,7 +83,7 @@ export default function SignupPage() {
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? 'Creating account...' : 'Start Free Trial'}
             </Button>
-            <p className="text-center text-sm text-zinc-400">
+            <p className="text-center text-sm text-[#6d64b8]">
               Already have an account?{' '}
               <Link href="/login" className="text-blue-400 hover:underline">Log in</Link>
             </p>

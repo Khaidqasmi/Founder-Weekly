@@ -1,12 +1,13 @@
 'use client'
 
-import { memo, useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { LinkButton } from '@/components/link-button'
 import { formatCurrency, formatNumber, formatPercent, getTrialDaysRemaining } from '@/lib/utils'
 import { toast } from 'sonner'
 import { RefreshCw, TrendingUp, ShoppingCart, Wallet, Megaphone, Target, PhoneCall, XCircle, Trophy, TrendingDown, PackageSearch, Bell } from 'lucide-react'
 import { demoOrders, demoAds, demoLeads, demoInventory, demoActions } from '@/lib/demo-data'
+import { DashboardCard, KPIWidget, ProgressSlider } from '@/components/dashboard/widgets'
 import {
   calculateRevenue, calculateOrders, calculateAOV, calculateAdSpend, calculateROAS,
   calculateCODConfirmationRate, calculateCancellationRate, calculateTopProduct,
@@ -19,10 +20,11 @@ import {
 // Charts are code-split so recharts stays out of the initial bundle — the
 // KPIs and layout paint immediately while the chart chunk loads in parallel.
 const chartSkeleton = () => (
-  <div className="h-[322px] animate-pulse rounded-xl border border-white/[0.06] bg-zinc-900/60" />
+  <div className="h-[322px] animate-pulse rounded-3xl border border-[#eeeaf9] bg-white/70" />
 )
-const DarkBarChart = dynamic(() => import('@/components/dashboard/dark-charts').then((m) => m.DarkBarChart), { ssr: false, loading: chartSkeleton })
-const DarkPieChart = dynamic(() => import('@/components/dashboard/dark-charts').then((m) => m.DarkPieChart), { ssr: false, loading: chartSkeleton })
+const BarChartWidget = dynamic(() => import('@/components/dashboard/pastel-charts').then((m) => m.BarChartWidget), { ssr: false, loading: chartSkeleton })
+const AreaChartWidget = dynamic(() => import('@/components/dashboard/pastel-charts').then((m) => m.AreaChartWidget), { ssr: false, loading: chartSkeleton })
+const DonutChartWidget = dynamic(() => import('@/components/dashboard/pastel-charts').then((m) => m.DonutChartWidget), { ssr: false, loading: chartSkeleton })
 
 function buildDemoData() {
   const orders = demoOrders
@@ -83,39 +85,19 @@ const DATE_PRESETS: { label: string; fromDays?: number; toDays?: number; all?: b
   { label: 'All', all: true },
 ]
 
-/* ---------- Dark UI primitives (scoped to this page) ---------- */
+/* ---------- Pastel table styling ---------- */
 
-function Panel({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-  return (
-    <div className={`rounded-xl border border-white/[0.08] bg-zinc-900/70 backdrop-blur-sm shadow-[0_1px_0_0_rgba(255,255,255,0.04)_inset] ${className}`}>
-      {children}
-    </div>
-  )
-}
-
-const StatCard = memo(function StatCard({ title, value, icon: Icon, accent = false }: { title: string; value: string; icon: React.ElementType; accent?: boolean }) {
-  return (
-    <Panel className="p-4 transition-colors hover:border-amber-500/30">
-      <div className="flex items-center justify-between">
-        <p className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">{title}</p>
-        <Icon className={`h-4 w-4 ${accent ? 'text-amber-500' : 'text-zinc-600'}`} />
-      </div>
-      <p className={`mt-2 truncate text-xl font-semibold sm:text-2xl ${accent ? 'text-amber-400' : 'text-white'}`} title={value}>{value}</p>
-    </Panel>
-  )
-})
-
-const thClass = 'px-3 py-2 text-left text-[11px] font-medium uppercase tracking-wider text-zinc-500'
-const tdClass = 'px-3 py-2.5 text-sm text-zinc-300 border-t border-white/[0.06]'
+const thClass = 'px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wider text-[#8d87b8]'
+const tdClass = 'px-3 py-2.5 text-sm text-[#4a4477] border-t border-[#f0ecfb]'
 
 function PriorityBadge({ priority }: { priority: string }) {
   const styles =
     priority === 'High'
-      ? 'bg-red-500/10 text-red-400 border-red-500/20'
+      ? 'bg-[#ffe4ef] text-[#db2777]'
       : priority === 'Medium'
-        ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
-        : 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20'
-  return <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${styles}`}>{priority}</span>
+        ? 'bg-[#f3e8ff] text-[#9333ea]'
+        : 'bg-[#eceafd] text-[#6d64b8]'
+  return <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${styles}`}>{priority}</span>
 }
 
 /* ---------- Client-side range cache (module scope: survives remounts) ---------- */
@@ -264,19 +246,29 @@ export default function DashboardPage() {
     [data?.charts?.productPerformance]
   )
 
+  // Mini sparkline series for the KPI cards (derived from the same chart data)
+  const revenueSpark = useMemo(
+    () => (data?.charts?.revenueByDay || []).map((d: any) => Number(d.value) || 0),
+    [data?.charts?.revenueByDay]
+  )
+  const ordersSpark = useMemo(
+    () => (data?.charts?.ordersByDay || []).map((d: any) => Number(d.value) || 0),
+    [data?.charts?.ordersByDay]
+  )
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-zinc-950">
+      <div className="min-h-screen bg-[#f5f3fb]">
         <div className="mx-auto max-w-7xl px-4 py-8">
-          <div className="mb-6 h-8 w-48 animate-pulse rounded-lg bg-zinc-800/60" />
+          <div className="mb-6 h-8 w-48 animate-pulse rounded-full bg-[#e8e3f8]" />
           <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-4 lg:grid-cols-6">
             {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="h-24 animate-pulse rounded-xl border border-white/[0.06] bg-zinc-900/60" />
+              <div key={i} className="h-24 animate-pulse rounded-3xl border border-[#eeeaf9] bg-white/70" />
             ))}
           </div>
           <div className="grid gap-6 md:grid-cols-2">
             {Array.from({ length: 2 }).map((_, i) => (
-              <div key={i} className="h-72 animate-pulse rounded-xl border border-white/[0.06] bg-zinc-900/60" />
+              <div key={i} className="h-72 animate-pulse rounded-3xl border border-[#eeeaf9] bg-white/70" />
             ))}
           </div>
         </div>
@@ -290,57 +282,57 @@ export default function DashboardPage() {
   const trialExpired = data.trial?.status === 'active' && trialDays === 0
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-white">
+    <div className="min-h-screen bg-[#f5f3fb] text-[#312b63]">
       <div className="mx-auto max-w-7xl px-4 py-8">
 
         {/* Demo Banner */}
         {isDemo && (
-          <div className="mb-6 flex flex-col items-start justify-between gap-3 rounded-xl border border-amber-500/25 bg-amber-500/[0.07] p-4 sm:flex-row sm:items-center">
+          <DashboardCard tone="pink" className="mb-6 flex flex-col items-start justify-between gap-3 p-5 sm:flex-row sm:items-center">
             <div>
-              <p className="text-sm font-medium text-amber-300">You&apos;re viewing demo data</p>
-              <p className="mt-0.5 text-xs text-amber-200/60">Sign in to save your own business data, upload CSVs, and get weekly reports.</p>
+              <p className="text-sm font-semibold text-[#db2777]">You&apos;re viewing demo data</p>
+              <p className="mt-0.5 text-xs text-[#8d87b8]">Sign in to save your own business data, upload CSVs, and get weekly reports.</p>
             </div>
             <div className="flex gap-2">
-              <LinkButton href="/signup" size="sm" className="bg-amber-500 text-black hover:bg-amber-400">Start Free Trial</LinkButton>
-              <LinkButton href="/login" size="sm" variant="outline" className="border-white/15 bg-transparent text-white hover:bg-white/10 hover:text-white">Log In</LinkButton>
+              <LinkButton href="/signup" size="sm" className="rounded-full bg-gradient-to-r from-[#ec4899] to-[#a855f7] text-white shadow-[0_4px_14px_rgba(236,72,153,0.35)] hover:opacity-90">Start Free Trial</LinkButton>
+              <LinkButton href="/login" size="sm" variant="outline" className="rounded-full border-[#e4defa] bg-white text-[#6d64b8] hover:bg-[#f4f0fd] hover:text-[#312b63]">Log In</LinkButton>
             </div>
-          </div>
+          </DashboardCard>
         )}
 
         {/* Trial Banner */}
         {!isDemo && data.trial?.status === 'active' && !trialExpired && (
-          <div className="mb-6 flex flex-col items-start justify-between gap-2 rounded-xl border border-amber-500/25 bg-amber-500/[0.07] p-4 sm:flex-row sm:items-center">
-            <p className="text-sm text-amber-200">
-              <strong className="text-amber-300">{trialDays} day{trialDays !== 1 ? 's' : ''}</strong> left in your free trial
+          <DashboardCard tone="lilac" className="mb-6 flex flex-col items-start justify-between gap-2 p-5 sm:flex-row sm:items-center">
+            <p className="text-sm text-[#6d64b8]">
+              <strong className="text-[#8b5cf6]">{trialDays} day{trialDays !== 1 ? 's' : ''}</strong> left in your free trial
             </p>
-            <LinkButton href="/billing" size="sm" className="bg-amber-500 text-black hover:bg-amber-400">Upgrade Now</LinkButton>
-          </div>
+            <LinkButton href="/billing" size="sm" className="rounded-full bg-gradient-to-r from-[#ec4899] to-[#a855f7] text-white shadow-[0_4px_14px_rgba(236,72,153,0.35)] hover:opacity-90">Upgrade Now</LinkButton>
+          </DashboardCard>
         )}
         {trialExpired && (
-          <div className="mb-6 flex flex-col items-start justify-between gap-2 rounded-xl border border-red-500/25 bg-red-500/[0.07] p-4 sm:flex-row sm:items-center">
-            <p className="text-sm text-red-300">Your free trial has expired. Upgrade to continue using all features.</p>
-            <LinkButton href="/billing" size="sm" className="bg-amber-500 text-black hover:bg-amber-400">Upgrade Now</LinkButton>
-          </div>
+          <DashboardCard tone="pink" className="mb-6 flex flex-col items-start justify-between gap-2 p-5 sm:flex-row sm:items-center">
+            <p className="text-sm font-medium text-[#db2777]">Your free trial has expired. Upgrade to continue using all features.</p>
+            <LinkButton href="/billing" size="sm" className="rounded-full bg-gradient-to-r from-[#ec4899] to-[#a855f7] text-white shadow-[0_4px_14px_rgba(236,72,153,0.35)] hover:opacity-90">Upgrade Now</LinkButton>
+          </DashboardCard>
         )}
 
         <div className="mb-5 flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-white">Dashboard</h1>
-            <p className="mt-0.5 text-sm text-zinc-500">Your business at a glance</p>
+            <h1 className="text-2xl font-bold tracking-tight text-[#312b63]">Dashboard</h1>
+            <p className="mt-0.5 text-sm text-[#8d87b8]">Your business at a glance</p>
           </div>
           <div className="flex items-center gap-2">
-            {refreshing && <RefreshCw className="h-4 w-4 animate-spin text-amber-500" />}
+            {refreshing && <RefreshCw className="h-4 w-4 animate-spin text-[#ec4899]" />}
             {isDemo && (
-              <span className="inline-flex items-center rounded-full border border-amber-500/25 bg-amber-500/10 px-2.5 py-1 text-xs font-medium text-amber-400">Demo Mode</span>
+              <span className="inline-flex items-center rounded-full bg-[#f3e8ff] px-3 py-1 text-xs font-semibold text-[#9333ea]">Demo Mode</span>
             )}
           </div>
         </div>
 
         {/* Date Range + Sync Controls */}
         {isLoggedIn && (
-          <Panel className="mb-6 p-4">
+          <DashboardCard className="mb-6 p-4">
             <div className="mb-3 flex flex-wrap items-center gap-2">
-              <div className="flex flex-wrap items-center gap-1 rounded-lg border border-white/[0.08] bg-zinc-950/60 p-1">
+              <div className="flex flex-wrap items-center gap-1 rounded-full bg-[#f4f0fd] p-1">
                 {DATE_PRESETS.map((p) => {
                   const from = p.all ? '' : daysAgoStr(p.fromDays || 0)
                   const to = p.all ? '' : daysAgoStr(p.toDays || 0)
@@ -349,10 +341,10 @@ export default function DashboardPage() {
                     <button
                       key={p.label}
                       onClick={() => switchRange(from, to)}
-                      className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                      className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors ${
                         active
-                          ? 'bg-amber-500 text-black shadow-[0_0_12px_rgba(245,158,11,0.35)]'
-                          : 'text-zinc-400 hover:bg-white/[0.06] hover:text-white'
+                          ? 'bg-gradient-to-r from-[#ec4899] to-[#d946ef] text-white shadow-[0_4px_14px_rgba(236,72,153,0.4)]'
+                          : 'text-[#6d64b8] hover:bg-white hover:text-[#312b63]'
                       }`}
                     >
                       {p.label}
@@ -365,43 +357,43 @@ export default function DashboardPage() {
                   type="date"
                   value={dateFrom}
                   onChange={(e) => setDateFrom(e.target.value)}
-                  className="h-8 min-w-0 flex-1 rounded-md border border-white/[0.1] bg-zinc-950/60 px-2 text-xs text-zinc-300 outline-none [color-scheme:dark] focus:border-amber-500/50 sm:w-[135px] sm:flex-none"
+                  className="h-8 min-w-0 flex-1 rounded-full border border-[#e4defa] bg-white px-3 text-xs text-[#4a4477] outline-none [color-scheme:light] focus:border-[#ec4899]/60 sm:w-[135px] sm:flex-none"
                 />
-                <span className="hidden text-xs text-zinc-600 sm:inline">to</span>
+                <span className="hidden text-xs text-[#8d87b8] sm:inline">to</span>
                 <input
                   type="date"
                   value={dateTo}
                   onChange={(e) => setDateTo(e.target.value)}
-                  className="h-8 min-w-0 flex-1 rounded-md border border-white/[0.1] bg-zinc-950/60 px-2 text-xs text-zinc-300 outline-none [color-scheme:dark] focus:border-amber-500/50 sm:w-[135px] sm:flex-none"
+                  className="h-8 min-w-0 flex-1 rounded-full border border-[#e4defa] bg-white px-3 text-xs text-[#4a4477] outline-none [color-scheme:light] focus:border-[#ec4899]/60 sm:w-[135px] sm:flex-none"
                 />
                 <button
                   onClick={() => switchRange(dateFrom, dateTo)}
-                  className="h-8 w-full rounded-md bg-amber-500 px-3 text-xs font-medium text-black transition-colors hover:bg-amber-400 sm:w-auto"
+                  className="h-8 w-full rounded-full bg-gradient-to-r from-[#ec4899] to-[#a855f7] px-4 text-xs font-semibold text-white shadow-[0_4px_14px_rgba(236,72,153,0.35)] transition-opacity hover:opacity-90 sm:w-auto"
                 >
                   Apply
                 </button>
               </div>
             </div>
             {data?.dataMeta?.connections?.length > 0 && (
-              <div className="flex flex-wrap items-center gap-2 border-t border-white/[0.06] pt-3">
-                <span className="text-xs text-zinc-500">Sync:</span>
+              <div className="flex flex-wrap items-center gap-2 border-t border-[#f0ecfb] pt-3">
+                <span className="text-xs text-[#8d87b8]">Sync:</span>
                 {data.dataMeta.connections.map((c: any) => (
                   <button
                     key={c.provider}
                     disabled={syncing === c.provider}
                     onClick={() => handleSync(c.provider)}
-                    className="inline-flex h-7 items-center rounded-md border border-white/[0.1] bg-zinc-950/60 px-2.5 text-xs capitalize text-zinc-300 transition-colors hover:border-amber-500/40 hover:text-white disabled:opacity-50"
+                    className="inline-flex h-7 items-center rounded-full border border-[#e4defa] bg-white px-3 text-xs capitalize text-[#6d64b8] transition-colors hover:border-[#ec4899]/50 hover:text-[#312b63] disabled:opacity-50"
                   >
-                    <RefreshCw className={`mr-1.5 h-3 w-3 ${syncing === c.provider ? 'animate-spin text-amber-500' : 'text-zinc-500'}`} />
+                    <RefreshCw className={`mr-1.5 h-3 w-3 ${syncing === c.provider ? 'animate-spin text-[#ec4899]' : 'text-[#a79fd6]'}`} />
                     {c.provider}
-                    {c.last_sync_at && <span className="ml-1.5 text-zinc-600">({new Date(c.last_sync_at).toLocaleDateString()})</span>}
+                    {c.last_sync_at && <span className="ml-1.5 text-[#a79fd6]">({new Date(c.last_sync_at).toLocaleDateString()})</span>}
                   </button>
                 ))}
-                <LinkButton href="/history" variant="ghost" size="sm" className="ml-auto h-7 text-xs text-zinc-400 hover:bg-white/[0.06] hover:text-white">View All History</LinkButton>
+                <LinkButton href="/history" variant="ghost" size="sm" className="ml-auto h-7 rounded-full text-xs text-[#6d64b8] hover:bg-[#f4f0fd] hover:text-[#312b63]">View All History</LinkButton>
               </div>
             )}
             {data?.dataMeta && (
-              <div className="mt-2 flex flex-wrap gap-3 text-xs text-zinc-600">
+              <div className="mt-2 flex flex-wrap gap-3 text-xs text-[#a79fd6]">
                 {Object.entries(data.dataMeta.sources.orders || {}).map(([src, count]) => (
                   <span key={src}>{src}: {String(count)} orders</span>
                 ))}
@@ -410,41 +402,41 @@ export default function DashboardPage() {
                 ))}
               </div>
             )}
-          </Panel>
+          </DashboardCard>
         )}
 
         {/* KPIs */}
         <div className={`transition-opacity duration-200 ${refreshing ? 'opacity-50' : 'opacity-100'}`}>
           <div className="mb-4 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
-            <StatCard title="Revenue" value={formatCurrency(m.revenue)} icon={TrendingUp} accent />
-            <StatCard title="Orders" value={formatNumber(m.orders)} icon={ShoppingCart} />
-            <StatCard title="AOV" value={formatCurrency(m.aov)} icon={Wallet} />
-            <StatCard title="Ad Spend" value={formatCurrency(m.adSpend)} icon={Megaphone} />
-            <StatCard title="ROAS" value={`${m.roas.toFixed(2)}x`} icon={Target} accent />
-            <StatCard title="COD Confirmation" value={formatPercent(m.codConfirmationRate)} icon={PhoneCall} />
+            <KPIWidget title="Revenue" value={formatCurrency(m.revenue)} accent="violet" icon={TrendingUp} spark={revenueSpark} />
+            <KPIWidget title="Orders" value={formatNumber(m.orders)} icon={ShoppingCart} spark={ordersSpark} sparkVariant="bars" />
+            <KPIWidget title="AOV" value={formatCurrency(m.aov)} icon={Wallet} />
+            <KPIWidget title="Ad Spend" value={formatCurrency(m.adSpend)} icon={Megaphone} />
+            <KPIWidget title="ROAS" value={`${m.roas.toFixed(2)}x`} accent="pink" icon={Target} />
+            <KPIWidget title="COD Confirmation" value={formatPercent(m.codConfirmationRate)} ring={m.codConfirmationRate} icon={PhoneCall} />
           </div>
           <div className="mb-8 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
-            <StatCard title="Cancellation Rate" value={formatPercent(m.cancellationRate)} icon={XCircle} />
-            <StatCard title="Top Product" value={m.topProduct} icon={Trophy} />
-            <StatCard title="Weak Product" value={m.weakProduct} icon={TrendingDown} />
-            <StatCard title="Low Stock Items" value={formatNumber(m.lowStockCount)} icon={PackageSearch} />
-            <StatCard title="Pending Follow Ups" value={formatNumber(m.pendingFollowups)} icon={Bell} />
+            <KPIWidget title="Cancellation Rate" value={formatPercent(m.cancellationRate)} ring={m.cancellationRate} icon={XCircle} />
+            <KPIWidget title="Top Product" value={m.topProduct} icon={Trophy} />
+            <KPIWidget title="Weak Product" value={m.weakProduct} icon={TrendingDown} />
+            <KPIWidget title="Low Stock Items" value={formatNumber(m.lowStockCount)} icon={PackageSearch} dot={m.lowStockCount > 0} />
+            <KPIWidget title="Pending Follow Ups" value={formatNumber(m.pendingFollowups)} icon={Bell} dot={m.pendingFollowups > 0} />
           </div>
 
           {/* Charts */}
           <div className="mb-8 grid gap-6 md:grid-cols-2">
-            <DarkBarChart data={data.charts.revenueByDay} title="Revenue by Day" />
-            <DarkBarChart data={data.charts.ordersByDay} title="Orders by Day" color="#fbbf24" />
-            <DarkBarChart data={data.charts.adSpendByCampaign} title="Ad Spend by Campaign" color="#d97706" />
-            <DarkBarChart data={data.charts.roasByCampaign} title="ROAS by Campaign" color="#f59e0b" />
-            <DarkBarChart data={topProductsChart} title="Top Products by Revenue" />
-            <DarkPieChart data={data.charts.codStatusBreakdown} title="COD Status Breakdown" />
+            <AreaChartWidget data={data.charts.revenueByDay} title="Revenue by Day" />
+            <BarChartWidget data={data.charts.ordersByDay} title="Orders by Day" from="#ec4899" to="#f0abfc" />
+            <BarChartWidget data={data.charts.adSpendByCampaign} title="Ad Spend by Campaign" from="#8b5cf6" to="#c4b5fd" />
+            <BarChartWidget data={data.charts.roasByCampaign} title="ROAS by Campaign" from="#d946ef" to="#f0abfc" />
+            <BarChartWidget data={topProductsChart} title="Top Products by Revenue" from="#6d64b8" to="#a78bfa" />
+            <DonutChartWidget data={data.charts.codStatusBreakdown} title="COD Status Breakdown" centerLabel="Orders" />
           </div>
 
           {/* Tables */}
           <div className="mb-8 grid gap-6 md:grid-cols-2">
-            <Panel className="p-5">
-              <h3 className="mb-3 text-sm font-medium text-zinc-300">Top Products</h3>
+            <DashboardCard className="p-5">
+              <h3 className="mb-3 text-sm font-semibold text-[#312b63]">Top Products</h3>
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
@@ -456,53 +448,62 @@ export default function DashboardPage() {
                   </thead>
                   <tbody>
                     {data.charts.productPerformance.slice(0, 5).map((p: any) => (
-                      <tr key={p.name} className="transition-colors hover:bg-white/[0.03]">
+                      <tr key={p.name} className="transition-colors hover:bg-[#f8f6fd]">
                         <td className={tdClass}>{p.name}</td>
-                        <td className={`${tdClass} text-right font-medium text-white`}>{formatCurrency(p.revenue)}</td>
+                        <td className={`${tdClass} text-right font-semibold text-[#312b63]`}>{formatCurrency(p.revenue)}</td>
                         <td className={`${tdClass} text-right`}>{p.quantity}</td>
                       </tr>
                     ))}
                     {data.charts.productPerformance.length === 0 && (
-                      <tr><td colSpan={3} className={`${tdClass} text-center text-zinc-600`}>No product data</td></tr>
+                      <tr><td colSpan={3} className={`${tdClass} text-center text-[#a79fd6]`}>No product data</td></tr>
                     )}
                   </tbody>
                 </table>
               </div>
-            </Panel>
+            </DashboardCard>
 
-            <Panel className="p-5">
-              <h3 className="mb-3 text-sm font-medium text-zinc-300">Low Stock Products</h3>
+            <DashboardCard className="p-5">
+              <h3 className="mb-3 text-sm font-semibold text-[#312b63]">Low Stock Products</h3>
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
                     <tr>
                       <th className={thClass}>Product</th>
                       <th className={`${thClass} text-right`}>Stock</th>
-                      <th className={`${thClass} text-right`}>Reorder</th>
+                      <th className={`${thClass} w-[38%]`}>Level vs Reorder</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {data.lowStockProducts.map((p: any) => (
-                      <tr key={p.sku || p.product_name} className="transition-colors hover:bg-white/[0.03]">
-                        <td className={tdClass}>{p.product_name}</td>
-                        <td className={`${tdClass} text-right font-semibold text-red-400`}>{p.current_stock}</td>
-                        <td className={`${tdClass} text-right`}>{p.reorder_level}</td>
-                      </tr>
-                    ))}
+                    {data.lowStockProducts.map((p: any) => {
+                      const reorder = Number(p.reorder_level) || 0
+                      const pct = reorder > 0 ? Math.min(100, (Number(p.current_stock) / reorder) * 100) : 0
+                      return (
+                        <tr key={p.sku || p.product_name} className="transition-colors hover:bg-[#f8f6fd]">
+                          <td className={tdClass}>{p.product_name}</td>
+                          <td className={`${tdClass} text-right font-bold text-[#db2777]`}>{p.current_stock}</td>
+                          <td className={tdClass}>
+                            <div className="flex items-center gap-2">
+                              <ProgressSlider value={pct} from="#ec4899" to="#db2777" className="min-w-[70px]" />
+                              <span className="whitespace-nowrap text-xs text-[#8d87b8]">of {p.reorder_level}</span>
+                            </div>
+                          </td>
+                        </tr>
+                      )
+                    })}
                     {data.lowStockProducts.length === 0 && (
-                      <tr><td colSpan={3} className={`${tdClass} text-center text-zinc-600`}>No low stock items</td></tr>
+                      <tr><td colSpan={3} className={`${tdClass} text-center text-[#a79fd6]`}>No low stock items</td></tr>
                     )}
                   </tbody>
                 </table>
               </div>
-            </Panel>
+            </DashboardCard>
           </div>
 
           {/* Actions */}
-          <Panel className="mb-8 p-5">
+          <DashboardCard className="mb-8 p-5">
             <div className="mb-3 flex items-center justify-between">
-              <h3 className="text-sm font-medium text-zinc-300">Next 5 Actions</h3>
-              {!isDemo && <LinkButton href="/actions" variant="outline" size="sm" className="border-white/15 bg-transparent text-zinc-300 hover:bg-white/10 hover:text-white">View All</LinkButton>}
+              <h3 className="text-sm font-semibold text-[#312b63]">Next 5 Actions</h3>
+              {!isDemo && <LinkButton href="/actions" variant="outline" size="sm" className="rounded-full border-[#e4defa] bg-white text-[#6d64b8] hover:bg-[#f4f0fd] hover:text-[#312b63]">View All</LinkButton>}
             </div>
             <div className="overflow-x-auto">
               <table className="w-full">
@@ -516,7 +517,7 @@ export default function DashboardPage() {
                 </thead>
                 <tbody>
                   {data.actions.map((a: any, i: number) => (
-                    <tr key={a.id || i} className="transition-colors hover:bg-white/[0.03]">
+                    <tr key={a.id || i} className="transition-colors hover:bg-[#f8f6fd]">
                       <td className={tdClass}>{a.action}</td>
                       <td className={tdClass}>{a.category}</td>
                       <td className={tdClass}><PriorityBadge priority={a.priority} /></td>
@@ -524,26 +525,26 @@ export default function DashboardPage() {
                     </tr>
                   ))}
                   {data.actions.length === 0 && (
-                    <tr><td colSpan={4} className={`${tdClass} text-center text-zinc-600`}>No pending actions</td></tr>
+                    <tr><td colSpan={4} className={`${tdClass} text-center text-[#a79fd6]`}>No pending actions</td></tr>
                   )}
                 </tbody>
               </table>
             </div>
-          </Panel>
+          </DashboardCard>
         </div>
 
         {/* Connect your tools CTA */}
         {isDemo && (
-          <Panel className="mb-8 p-6 text-center">
-            <h2 className="text-lg font-bold text-white">Connect Your Tools</h2>
-            <p className="mt-1 text-sm text-zinc-500">Link your Shopify, Meta Ads, or GA4 to see real data here.</p>
+          <div className="mb-8 rounded-3xl bg-gradient-to-r from-[#7c5cf1] via-[#a855f7] to-[#ec4899] p-6 text-center text-white shadow-[0_12px_40px_rgba(139,92,246,0.35)]">
+            <h2 className="text-lg font-bold">Connect Your Tools</h2>
+            <p className="mt-1 text-sm text-white/80">Link your Shopify, Meta Ads, or GA4 to see real data here.</p>
             <div className="mt-4">
-              <LinkButton href="/integrations" className="bg-amber-500 text-black hover:bg-amber-400">Set Up Integrations</LinkButton>
+              <LinkButton href="/integrations" className="rounded-full bg-white text-[#7c3aed] hover:bg-white/90">Set Up Integrations</LinkButton>
             </div>
-          </Panel>
+          </div>
         )}
 
-        <p className="text-center text-xs text-zinc-600">Last updated: {new Date().toLocaleString()}</p>
+        <p className="text-center text-xs text-[#a79fd6]">Last updated: {new Date().toLocaleString()}</p>
       </div>
     </div>
   )

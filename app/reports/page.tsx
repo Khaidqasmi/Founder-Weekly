@@ -66,10 +66,10 @@ export default function ReportsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950">
+    <div className="min-h-screen bg-[#f5f3fb]">
       
       <div className="max-w-4xl mx-auto px-4 py-8">
-        <h1 className="text-2xl font-bold text-white mb-6">Reports</h1>
+        <h1 className="text-2xl font-bold text-[#312b63] mb-6">Reports</h1>
 
         <Card className="mb-6">
           <CardHeader><CardTitle className="text-lg">Generate Report</CardTitle></CardHeader>
@@ -92,15 +92,15 @@ export default function ReportsPage() {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                <div><p className="text-sm text-zinc-400">Revenue</p><p className="font-bold">{formatCurrency(selectedReport.revenue)}</p></div>
-                <div><p className="text-sm text-zinc-400">Orders</p><p className="font-bold">{selectedReport.orders_count}</p></div>
-                <div><p className="text-sm text-zinc-400">AOV</p><p className="font-bold">{formatCurrency(selectedReport.aov)}</p></div>
-                <div><p className="text-sm text-zinc-400">Ad Spend</p><p className="font-bold">{formatCurrency(selectedReport.ad_spend)}</p></div>
-                <div><p className="text-sm text-zinc-400">ROAS</p><p className="font-bold">{selectedReport.roas?.toFixed(2)}x</p></div>
-                <div><p className="text-sm text-zinc-400">COD Confirmation</p><p className="font-bold">{selectedReport.cod_confirmation_rate?.toFixed(1)}%</p></div>
-                <div><p className="text-sm text-zinc-400">Top Product</p><p className="font-bold">{selectedReport.top_product}</p></div>
-                <div><p className="text-sm text-zinc-400">Weak Product</p><p className="font-bold">{selectedReport.weak_product}</p></div>
-                <div><p className="text-sm text-zinc-400">Low Stock</p><p className="font-bold">{selectedReport.low_stock_products || 'None'}</p></div>
+                <div><p className="text-sm text-[#6d64b8]">Revenue</p><p className="font-bold">{formatCurrency(selectedReport.revenue)}</p></div>
+                <div><p className="text-sm text-[#6d64b8]">Orders</p><p className="font-bold">{selectedReport.orders_count}</p></div>
+                <div><p className="text-sm text-[#6d64b8]">AOV</p><p className="font-bold">{formatCurrency(selectedReport.aov)}</p></div>
+                <div><p className="text-sm text-[#6d64b8]">Ad Spend</p><p className="font-bold">{formatCurrency(selectedReport.ad_spend)}</p></div>
+                <div><p className="text-sm text-[#6d64b8]">ROAS</p><p className="font-bold">{selectedReport.roas?.toFixed(2)}x</p></div>
+                <div><p className="text-sm text-[#6d64b8]">COD Confirmation</p><p className="font-bold">{selectedReport.cod_confirmation_rate?.toFixed(1)}%</p></div>
+                <div><p className="text-sm text-[#6d64b8]">Top Product</p><p className="font-bold">{selectedReport.top_product}</p></div>
+                <div><p className="text-sm text-[#6d64b8]">Weak Product</p><p className="font-bold">{selectedReport.weak_product}</p></div>
+                <div><p className="text-sm text-[#6d64b8]">Low Stock</p><p className="font-bold">{selectedReport.low_stock_products || 'None'}</p></div>
               </div>
             </CardContent>
           </Card>
@@ -121,7 +121,7 @@ export default function ReportsPage() {
               </TableHeader>
               <TableBody>
                 {reports.map((r) => (
-                  <TableRow key={r.id} className="cursor-pointer hover:bg-white/5" onClick={() => setSelectedReport(r)}>
+                  <TableRow key={r.id} className="cursor-pointer hover:bg-[#f8f6fd]" onClick={() => setSelectedReport(r)}>
                     <TableCell>{r.week_start} - {r.week_end}</TableCell>
                     <TableCell className="text-right">{formatCurrency(r.revenue)}</TableCell>
                     <TableCell className="text-right">{r.orders_count}</TableCell>
@@ -132,7 +132,7 @@ export default function ReportsPage() {
                   </TableRow>
                 ))}
                 {reports.length === 0 && (
-                  <TableRow><TableCell colSpan={5} className="text-center text-zinc-500">No reports yet</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={5} className="text-center text-[#8d87b8]">No reports yet</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>

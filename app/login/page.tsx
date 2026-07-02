@@ -23,7 +23,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-zinc-950 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-[#f5f3fb] px-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl">Welcome Back</CardTitle>
@@ -43,7 +43,7 @@ export default function LoginPage() {
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? 'Logging in...' : 'Log In'}
             </Button>
-            <p className="text-center text-sm text-zinc-400">
+            <p className="text-center text-sm text-[#6d64b8]">
               Don&apos;t have an account?{' '}
               <Link href="/signup" className="text-blue-400 hover:underline">Start free trial</Link>
             </p>

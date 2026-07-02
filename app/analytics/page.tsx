@@ -43,25 +43,25 @@ function AnalyticsHeader({
   statusSlot?: ReactNode
 }) {
   return (
-    <div className="mb-6 rounded-2xl border border-white/10 bg-zinc-900/70 p-4 shadow-[0_1px_0_0_rgba(255,255,255,0.04)_inset] sm:p-5">
+    <div className="mb-6 rounded-2xl border border-[#e4defa] bg-white p-4 shadow-[0_1px_0_0_rgba(255,255,255,0.04)_inset] sm:p-5">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="max-w-2xl">
-          <span className="mb-3 inline-flex rounded-full border border-amber-500/25 bg-amber-500/10 px-3 py-1 text-xs font-medium text-amber-400">
+          <span className="mb-3 inline-flex rounded-full border border-[#f8cfe4] bg-[#fce7f3] px-3 py-1 text-xs font-medium text-[#db2777]">
             Performance Command Center
           </span>
-          <h1 className="text-3xl font-bold tracking-tight text-white dark:text-gray-100 sm:text-4xl">Analytics</h1>
-          <p className="mt-2 text-sm leading-6 text-zinc-400 sm:text-base">
+          <h1 className="text-3xl font-bold tracking-tight text-[#312b63] sm:text-4xl">Analytics</h1>
+          <p className="mt-2 text-sm leading-6 text-[#6d64b8] sm:text-base">
             Track store performance, conversion movement, traffic sources, and landing pages in one focused view.
           </p>
         </div>
 
-        <div className="grid w-full grid-cols-2 gap-1 rounded-2xl border border-white/10 bg-zinc-950/70 p-1 sm:w-auto sm:min-w-[300px]">
+        <div className="grid w-full grid-cols-2 gap-1 rounded-2xl border border-[#e4defa] bg-[#f5f3fb]/70 p-1 sm:w-auto sm:min-w-[300px]">
           <button
             onClick={() => setTab('shopify')}
             className={`flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold transition-colors sm:text-sm ${
               tab === 'shopify'
-                ? 'bg-amber-500 text-black shadow-[0_0_18px_rgba(245,158,11,0.28)]'
-                : 'text-zinc-400 hover:bg-white/[0.04] hover:text-zinc-200'
+                ? 'bg-gradient-to-r from-[#ec4899] to-[#a855f7] text-white shadow-[0_0_18px_rgba(245,158,11,0.28)]'
+                : 'text-[#6d64b8] hover:bg-[#f8f6fd] hover:text-[#4a4477]'
             }`}
           >
             <ShoppingBag className="w-4 h-4" />
@@ -71,8 +71,8 @@ function AnalyticsHeader({
             onClick={() => setTab('google')}
             className={`flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold transition-colors sm:text-sm ${
               tab === 'google'
-                ? 'bg-blue-500 text-white shadow-[0_0_18px_rgba(59,130,246,0.28)]'
-                : 'text-zinc-400 hover:bg-white/[0.04] hover:text-zinc-200'
+                ? 'bg-gradient-to-r from-[#ec4899] to-[#d946ef] text-white shadow-[0_4px_14px_rgba(236,72,153,0.4)]'
+                : 'text-[#6d64b8] hover:bg-[#f8f6fd] hover:text-[#4a4477]'
             }`}
           >
             <BarChart3 className="w-4 h-4" />
@@ -82,7 +82,7 @@ function AnalyticsHeader({
       </div>
 
       {statusSlot && (
-        <div className="mt-4 flex flex-col gap-3 border-t border-white/10 pt-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mt-4 flex flex-col gap-3 border-t border-[#e4defa] pt-4 sm:flex-row sm:items-center sm:justify-between">
           {statusSlot}
         </div>
       )}
@@ -104,7 +104,7 @@ function clampPercent(value: number) {
 
 function HorizontalFunnel({ steps }: { steps: { step: string; count: number; rate: number }[] }) {
   const max = steps[0]?.count || 1
-  const colors = ['#f59e0b', '#fbbf24', '#d97706', '#a8a29e', '#78716c']
+  const colors = ['#8b5cf6', '#ec4899', '#d946ef', '#6d64b8', '#f0abfc']
   return (
     <div className="w-full overflow-hidden">
       <div className="grid w-full grid-cols-5 gap-2 sm:gap-0">
@@ -116,8 +116,8 @@ function HorizontalFunnel({ steps }: { steps: { step: string; count: number; rat
             <div key={s.step} className="relative min-w-0">
               <div className="grid h-[180px] min-w-0 grid-rows-[48px_88px_44px] sm:h-[190px] sm:grid-rows-[50px_96px_44px]">
                 <div className="self-end text-center">
-                  <p className="truncate text-sm font-bold text-white dark:text-gray-100 sm:text-base">{formatNumber(s.count)}</p>
-                  <p className="text-xs text-zinc-500">{s.rate}%</p>
+                  <p className="truncate text-sm font-bold text-[#312b63] sm:text-base">{formatNumber(s.count)}</p>
+                  <p className="text-xs text-[#8d87b8]">{s.rate}%</p>
                 </div>
                 <div className="flex items-end justify-center">
                   <div
@@ -125,11 +125,11 @@ function HorizontalFunnel({ steps }: { steps: { step: string; count: number; rat
                     style={{ height: `${clampPercent(heightPct)}%`, minHeight: s.count > 0 ? 8 : 0, backgroundColor: colors[i] || colors[4] }}
                   />
                 </div>
-                <p className="break-words pt-2 text-center text-[10px] font-medium leading-tight text-zinc-400 dark:text-zinc-500 sm:text-xs">{s.step}</p>
+                <p className="break-words pt-2 text-center text-[10px] font-medium leading-tight text-[#6d64b8] sm:text-xs">{s.step}</p>
               </div>
               {!isLast && (
                 <div className="pointer-events-none absolute right-[-10px] top-[86px] z-10 hidden w-5 items-center justify-center sm:flex">
-                  <ArrowRight className="w-3 h-3 text-gray-300 shrink-0" />
+                  <ArrowRight className="w-3 h-3 text-[#c9c2ec] shrink-0" />
                 </div>
               )}
             </div>
@@ -142,7 +142,7 @@ function HorizontalFunnel({ steps }: { steps: { step: string; count: number; rat
 
 function LandingPageChange({ change }: { change?: number | null }) {
   if (change === null || change === undefined) {
-    return <span className="text-sm font-semibold text-zinc-500">-</span>
+    return <span className="text-sm font-semibold text-[#8d87b8]">-</span>
   }
 
   if (change >= 0) {
@@ -155,7 +155,7 @@ function LandingPageChange({ change }: { change?: number | null }) {
   }
 
   return (
-    <span className="inline-flex items-center gap-1 text-sm font-semibold text-zinc-400">
+    <span className="inline-flex items-center gap-1 text-sm font-semibold text-[#6d64b8]">
       <TrendingDown className="w-3.5 h-3.5" />
       {formatNumber(Math.abs(change))}%
     </span>
@@ -288,26 +288,26 @@ function ShopifyTab({ tab, setTab }: { tab: Tab; setTab: (tab: Tab) => void }) {
             <div className="flex flex-wrap items-center gap-2">
               {connected === true ? (
                 <>
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-green-500/25 bg-green-500/10 px-2.5 py-1.5 text-xs font-medium text-green-400 sm:px-3">
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-green-500/25 bg-green-500/10 px-2.5 py-1.5 text-xs font-medium text-green-600 sm:px-3">
                     <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block" /> Connected
                   </span>
                   {dataSource === 'shopifyql' && (
                     <span className="inline-flex items-center rounded-full border border-blue-500/25 bg-blue-500/10 px-2.5 py-1.5 text-xs font-medium text-blue-400 sm:px-3">Live Shopify</span>
                   )}
                   {dataSource === 'estimated' && (
-                    <span className="inline-flex items-center rounded-full border border-amber-500/25 bg-amber-500/10 px-2.5 py-1.5 text-xs font-medium text-amber-400 sm:px-3">Synced orders</span>
+                    <span className="inline-flex items-center rounded-full border border-[#f8cfe4] bg-[#fce7f3] px-2.5 py-1.5 text-xs font-medium text-[#db2777] sm:px-3">Synced orders</span>
                   )}
                   <button
                     onClick={() => fetchData(dateFrom, dateTo, true)}
                     disabled={loading}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-white/10 px-2.5 py-1.5 text-xs text-zinc-400 transition-colors hover:border-white/15 hover:text-zinc-300 sm:hidden"
+                    className="inline-flex items-center gap-1.5 rounded-full border border-[#e4defa] px-2.5 py-1.5 text-xs text-[#6d64b8] transition-colors hover:border-[#e4defa] hover:text-[#4a4477] sm:hidden"
                   >
                     <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
                     Refresh
                   </button>
                 </>
               ) : connected === false ? (
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-zinc-800 px-3 py-1.5 text-xs text-zinc-400">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-[#f4f0fd] px-3 py-1.5 text-xs text-[#6d64b8]">
                   Not connected - <a href="/integrations" className="underline font-medium">connect Shopify</a>
                 </span>
               ) : null}
@@ -318,7 +318,7 @@ function ShopifyTab({ tab, setTab }: { tab: Tab; setTab: (tab: Tab) => void }) {
               <button
                 onClick={() => fetchData(dateFrom, dateTo, true)}
                 disabled={loading}
-                className="hidden w-fit items-center gap-1.5 rounded-full border border-white/10 px-3 py-1.5 text-xs text-zinc-400 transition-colors hover:border-white/15 hover:text-zinc-300 sm:inline-flex"
+                className="hidden w-fit items-center gap-1.5 rounded-full border border-[#e4defa] px-3 py-1.5 text-xs text-[#6d64b8] transition-colors hover:border-[#e4defa] hover:text-[#4a4477] sm:inline-flex"
               >
                 <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
                 Refresh
@@ -333,18 +333,18 @@ function ShopifyTab({ tab, setTab }: { tab: Tab; setTab: (tab: Tab) => void }) {
         <div className="flex flex-wrap items-center gap-2">
           {connected === true ? (
             <>
-              <span className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-green-500/25 bg-green-500/10 px-3 py-1.5 text-xs font-medium text-green-400">
+              <span className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-green-500/25 bg-green-500/10 px-3 py-1.5 text-xs font-medium text-green-600">
                 <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block" /> Connected{shopDomain ? ` · ${shopDomain}` : ''}
               </span>
               {dataSource === 'shopifyql' && (
                 <span className="inline-flex items-center rounded-full border border-blue-500/25 bg-blue-500/10 px-3 py-1.5 text-xs font-medium text-blue-400">Live Shopify</span>
               )}
               {dataSource === 'estimated' && (
-                <span className="inline-flex items-center rounded-full border border-amber-500/25 bg-amber-500/10 px-3 py-1.5 text-xs font-medium text-amber-400">Synced orders</span>
+                <span className="inline-flex items-center rounded-full border border-[#f8cfe4] bg-[#fce7f3] px-3 py-1.5 text-xs font-medium text-[#db2777]">Synced orders</span>
               )}
             </>
           ) : connected === false ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-zinc-800 px-3 py-1.5 text-xs text-zinc-400">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-[#f4f0fd] px-3 py-1.5 text-xs text-[#6d64b8]">
               Not connected — <a href="/integrations" className="underline font-medium">connect Shopify</a>
             </span>
           ) : null}
@@ -355,7 +355,7 @@ function ShopifyTab({ tab, setTab }: { tab: Tab; setTab: (tab: Tab) => void }) {
           <button
             onClick={() => fetchData(dateFrom, dateTo)}
             disabled={loading}
-            className="inline-flex w-fit items-center gap-1.5 rounded-lg border border-white/10 px-3 py-1.5 text-xs text-zinc-400 transition-colors hover:border-white/15 hover:text-zinc-300"
+            className="inline-flex w-fit items-center gap-1.5 rounded-lg border border-[#e4defa] px-3 py-1.5 text-xs text-[#6d64b8] transition-colors hover:border-[#e4defa] hover:text-[#4a4477]"
           >
             <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
             Refresh
@@ -364,7 +364,7 @@ function ShopifyTab({ tab, setTab }: { tab: Tab; setTab: (tab: Tab) => void }) {
       </div>
 
       {/* Date filter */}
-      <div className="bg-zinc-900 dark:bg-gray-900 rounded-xl border border-white/10 dark:border-gray-700 p-4 mb-6">
+      <div className="bg-white rounded-xl border border-[#e4defa] p-4 mb-6">
         <div className="flex flex-wrap items-center gap-2">
           {DATE_PRESETS.map((p) => {
             const from = daysAgoStr(p.fromDays)
@@ -377,8 +377,8 @@ function ShopifyTab({ tab, setTab }: { tab: Tab; setTab: (tab: Tab) => void }) {
                 onClick={() => { setDateFrom(from); setDateTo(to); fetchData(from, to, p.fromDays <= 1) }}
                 className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
                   active
-                    ? 'bg-amber-500 text-black border-amber-500 font-semibold'
-                    : 'bg-zinc-900 text-zinc-400 border-white/10 hover:border-white/20'
+                    ? 'bg-gradient-to-r from-[#ec4899] to-[#a855f7] text-white border-[#ec4899] font-semibold'
+                    : 'bg-white text-[#6d64b8] border-[#e4defa] hover:border-[#e4defa]'
                 }`}
               >{p.label}</button>
             )
@@ -386,23 +386,23 @@ function ShopifyTab({ tab, setTab }: { tab: Tab; setTab: (tab: Tab) => void }) {
           <div className="flex w-full flex-col gap-2 pt-2 sm:ml-auto sm:w-auto sm:flex-row sm:items-center sm:pt-0">
             <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 sm:flex sm:gap-1">
               <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="h-9 min-w-0 text-xs sm:h-7 sm:w-[130px]" />
-              <span className="text-center text-xs text-zinc-500">to</span>
+              <span className="text-center text-xs text-[#8d87b8]">to</span>
               <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="h-9 min-w-0 text-xs sm:h-7 sm:w-[130px]" />
             </div>
-            <button onClick={() => { fetchData(dateFrom, dateTo, true) }} className="h-9 w-full px-4 text-xs bg-amber-500 text-black font-medium rounded-md hover:bg-amber-400 transition-colors sm:h-7 sm:w-auto">Apply</button>
+            <button onClick={() => { fetchData(dateFrom, dateTo, true) }} className="h-9 w-full px-4 text-xs bg-gradient-to-r from-[#ec4899] to-[#a855f7] text-white font-medium rounded-md hover:opacity-90 transition-colors sm:h-7 sm:w-auto">Apply</button>
           </div>
         </div>
       </div>
 
       {warning && (
-        <div className="flex items-start gap-2 bg-amber-500/10 border border-amber-500/25 text-amber-300 rounded-lg p-3 mb-5 text-sm">
-          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-amber-500" />
+        <div className="flex items-start gap-2 bg-[#fce7f3] border border-[#f8cfe4] text-[#db2777] rounded-lg p-3 mb-5 text-sm">
+          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-[#ec4899]" />
           <span>{warning}</span>
         </div>
       )}
 
       {error && (
-        <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/25 text-red-300 rounded-lg p-3 mb-5 text-sm">
+        <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/25 text-red-600 rounded-lg p-3 mb-5 text-sm">
           <AlertCircle className="w-4 h-4 shrink-0" /> {error}
         </div>
       )}
@@ -411,7 +411,7 @@ function ShopifyTab({ tab, setTab }: { tab: Tab; setTab: (tab: Tab) => void }) {
         <div className={`transition-opacity duration-200 ${loading ? 'pointer-events-none opacity-50' : 'opacity-100'}`}>
           {/* KPI row 1 — Traffic */}
           <div className="mb-2">
-            <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Traffic</p>
+            <p className="text-xs font-semibold text-[#8d87b8] uppercase tracking-wider mb-2">Traffic</p>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
               <KPICard title="Sessions" value={formatNumber(data.sessions)} />
               <KPICard title="Visitors" value={formatNumber(data.visitors)} />
@@ -422,7 +422,7 @@ function ShopifyTab({ tab, setTab }: { tab: Tab; setTab: (tab: Tab) => void }) {
 
           {/* KPI row 2 — Sales */}
           <div className="mb-6">
-            <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Sales</p>
+            <p className="text-xs font-semibold text-[#8d87b8] uppercase tracking-wider mb-2">Sales</p>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <KPICard title="Total Orders" value={formatNumber(data.purchaseSessions)} />
               <KPICard title="Total Revenue" value={formatCurrency(data.totalSales)} />
@@ -433,22 +433,22 @@ function ShopifyTab({ tab, setTab }: { tab: Tab; setTab: (tab: Tab) => void }) {
 
           {/* Sessions chart + Funnel */}
           <div className="grid min-w-0 md:grid-cols-2 gap-5 mb-6">
-            <div className="min-w-0 overflow-hidden bg-zinc-900 dark:bg-gray-900 rounded-xl border border-white/10 dark:border-gray-700 p-4 sm:p-5">
+            <div className="min-w-0 overflow-hidden bg-white rounded-xl border border-[#e4defa] p-4 sm:p-5">
               <SimpleBarChart
                 data={data.sessionsByDay.map((d) => ({ label: d.date.slice(5), value: d.sessions }))}
                 title="Sessions by Day"
               />
             </div>
-            <div className="min-w-0 overflow-hidden bg-zinc-900 dark:bg-gray-900 rounded-xl border border-white/10 dark:border-gray-700 p-4 sm:p-5">
-              <p className="text-sm font-semibold text-zinc-300 dark:text-gray-300 mb-5">Conversion Funnel</p>
+            <div className="min-w-0 overflow-hidden bg-white rounded-xl border border-[#e4defa] p-4 sm:p-5">
+              <p className="text-sm font-semibold text-[#4a4477] mb-5">Conversion Funnel</p>
               <HorizontalFunnel steps={data.conversionFunnel} />
             </div>
           </div>
 
           {/* Traffic Sources + Devices */}
           <div className="grid md:grid-cols-2 gap-5 mb-6">
-            <div className="bg-zinc-900 dark:bg-gray-900 rounded-xl border border-white/10 dark:border-gray-700 p-5">
-              <p className="text-sm font-semibold text-zinc-300 dark:text-gray-300 mb-4">Traffic Sources</p>
+            <div className="bg-white rounded-xl border border-[#e4defa] p-5">
+              <p className="text-sm font-semibold text-[#4a4477] mb-4">Traffic Sources</p>
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -471,18 +471,18 @@ function ShopifyTab({ tab, setTab }: { tab: Tab; setTab: (tab: Tab) => void }) {
               </Table>
             </div>
 
-            <div className="bg-zinc-900 dark:bg-gray-900 rounded-xl border border-white/10 dark:border-gray-700 p-5">
-              <p className="text-sm font-semibold text-zinc-300 dark:text-gray-300 mb-4">Device Breakdown</p>
+            <div className="bg-white rounded-xl border border-[#e4defa] p-5">
+              <p className="text-sm font-semibold text-[#4a4477] mb-4">Device Breakdown</p>
               <div className="space-y-3">
                 {data.deviceBreakdown.map((d) => (
                   <div key={d.device} className="flex items-center gap-3">
                     <DeviceIcon device={d.device} />
                     <div className="flex-1">
                       <div className="flex justify-between text-sm mb-1">
-                        <span className="font-medium text-zinc-100 dark:text-gray-200">{d.device}</span>
-                        <span className="text-zinc-400">{formatNumber(d.sessions)} · {d.percentage}%</span>
+                        <span className="font-medium text-[#312b63]">{d.device}</span>
+                        <span className="text-[#6d64b8]">{formatNumber(d.sessions)} · {d.percentage}%</span>
                       </div>
-                      <div className="h-2 bg-zinc-800 dark:bg-gray-800 rounded-full overflow-hidden">
+                      <div className="h-2 bg-[#f4f0fd] rounded-full overflow-hidden">
                         <div
                           className="h-full rounded-full bg-blue-500 transition-[width] duration-500 ease-out"
                           style={{ width: `${clampPercent(Number(d.percentage))}%` }}
@@ -496,28 +496,28 @@ function ShopifyTab({ tab, setTab }: { tab: Tab; setTab: (tab: Tab) => void }) {
           </div>
 
           {/* Landing Pages */}
-          <div className="bg-zinc-900 dark:bg-gray-900 rounded-xl border border-white/10 dark:border-gray-700 p-5 mb-6">
-            <p className="text-sm font-semibold text-zinc-300 dark:text-gray-300 mb-4">Sessions by landing page</p>
-            <div className="divide-y divide-gray-100 dark:divide-gray-800">
+          <div className="bg-white rounded-xl border border-[#e4defa] p-5 mb-6">
+            <p className="text-sm font-semibold text-[#4a4477] mb-4">Sessions by landing page</p>
+            <div className="divide-y divide-[#f0ecfb]">
               {data.topPages.length > 0 ? data.topPages.slice(0, 8).map((page) => (
                 <div key={page.path} className="grid grid-cols-[1fr_auto_auto] items-center gap-4 py-4 first:pt-0 last:pb-0">
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-zinc-100 dark:text-gray-200 truncate">
+                    <p className="text-sm font-medium text-[#312b63] truncate">
                       {page.title} · {page.path}
                     </p>
                   </div>
-                  <p className="text-sm font-bold tabular-nums text-white dark:text-gray-100">{formatNumber(page.sessions)}</p>
+                  <p className="text-sm font-bold tabular-nums text-[#312b63]">{formatNumber(page.sessions)}</p>
                   <LandingPageChange change={page.changePercent} />
                 </div>
               )) : (
-                <div className="py-8 text-center text-sm text-zinc-500">No landing page data yet</div>
+                <div className="py-8 text-center text-sm text-[#8d87b8]">No landing page data yet</div>
               )}
             </div>
           </div>
 
           {/* Top Products */}
-          <div className="bg-zinc-900 dark:bg-gray-900 rounded-xl border border-white/10 dark:border-gray-700 p-5 mb-6">
-            <p className="text-sm font-semibold text-zinc-300 dark:text-gray-300 mb-4">Product Performance</p>
+          <div className="bg-white rounded-xl border border-[#e4defa] p-5 mb-6">
+            <p className="text-sm font-semibold text-[#4a4477] mb-4">Product Performance</p>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -550,8 +550,8 @@ function ShopifyTab({ tab, setTab }: { tab: Tab; setTab: (tab: Tab) => void }) {
 
           {/* Countries */}
           {data.countryBreakdown.length > 0 && (
-            <div className="bg-zinc-900 dark:bg-gray-900 rounded-xl border border-white/10 dark:border-gray-700 p-5">
-              <p className="text-sm font-semibold text-zinc-300 dark:text-gray-300 mb-4">Top Countries</p>
+            <div className="bg-white rounded-xl border border-[#e4defa] p-5">
+              <p className="text-sm font-semibold text-[#4a4477] mb-4">Top Countries</p>
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -575,10 +575,10 @@ function ShopifyTab({ tab, setTab }: { tab: Tab; setTab: (tab: Tab) => void }) {
 
           {/* Connect CTA */}
           {connected === false && (
-            <div className="mt-6 bg-zinc-900 dark:bg-gray-900 rounded-xl border border-white/10 p-8 text-center">
-              <ShoppingBag className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-              <h3 className="text-base font-semibold text-white dark:text-gray-100">Connect your Shopify store</h3>
-              <p className="text-sm text-zinc-400 mt-1 mb-4">Get real sessions, bounce rate, conversion rate, traffic sources, and product performance — pulled directly from Shopify.</p>
+            <div className="mt-6 bg-white rounded-xl border border-[#e4defa] p-8 text-center">
+              <ShoppingBag className="w-10 h-10 text-[#c9c2ec] mx-auto mb-3" />
+              <h3 className="text-base font-semibold text-[#312b63]">Connect your Shopify store</h3>
+              <p className="text-sm text-[#6d64b8] mt-1 mb-4">Get real sessions, bounce rate, conversion rate, traffic sources, and product performance — pulled directly from Shopify.</p>
               <a href="/integrations" className="inline-flex items-center gap-2 bg-[#5e8e3e] text-white text-sm font-medium px-5 py-2.5 rounded-lg hover:bg-[#4a7230] transition-colors">
                 <ShoppingBag className="w-4 h-4" /> Connect Shopify
               </a>
@@ -602,7 +602,7 @@ function GoogleAnalyticsTab({ tab, setTab }: { tab: Tab; setTab: (tab: Tab) => v
         tab={tab}
         setTab={setTab}
         statusSlot={connected ? (
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-green-500/25 bg-green-500/10 px-3 py-1.5 text-xs font-medium text-green-400">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-green-500/25 bg-green-500/10 px-3 py-1.5 text-xs font-medium text-green-600">
             <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block" /> Connected
           </span>
         ) : undefined}
@@ -611,18 +611,18 @@ function GoogleAnalyticsTab({ tab, setTab }: { tab: Tab; setTab: (tab: Tab) => v
       {connected ? (
         <div className="space-y-5">
           <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 text-xs bg-green-500/10 border border-green-500/25 text-green-400 rounded-full px-3 py-1">
+            <span className="inline-flex items-center gap-1.5 text-xs bg-green-500/10 border border-green-500/25 text-green-600 rounded-full px-3 py-1">
               <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block" /> Connected · Property {propertyId}
             </span>
           </div>
 
-          <div className="bg-zinc-900 dark:bg-gray-900 rounded-xl border border-white/10 p-8 text-center">
+          <div className="bg-white rounded-xl border border-[#e4defa] p-8 text-center">
             <BarChart3 className="w-10 h-10 text-blue-400 mx-auto mb-3" />
-            <h3 className="text-base font-semibold text-white dark:text-gray-100">Google Analytics 4 Connected</h3>
-            <p className="text-sm text-zinc-400 mt-1">
+            <h3 className="text-base font-semibold text-[#312b63]">Google Analytics 4 Connected</h3>
+            <p className="text-sm text-[#6d64b8] mt-1">
               GA4 data sync runs via server-side service account. Sessions, events, and audience data will appear here once synced.
             </p>
-            <p className="text-xs text-zinc-500 mt-3">
+            <p className="text-xs text-[#8d87b8] mt-3">
               GA4 data includes: real sessions, page views, user demographics, top pages, events, and goal completions — all separate from your Shopify store data.
             </p>
           </div>
@@ -635,16 +635,16 @@ function GoogleAnalyticsTab({ tab, setTab }: { tab: Tab; setTab: (tab: Tab) => v
               { title: 'Audience Segments', desc: 'Age, gender, interests, and behavioral segments to understand who your visitors are.' },
               { title: 'Top Landing Pages', desc: 'Which pages bring users in, and which pages cause them to leave — with real bounce data per page.' },
             ].map((item) => (
-              <div key={item.title} className="bg-zinc-900 dark:bg-gray-900 rounded-xl border border-white/10 p-4">
-                <p className="text-sm font-semibold text-zinc-100 dark:text-gray-200 mb-1">{item.title}</p>
-                <p className="text-xs text-zinc-400">{item.desc}</p>
+              <div key={item.title} className="bg-white rounded-xl border border-[#e4defa] p-4">
+                <p className="text-sm font-semibold text-[#312b63] mb-1">{item.title}</p>
+                <p className="text-xs text-[#6d64b8]">{item.desc}</p>
               </div>
             ))}
           </div>
         </div>
       ) : (
         <div className="space-y-6">
-          <div className="bg-zinc-900 dark:bg-gray-900 rounded-xl border border-white/10 p-8 text-center">
+          <div className="bg-white rounded-xl border border-[#e4defa] p-8 text-center">
             <div className="w-14 h-14 mx-auto mb-4 bg-[#fef9c3] rounded-2xl flex items-center justify-center">
               <svg viewBox="0 0 24 24" className="w-8 h-8">
                 <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
@@ -653,8 +653,8 @@ function GoogleAnalyticsTab({ tab, setTab }: { tab: Tab; setTab: (tab: Tab) => v
                 <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
               </svg>
             </div>
-            <h3 className="text-base font-semibold text-white dark:text-gray-100">Connect Google Analytics 4</h3>
-            <p className="text-sm text-zinc-400 mt-1 mb-5 max-w-sm mx-auto">
+            <h3 className="text-base font-semibold text-[#312b63]">Connect Google Analytics 4</h3>
+            <p className="text-sm text-[#6d64b8] mt-1 mb-5 max-w-sm mx-auto">
               GA4 gives you data Shopify can't — real page-level traffic, user demographics, custom events, and goal tracking.
             </p>
             <a href="/integrations" className="inline-flex items-center gap-2 bg-[#4285F4] text-white text-sm font-medium px-5 py-2.5 rounded-lg hover:bg-[#3367d6] transition-colors">
@@ -674,7 +674,7 @@ export default function AnalyticsPage() {
   const [tab, setTab] = useState<Tab>('shopify')
 
   return (
-    <div className="min-h-screen bg-zinc-950 dark:bg-gray-950">
+    <div className="min-h-screen bg-[#f5f3fb]">
       <div className="max-w-7xl mx-auto px-4 py-8">
 
         {/* Tab content */}

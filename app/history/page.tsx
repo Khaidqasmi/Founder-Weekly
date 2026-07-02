@@ -115,11 +115,11 @@ export default function HistoryPage() {
   const totalAdPages = Math.ceil(ads.length / PAGE_SIZE)
 
   return (
-    <div className="min-h-screen bg-zinc-950">
+    <div className="min-h-screen bg-[#f5f3fb]">
       
       <div className="max-w-7xl mx-auto px-4 py-8">
-        <h1 className="text-2xl font-bold text-white mb-2">Historical Data</h1>
-        <p className="text-sm text-zinc-400 mb-6">Browse all your synced and uploaded data across any time period.</p>
+        <h1 className="text-2xl font-bold text-[#312b63] mb-2">Historical Data</h1>
+        <p className="text-sm text-[#6d64b8] mb-6">Browse all your synced and uploaded data across any time period.</p>
 
         {/* Date Controls */}
         <Card className="mb-6">
@@ -141,7 +141,7 @@ export default function HistoryPage() {
               <Button onClick={handleCustomRange} size="sm">Apply</Button>
             </div>
             {data?.dataMeta && (
-              <div className="flex flex-wrap gap-4 mt-3 text-xs text-zinc-400">
+              <div className="flex flex-wrap gap-4 mt-3 text-xs text-[#6d64b8]">
                 <span>Showing: <strong>{dateFrom}</strong> to <strong>{dateTo}</strong></span>
                 {data.dataMeta.dateRange.earliest && (
                   <span>Data available from: <strong>{data.dataMeta.dateRange.earliest}</strong></span>
@@ -177,16 +177,16 @@ export default function HistoryPage() {
                     <KPICard title="COD Rate" value={formatPercent(m.codConfirmationRate)} />
                   </div>
                   <div className="grid md:grid-cols-2 gap-6">
-                    <div className="bg-zinc-900 rounded-lg p-4 shadow-sm">
+                    <div className="bg-white rounded-lg p-4 shadow-sm">
                       <SimpleBarChart data={data.charts.revenueByDay} title="Revenue by Day" />
                     </div>
-                    <div className="bg-zinc-900 rounded-lg p-4 shadow-sm">
-                      <SimpleBarChart data={data.charts.ordersByDay} title="Orders by Day" color="#fbbf24" />
+                    <div className="bg-white rounded-lg p-4 shadow-sm">
+                      <SimpleBarChart data={data.charts.ordersByDay} title="Orders by Day" color="#ec4899" />
                     </div>
-                    <div className="bg-zinc-900 rounded-lg p-4 shadow-sm">
-                      <SimpleBarChart data={data.charts.adSpendByCampaign} title="Ad Spend by Campaign" color="#f59e0b" />
+                    <div className="bg-white rounded-lg p-4 shadow-sm">
+                      <SimpleBarChart data={data.charts.adSpendByCampaign} title="Ad Spend by Campaign" color="#8b5cf6" />
                     </div>
-                    <div className="bg-zinc-900 rounded-lg p-4 shadow-sm">
+                    <div className="bg-white rounded-lg p-4 shadow-sm">
                       <SimpleBarChart
                         data={data.charts.productPerformance.map((p: any) => ({ label: p.name, value: p.revenue }))}
                         title="Products by Revenue"
@@ -233,14 +233,14 @@ export default function HistoryPage() {
                           </TableRow>
                         ))}
                         {pagedOrders.length === 0 && (
-                          <TableRow><TableCell colSpan={10} className="text-center text-zinc-500 py-8">No orders in this date range</TableCell></TableRow>
+                          <TableRow><TableCell colSpan={10} className="text-center text-[#8d87b8] py-8">No orders in this date range</TableCell></TableRow>
                         )}
                       </TableBody>
                     </Table>
                   </div>
                   {totalOrderPages > 1 && (
                     <div className="flex items-center justify-between px-4 py-3 border-t">
-                      <span className="text-xs text-zinc-400">Page {orderPage + 1} of {totalOrderPages}</span>
+                      <span className="text-xs text-[#6d64b8]">Page {orderPage + 1} of {totalOrderPages}</span>
                       <div className="flex gap-2">
                         <Button size="sm" variant="outline" disabled={orderPage === 0} onClick={() => setOrderPage(orderPage - 1)}>Previous</Button>
                         <Button size="sm" variant="outline" disabled={orderPage >= totalOrderPages - 1} onClick={() => setOrderPage(orderPage + 1)}>Next</Button>
@@ -287,14 +287,14 @@ export default function HistoryPage() {
                           </TableRow>
                         ))}
                         {pagedAds.length === 0 && (
-                          <TableRow><TableCell colSpan={10} className="text-center text-zinc-500 py-8">No ad data in this date range</TableCell></TableRow>
+                          <TableRow><TableCell colSpan={10} className="text-center text-[#8d87b8] py-8">No ad data in this date range</TableCell></TableRow>
                         )}
                       </TableBody>
                     </Table>
                   </div>
                   {totalAdPages > 1 && (
                     <div className="flex items-center justify-between px-4 py-3 border-t">
-                      <span className="text-xs text-zinc-400">Page {adPage + 1} of {totalAdPages}</span>
+                      <span className="text-xs text-[#6d64b8]">Page {adPage + 1} of {totalAdPages}</span>
                       <div className="flex gap-2">
                         <Button size="sm" variant="outline" disabled={adPage === 0} onClick={() => setAdPage(adPage - 1)}>Previous</Button>
                         <Button size="sm" variant="outline" disabled={adPage >= totalAdPages - 1} onClick={() => setAdPage(adPage + 1)}>Next</Button>
@@ -346,7 +346,7 @@ export default function HistoryPage() {
                         )
                       })}
                       {syncRuns.length === 0 && (
-                        <TableRow><TableCell colSpan={9} className="text-center text-zinc-500 py-8">No syncs yet. Connect an integration and sync data.</TableCell></TableRow>
+                        <TableRow><TableCell colSpan={9} className="text-center text-[#8d87b8] py-8">No syncs yet. Connect an integration and sync data.</TableCell></TableRow>
                       )}
                     </TableBody>
                   </Table>

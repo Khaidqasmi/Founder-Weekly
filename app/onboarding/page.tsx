@@ -68,11 +68,11 @@ export default function OnboardingPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-zinc-950 px-4 py-12">
+    <div className="min-h-screen flex items-center justify-center bg-[#f5f3fb] px-4 py-12">
       <Card className="w-full max-w-lg">
         <CardHeader>
           <CardTitle>Set Up Your Dashboard</CardTitle>
-          <p className="text-sm text-zinc-400">Step {step} of 2</p>
+          <p className="text-sm text-[#6d64b8]">Step {step} of 2</p>
         </CardHeader>
         <CardContent>
           {step === 1 && (

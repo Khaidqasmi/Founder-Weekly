@@ -24,19 +24,19 @@ function SectionHeading({ eyebrow, title, sub }: { eyebrow?: string; title: stri
   return (
     <div className="mx-auto mb-10 max-w-2xl text-center">
       {eyebrow && (
-        <span className="mb-3 inline-flex rounded-full border border-amber-500/25 bg-amber-500/10 px-3 py-1 text-xs font-medium text-amber-400">
+        <span className="mb-3 inline-flex rounded-full border border-[#ec4899]/25 bg-[#ec4899]/10 px-3 py-1 text-xs font-medium text-[#f472b6]">
           {eyebrow}
         </span>
       )}
       <h2 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">{title}</h2>
-      {sub && <p className="mt-3 text-sm leading-6 text-zinc-400 sm:text-base">{sub}</p>}
+      {sub && <p className="mt-3 text-sm leading-6 text-[#a79fd6] sm:text-base">{sub}</p>}
     </div>
   )
 }
 
 function Card({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={`rounded-xl border border-white/[0.08] bg-zinc-900/70 ${className}`}>
+    <div className={`rounded-xl border border-white/[0.08] bg-[#221c4e]/70 ${className}`}>
       {children}
     </div>
   )
@@ -46,14 +46,14 @@ function Card({ children, className = '' }: { children: React.ReactNode; classNa
 
 function MiniKpi({ label, value, accent = false }: { label: string; value: string; accent?: boolean }) {
   return (
-    <div className="min-w-0 rounded-lg border border-white/[0.08] bg-zinc-950/60 p-2.5">
-      <p className="truncate text-[9px] font-medium uppercase tracking-wider text-zinc-500">{label}</p>
-      <p className={`mt-0.5 truncate text-sm font-semibold ${accent ? 'text-amber-400' : 'text-white'}`}>{value}</p>
+    <div className="min-w-0 rounded-lg border border-white/[0.08] bg-[#171233]/60 p-2.5">
+      <p className="truncate text-[9px] font-medium uppercase tracking-wider text-[#8d87b8]">{label}</p>
+      <p className={`mt-0.5 truncate text-sm font-semibold ${accent ? 'text-[#f472b6]' : 'text-white'}`}>{value}</p>
     </div>
   )
 }
 
-function MiniBars({ heights, color = 'bg-amber-500' }: { heights: number[]; color?: string }) {
+function MiniBars({ heights, color = 'bg-[#ec4899]' }: { heights: number[]; color?: string }) {
   return (
     <div className="flex h-20 items-end gap-1">
       {heights.map((h, i) => (
@@ -69,13 +69,13 @@ function StatusDot({ color }: { color: string }) {
 
 function HeroMockup() {
   return (
-    <div className="rounded-2xl border border-white/10 bg-zinc-900/80 p-3 shadow-[0_20px_60px_-20px_rgba(245,158,11,0.15)] sm:p-4">
+    <div className="rounded-2xl border border-white/10 bg-[#221c4e]/80 p-3 shadow-[0_20px_60px_-20px_rgba(245,158,11,0.15)] sm:p-4">
       {/* window chrome */}
       <div className="mb-3 flex items-center gap-1.5 border-b border-white/[0.06] pb-3">
-        <span className="h-2 w-2 rounded-full bg-zinc-700" />
-        <span className="h-2 w-2 rounded-full bg-zinc-700" />
-        <span className="h-2 w-2 rounded-full bg-amber-500/70" />
-        <span className="ml-2 text-[10px] text-zinc-500">Ecom Panel — Dashboard</span>
+        <span className="h-2 w-2 rounded-full bg-[#3a3272]" />
+        <span className="h-2 w-2 rounded-full bg-[#3a3272]" />
+        <span className="h-2 w-2 rounded-full bg-[#ec4899]/70" />
+        <span className="ml-2 text-[10px] text-[#8d87b8]">Ecom Panel — Dashboard</span>
       </div>
 
       <div className="grid grid-cols-3 gap-2">
@@ -85,43 +85,43 @@ function HeroMockup() {
       </div>
 
       <div className="mt-2 grid grid-cols-2 gap-2">
-        <div className="rounded-lg border border-white/[0.08] bg-zinc-950/60 p-2.5">
-          <p className="mb-2 text-[9px] font-medium uppercase tracking-wider text-zinc-500">Sales trend</p>
+        <div className="rounded-lg border border-white/[0.08] bg-[#171233]/60 p-2.5">
+          <p className="mb-2 text-[9px] font-medium uppercase tracking-wider text-[#8d87b8]">Sales trend</p>
           <MiniBars heights={[35, 55, 40, 70, 60, 85, 100]} />
         </div>
         <div className="space-y-2">
-          <div className="rounded-lg border border-white/[0.08] bg-zinc-950/60 p-2.5">
-            <p className="text-[9px] font-medium uppercase tracking-wider text-zinc-500">GA4 traffic</p>
-            <p className="mt-0.5 text-sm font-semibold text-white">12,480 <span className="text-[10px] font-normal text-zinc-500">sessions</span></p>
+          <div className="rounded-lg border border-white/[0.08] bg-[#171233]/60 p-2.5">
+            <p className="text-[9px] font-medium uppercase tracking-wider text-[#8d87b8]">GA4 traffic</p>
+            <p className="mt-0.5 text-sm font-semibold text-white">12,480 <span className="text-[10px] font-normal text-[#8d87b8]">sessions</span></p>
           </div>
-          <div className="rounded-lg border border-white/[0.08] bg-zinc-950/60 p-2.5">
-            <p className="mb-1.5 text-[9px] font-medium uppercase tracking-wider text-zinc-500">Courier status</p>
-            <div className="space-y-1 text-[10px] text-zinc-400">
+          <div className="rounded-lg border border-white/[0.08] bg-[#171233]/60 p-2.5">
+            <p className="mb-1.5 text-[9px] font-medium uppercase tracking-wider text-[#8d87b8]">Courier status</p>
+            <div className="space-y-1 text-[10px] text-[#a79fd6]">
               <p className="flex items-center gap-1.5"><StatusDot color="bg-green-500" /> Delivered <span className="ml-auto text-white">312</span></p>
-              <p className="flex items-center gap-1.5"><StatusDot color="bg-amber-500" /> In transit <span className="ml-auto text-white">84</span></p>
+              <p className="flex items-center gap-1.5"><StatusDot color="bg-[#ec4899]" /> In transit <span className="ml-auto text-white">84</span></p>
             </div>
           </div>
         </div>
       </div>
 
       <div className="mt-2 grid grid-cols-2 gap-2">
-        <div className="rounded-lg border border-white/[0.08] bg-zinc-950/60 p-2.5">
-          <p className="mb-1.5 text-[9px] font-medium uppercase tracking-wider text-zinc-500">Top products</p>
+        <div className="rounded-lg border border-white/[0.08] bg-[#171233]/60 p-2.5">
+          <p className="mb-1.5 text-[9px] font-medium uppercase tracking-wider text-[#8d87b8]">Top products</p>
           {['Premium T-Shirt', 'Hoodie Classic', 'Jogger Pants'].map((p, i) => (
             <div key={p} className="flex items-center justify-between py-0.5 text-[10px]">
-              <span className="truncate text-zinc-300">{p}</span>
-              <span className="ml-2 shrink-0 text-amber-400">{['12.4k', '10.1k', '8.3k'][i]}</span>
+              <span className="truncate text-[#c7c2e8]">{p}</span>
+              <span className="ml-2 shrink-0 text-[#f472b6]">{['12.4k', '10.1k', '8.3k'][i]}</span>
             </div>
           ))}
         </div>
         <div className="space-y-2">
-          <div className="rounded-lg border border-white/[0.08] bg-zinc-950/60 p-2.5">
-            <p className="text-[9px] font-medium uppercase tracking-wider text-zinc-500">Pending orders</p>
+          <div className="rounded-lg border border-white/[0.08] bg-[#171233]/60 p-2.5">
+            <p className="text-[9px] font-medium uppercase tracking-wider text-[#8d87b8]">Pending orders</p>
             <p className="mt-0.5 text-sm font-semibold text-white">38</p>
           </div>
-          <div className="rounded-lg border border-amber-500/20 bg-amber-500/[0.06] p-2.5">
-            <p className="text-[9px] font-medium uppercase tracking-wider text-amber-500/80">Profit overview</p>
-            <p className="mt-0.5 text-sm font-semibold text-amber-400">+PKR 640K</p>
+          <div className="rounded-lg border border-[#ec4899]/25 bg-[#ec4899]/[0.08] p-2.5">
+            <p className="text-[9px] font-medium uppercase tracking-wider text-[#f472b6]/80">Profit overview</p>
+            <p className="mt-0.5 text-sm font-semibold text-[#f472b6]">+PKR 640K</p>
           </div>
         </div>
       </div>
@@ -131,7 +131,7 @@ function HeroMockup() {
 
 function WideMockup() {
   return (
-    <div className="rounded-2xl border border-white/10 bg-zinc-900/80 p-3 sm:p-5">
+    <div className="rounded-2xl border border-white/10 bg-[#221c4e]/80 p-3 sm:p-5">
       <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
         <MiniKpi label="Revenue" value="PKR 1.8M" accent />
         <MiniKpi label="Orders" value="426" />
@@ -143,40 +143,40 @@ function WideMockup() {
       </div>
 
       <div className="mb-4 grid gap-2 sm:grid-cols-2">
-        <div className="rounded-lg border border-white/[0.08] bg-zinc-950/60 p-3">
-          <p className="mb-2 text-[10px] font-medium uppercase tracking-wider text-zinc-500">Sales trend</p>
+        <div className="rounded-lg border border-white/[0.08] bg-[#171233]/60 p-3">
+          <p className="mb-2 text-[10px] font-medium uppercase tracking-wider text-[#8d87b8]">Sales trend</p>
           <MiniBars heights={[30, 45, 38, 60, 52, 74, 68, 90, 82, 100, 88, 95]} />
         </div>
-        <div className="rounded-lg border border-white/[0.08] bg-zinc-950/60 p-3">
-          <p className="mb-2 text-[10px] font-medium uppercase tracking-wider text-zinc-500">Ad performance</p>
-          <MiniBars heights={[55, 40, 70, 45, 85, 60, 75, 50, 90, 65, 80, 100]} color="bg-amber-600" />
+        <div className="rounded-lg border border-white/[0.08] bg-[#171233]/60 p-3">
+          <p className="mb-2 text-[10px] font-medium uppercase tracking-wider text-[#8d87b8]">Ad performance</p>
+          <MiniBars heights={[55, 40, 70, 45, 85, 60, 75, 50, 90, 65, 80, 100]} color="bg-[#db2777]" />
         </div>
       </div>
 
       <div className="grid gap-2 sm:grid-cols-3">
-        <div className="rounded-lg border border-white/[0.08] bg-zinc-950/60 p-3">
-          <p className="mb-2 text-[10px] font-medium uppercase tracking-wider text-zinc-500">Recent orders</p>
+        <div className="rounded-lg border border-white/[0.08] bg-[#171233]/60 p-3">
+          <p className="mb-2 text-[10px] font-medium uppercase tracking-wider text-[#8d87b8]">Recent orders</p>
           {[['#4821', 'Delivered'], ['#4820', 'In transit'], ['#4819', 'Confirmed'], ['#4818', 'Pending']].map(([id, st]) => (
             <div key={id} className="flex items-center justify-between border-t border-white/[0.05] py-1.5 text-[10px] first:border-0">
-              <span className="text-zinc-300">{id}</span>
-              <span className={st === 'Delivered' ? 'text-green-400' : st === 'Pending' ? 'text-zinc-500' : 'text-amber-400'}>{st}</span>
+              <span className="text-[#c7c2e8]">{id}</span>
+              <span className={st === 'Delivered' ? 'text-green-400' : st === 'Pending' ? 'text-[#8d87b8]' : 'text-[#f472b6]'}>{st}</span>
             </div>
           ))}
         </div>
-        <div className="rounded-lg border border-white/[0.08] bg-zinc-950/60 p-3">
-          <p className="mb-2 text-[10px] font-medium uppercase tracking-wider text-zinc-500">Courier status</p>
-          {[['Delivered', '312', 'bg-green-500'], ['In transit', '84', 'bg-amber-500'], ['Returned', '18', 'bg-red-500'], ['Failed attempt', '9', 'bg-zinc-500']].map(([l, v, c]) => (
-            <div key={l} className="flex items-center gap-2 py-1 text-[10px] text-zinc-400">
+        <div className="rounded-lg border border-white/[0.08] bg-[#171233]/60 p-3">
+          <p className="mb-2 text-[10px] font-medium uppercase tracking-wider text-[#8d87b8]">Courier status</p>
+          {[['Delivered', '312', 'bg-green-500'], ['In transit', '84', 'bg-[#ec4899]'], ['Returned', '18', 'bg-red-500'], ['Failed attempt', '9', 'bg-[#6d64b8]']].map(([l, v, c]) => (
+            <div key={l} className="flex items-center gap-2 py-1 text-[10px] text-[#a79fd6]">
               <StatusDot color={c} /> {l} <span className="ml-auto text-white">{v}</span>
             </div>
           ))}
         </div>
-        <div className="rounded-lg border border-white/[0.08] bg-zinc-950/60 p-3">
-          <p className="mb-2 text-[10px] font-medium uppercase tracking-wider text-zinc-500">Top products</p>
+        <div className="rounded-lg border border-white/[0.08] bg-[#171233]/60 p-3">
+          <p className="mb-2 text-[10px] font-medium uppercase tracking-wider text-[#8d87b8]">Top products</p>
           {[['Premium T-Shirt', 'PKR 12.4K'], ['Hoodie Classic', 'PKR 10.1K'], ['Jogger Pants', 'PKR 8.3K'], ['Cap Minimal', 'PKR 5.6K']].map(([p, v]) => (
             <div key={p} className="flex items-center justify-between py-1 text-[10px]">
-              <span className="truncate text-zinc-300">{p}</span>
-              <span className="ml-2 shrink-0 text-amber-400">{v}</span>
+              <span className="truncate text-[#c7c2e8]">{p}</span>
+              <span className="ml-2 shrink-0 text-[#f472b6]">{v}</span>
             </div>
           ))}
         </div>
@@ -301,7 +301,7 @@ const FAQS = [
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen bg-zinc-950 text-white">
+    <div className="min-h-screen bg-[#171233] text-white">
 
       {/* ── Header ── */}
 
@@ -310,17 +310,17 @@ export default function HomePage() {
       <section className="border-b border-white/[0.06]">
         <div className="mx-auto grid max-w-7xl items-center gap-12 px-4 py-16 sm:py-20 lg:grid-cols-2">
           <div>
-            <span className="mb-4 inline-flex rounded-full border border-amber-500/25 bg-amber-500/10 px-3 py-1 text-xs font-medium text-amber-400">
+            <span className="mb-4 inline-flex rounded-full border border-[#ec4899]/25 bg-[#ec4899]/10 px-3 py-1 text-xs font-medium text-[#f472b6]">
               Shopify · Meta Ads · GA4 · Courier · Orders · Reports
             </span>
             <h1 className="text-3xl font-bold leading-tight tracking-tight sm:text-5xl">
-              Control Your Entire Ecommerce Business From <span className="text-amber-400">One Dashboard</span>
+              Control Your Entire Ecommerce Business From <span className="text-[#f472b6]">One Dashboard</span>
             </h1>
-            <p className="mt-5 max-w-xl text-base leading-7 text-zinc-400 sm:text-lg">
+            <p className="mt-5 max-w-xl text-base leading-7 text-[#a79fd6] sm:text-lg">
               Track Shopify orders, Meta Ads, Google Analytics, courier performance, revenue, ROAS, customer data, and business reports in one clean panel.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <Link href="/signup" className="inline-flex items-center justify-center gap-2 rounded-lg bg-amber-500 px-6 py-3 text-sm font-semibold text-black transition-colors hover:bg-amber-400">
+              <Link href="/signup" className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#ec4899] px-6 py-3 text-sm font-semibold text-black transition-colors hover:opacity-90">
                 Book a Demo <ArrowRight className="h-4 w-4" />
               </Link>
               <Link href="/dashboard" className="inline-flex items-center justify-center rounded-lg border border-white/15 px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-white/[0.06]">
@@ -333,12 +333,12 @@ export default function HomePage() {
       </section>
 
       {/* ── Trust bar ── */}
-      <section className="border-b border-white/[0.06] bg-zinc-900/40">
+      <section className="border-b border-white/[0.06] bg-[#221c4e]/40">
         <div className="mx-auto max-w-7xl px-4 py-8 text-center">
-          <p className="text-sm text-zinc-500">Built for Shopify stores, ecommerce agencies, and performance marketing teams.</p>
+          <p className="text-sm text-[#8d87b8]">Built for Shopify stores, ecommerce agencies, and performance marketing teams.</p>
           <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
             {['Shopify', 'Meta Ads', 'Google Analytics', 'Courier', 'Orders', 'Reports'].map((b) => (
-              <span key={b} className="rounded-full border border-white/10 bg-zinc-900/70 px-3 py-1.5 text-xs font-medium text-zinc-400">
+              <span key={b} className="rounded-full border border-white/10 bg-[#221c4e]/70 px-3 py-1.5 text-xs font-medium text-[#a79fd6]">
                 {b}
               </span>
             ))}
@@ -352,24 +352,24 @@ export default function HomePage() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {PROBLEMS.map(({ icon: Icon, text }) => (
             <Card key={text} className="p-5">
-              <Icon className="mb-3 h-5 w-5 text-zinc-500" />
-              <p className="text-sm leading-6 text-zinc-300">{text}</p>
+              <Icon className="mb-3 h-5 w-5 text-[#8d87b8]" />
+              <p className="text-sm leading-6 text-[#c7c2e8]">{text}</p>
             </Card>
           ))}
         </div>
-        <p className="mt-8 text-center text-base font-medium text-amber-400">Ecom Panel brings all business data into one view.</p>
+        <p className="mt-8 text-center text-base font-medium text-[#f472b6]">Ecom Panel brings all business data into one view.</p>
       </section>
 
       {/* ── Solution ── */}
-      <section className="border-y border-white/[0.06] bg-zinc-900/40">
+      <section className="border-y border-white/[0.06] bg-[#221c4e]/40">
         <div className="mx-auto max-w-7xl px-4 py-16 sm:py-20">
           <SectionHeading eyebrow="The Solution" title="One Panel For Every Key Ecommerce Metric" />
           <div className="grid items-center gap-10 lg:grid-cols-2">
             <HeroMockup />
             <ul className="grid gap-3 sm:grid-cols-2">
               {SOLUTION_POINTS.map((p) => (
-                <li key={p} className="flex items-start gap-2.5 rounded-lg border border-white/[0.06] bg-zinc-900/60 p-3 text-sm text-zinc-300">
-                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+                <li key={p} className="flex items-start gap-2.5 rounded-lg border border-white/[0.06] bg-[#221c4e]/60 p-3 text-sm text-[#c7c2e8]">
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[#f472b6]" />
                   {p}
                 </li>
               ))}
@@ -383,19 +383,19 @@ export default function HomePage() {
         <SectionHeading eyebrow="Features" title="Everything Your Store Runs On, In One Place" />
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {FEATURES.map(({ icon: Icon, title, desc }) => (
-            <Card key={title} className="p-6 transition-colors hover:border-amber-500/30">
-              <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg border border-amber-500/25 bg-amber-500/10">
-                <Icon className="h-5 w-5 text-amber-500" />
+            <Card key={title} className="p-6 transition-colors hover:border-[#ec4899]/35">
+              <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg border border-[#ec4899]/25 bg-[#ec4899]/10">
+                <Icon className="h-5 w-5 text-[#f472b6]" />
               </div>
               <h3 className="text-base font-semibold text-white">{title}</h3>
-              <p className="mt-2 text-sm leading-6 text-zinc-400">{desc}</p>
+              <p className="mt-2 text-sm leading-6 text-[#a79fd6]">{desc}</p>
             </Card>
           ))}
         </div>
       </section>
 
       {/* ── Dashboard preview ── */}
-      <section id="preview" className="scroll-mt-20 border-y border-white/[0.06] bg-zinc-900/40">
+      <section id="preview" className="scroll-mt-20 border-y border-white/[0.06] bg-[#221c4e]/40">
         <div className="mx-auto max-w-7xl px-4 py-16 sm:py-20">
           <SectionHeading eyebrow="Dashboard Preview" title="Designed For Fast Decisions" />
           <WideMockup />
@@ -416,23 +416,23 @@ export default function HomePage() {
         />
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-7">
           {INTEGRATIONS.map(({ icon: Icon, label }) => (
-            <Card key={label} className="flex flex-col items-center gap-2 p-4 text-center transition-colors hover:border-amber-500/30">
-              <Icon className="h-5 w-5 text-zinc-400" />
-              <span className="text-xs font-medium text-zinc-300">{label}</span>
+            <Card key={label} className="flex flex-col items-center gap-2 p-4 text-center transition-colors hover:border-[#ec4899]/35">
+              <Icon className="h-5 w-5 text-[#a79fd6]" />
+              <span className="text-xs font-medium text-[#c7c2e8]">{label}</span>
             </Card>
           ))}
         </div>
       </section>
 
       {/* ── Use cases ── */}
-      <section className="border-y border-white/[0.06] bg-zinc-900/40">
+      <section className="border-y border-white/[0.06] bg-[#221c4e]/40">
         <div className="mx-auto max-w-7xl px-4 py-16 sm:py-20">
           <SectionHeading eyebrow="Use Cases" title="Who Is Ecom Panel For?" />
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {USE_CASES.map(({ title, desc }) => (
               <Card key={title} className="p-5">
-                <h3 className="text-sm font-semibold text-amber-400">{title}</h3>
-                <p className="mt-2 text-sm leading-6 text-zinc-400">{desc}</p>
+                <h3 className="text-sm font-semibold text-[#f472b6]">{title}</h3>
+                <p className="mt-2 text-sm leading-6 text-[#a79fd6]">{desc}</p>
               </Card>
             ))}
           </div>
@@ -444,8 +444,8 @@ export default function HomePage() {
         <SectionHeading eyebrow="Benefits" title="Why Teams Use Ecom Panel" />
         <ul className="mx-auto max-w-2xl space-y-3">
           {BENEFITS.map((b) => (
-            <li key={b} className="flex items-start gap-3 rounded-lg border border-white/[0.06] bg-zinc-900/60 p-4 text-sm text-zinc-300 sm:text-base">
-              <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-amber-500" />
+            <li key={b} className="flex items-start gap-3 rounded-lg border border-white/[0.06] bg-[#221c4e]/60 p-4 text-sm text-[#c7c2e8] sm:text-base">
+              <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-[#f472b6]" />
               {b}
             </li>
           ))}
@@ -453,15 +453,15 @@ export default function HomePage() {
       </section>
 
       {/* ── Reports ── */}
-      <section className="border-y border-white/[0.06] bg-zinc-900/40">
+      <section className="border-y border-white/[0.06] bg-[#221c4e]/40">
         <div className="mx-auto max-w-7xl px-4 py-16 sm:py-20">
           <SectionHeading eyebrow="Reporting" title="Reports Your Team Understands" />
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {REPORTS.map(({ icon: Icon, title }) => (
-              <Link key={title} href="/reports" className="group flex items-center gap-3 rounded-xl border border-white/[0.08] bg-zinc-900/70 p-5 transition-colors hover:border-amber-500/40">
-                <Icon className="h-5 w-5 text-amber-500" />
+              <Link key={title} href="/reports" className="group flex items-center gap-3 rounded-xl border border-white/[0.08] bg-[#221c4e]/70 p-5 transition-colors hover:border-[#ec4899]/45">
+                <Icon className="h-5 w-5 text-[#f472b6]" />
                 <span className="text-sm font-medium text-white">{title}</span>
-                <ArrowRight className="ml-auto h-4 w-4 text-zinc-600 transition-colors group-hover:text-amber-500" />
+                <ArrowRight className="ml-auto h-4 w-4 text-[#6d64b8] transition-colors group-hover:text-[#f472b6]" />
               </Link>
             ))}
           </div>
@@ -474,10 +474,10 @@ export default function HomePage() {
         <div className="grid gap-4 lg:grid-cols-3">
           {TESTIMONIALS.map((t, i) => (
             <Card key={i} className="p-6">
-              <p className="text-sm italic leading-6 text-zinc-400">&ldquo;{t.quote}&rdquo;</p>
+              <p className="text-sm italic leading-6 text-[#a79fd6]">&ldquo;{t.quote}&rdquo;</p>
               <div className="mt-4 border-t border-white/[0.06] pt-4">
                 <p className="text-sm font-semibold text-white">{t.name}</p>
-                <p className="text-xs text-zinc-500">{t.type}</p>
+                <p className="text-xs text-[#8d87b8]">{t.type}</p>
               </div>
             </Card>
           ))}
@@ -485,32 +485,32 @@ export default function HomePage() {
       </section>
 
       {/* ── Pricing ── */}
-      <section id="pricing" className="scroll-mt-20 border-y border-white/[0.06] bg-zinc-900/40">
+      <section id="pricing" className="scroll-mt-20 border-y border-white/[0.06] bg-[#221c4e]/40">
         <div className="mx-auto max-w-7xl px-4 py-16 sm:py-20">
           <SectionHeading eyebrow="Pricing" title="Simple Plans For Growing Stores" />
           <div className="grid gap-4 lg:grid-cols-3">
             {PLANS.map((plan) => (
-              <Card key={plan.name} className={`flex flex-col p-6 ${plan.featured ? 'border-amber-500/40 shadow-[0_0_40px_-12px_rgba(245,158,11,0.25)]' : ''}`}>
+              <Card key={plan.name} className={`flex flex-col p-6 ${plan.featured ? 'border-[#ec4899]/45 shadow-[0_0_40px_-12px_rgba(245,158,11,0.25)]' : ''}`}>
                 {plan.featured && (
-                  <span className="mb-3 w-fit rounded-full bg-amber-500 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-black">Most Popular</span>
+                  <span className="mb-3 w-fit rounded-full bg-[#ec4899] px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-black">Most Popular</span>
                 )}
                 <h3 className="text-lg font-bold text-white">{plan.name}</h3>
-                <p className="mt-1 text-sm text-zinc-500">{plan.tagline}</p>
-                <p className="mt-4 text-xl font-semibold text-amber-400">{plan.price}</p>
-                <ul className="mt-5 space-y-2.5 text-sm text-zinc-300">
+                <p className="mt-1 text-sm text-[#8d87b8]">{plan.tagline}</p>
+                <p className="mt-4 text-xl font-semibold text-[#f472b6]">{plan.price}</p>
+                <ul className="mt-5 space-y-2.5 text-sm text-[#c7c2e8]">
                   {PLAN_FEATURES.map((f) => (
                     <li key={f} className="flex items-center gap-2">
-                      <CheckCircle2 className="h-4 w-4 shrink-0 text-amber-500" /> {f}
+                      <CheckCircle2 className="h-4 w-4 shrink-0 text-[#f472b6]" /> {f}
                     </li>
                   ))}
-                  <li className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 shrink-0 text-amber-500" /> {plan.support}</li>
-                  <li className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 shrink-0 text-amber-500" /> {plan.storeLimit}</li>
+                  <li className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 shrink-0 text-[#f472b6]" /> {plan.support}</li>
+                  <li className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 shrink-0 text-[#f472b6]" /> {plan.storeLimit}</li>
                 </ul>
                 <Link
                   href={plan.href}
                   className={`mt-6 inline-flex items-center justify-center rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors ${
                     plan.featured
-                      ? 'bg-amber-500 text-black hover:bg-amber-400'
+                      ? 'bg-gradient-to-r from-[#ec4899] to-[#a855f7] text-white hover:opacity-90'
                       : 'border border-white/15 text-white hover:bg-white/[0.06]'
                   }`}
                 >
@@ -527,26 +527,26 @@ export default function HomePage() {
         <SectionHeading eyebrow="FAQs" title="Frequently Asked Questions" />
         <div className="space-y-3">
           {FAQS.map(({ q, a }) => (
-            <details key={q} className="group rounded-xl border border-white/[0.08] bg-zinc-900/70 p-5 open:border-amber-500/30">
+            <details key={q} className="group rounded-xl border border-white/[0.08] bg-[#221c4e]/70 p-5 open:border-[#ec4899]/35">
               <summary className="flex cursor-pointer list-none items-center justify-between text-sm font-semibold text-white [&::-webkit-details-marker]:hidden">
                 {q}
-                <Plug className="h-4 w-4 rotate-90 text-zinc-600 transition-transform group-open:rotate-0 group-open:text-amber-500" />
+                <Plug className="h-4 w-4 rotate-90 text-[#6d64b8] transition-transform group-open:rotate-0 group-open:text-[#f472b6]" />
               </summary>
-              <p className="mt-3 text-sm leading-6 text-zinc-400">{a}</p>
+              <p className="mt-3 text-sm leading-6 text-[#a79fd6]">{a}</p>
             </details>
           ))}
         </div>
       </section>
 
       {/* ── Final CTA ── */}
-      <section id="contact" className="scroll-mt-20 border-t border-white/[0.06] bg-gradient-to-b from-zinc-900/40 to-amber-500/[0.06]">
+      <section id="contact" className="scroll-mt-20 border-t border-white/[0.06] bg-gradient-to-b from-[#221c4e]/40 to-[#ec4899]/[0.08]">
         <div className="mx-auto max-w-3xl px-4 py-16 text-center sm:py-24">
           <h2 className="text-2xl font-bold tracking-tight text-white sm:text-4xl">Stop Switching Between Platforms</h2>
-          <p className="mx-auto mt-4 max-w-xl text-sm leading-6 text-zinc-400 sm:text-base">
+          <p className="mx-auto mt-4 max-w-xl text-sm leading-6 text-[#a79fd6] sm:text-base">
             Bring your Shopify, ads, analytics, orders, courier, and reports into one ecommerce dashboard.
           </p>
           <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
-            <Link href="/signup" className="inline-flex items-center justify-center gap-2 rounded-lg bg-amber-500 px-6 py-3 text-sm font-semibold text-black transition-colors hover:bg-amber-400">
+            <Link href="/signup" className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#ec4899] px-6 py-3 text-sm font-semibold text-black transition-colors hover:opacity-90">
               Book a Demo <ArrowRight className="h-4 w-4" />
             </Link>
             <Link href="/dashboard" className="inline-flex items-center justify-center rounded-lg border border-white/15 px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-white/[0.06]">
@@ -557,15 +557,15 @@ export default function HomePage() {
       </section>
 
       {/* ── Footer ── */}
-      <footer className="border-t border-white/[0.08] bg-zinc-950">
+      <footer className="border-t border-white/[0.08] bg-[#171233]">
         <div className="mx-auto max-w-7xl px-4 py-12">
           <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-5">
             <div className="lg:col-span-1">
               <Link href="/" className="flex items-center gap-2 text-base font-bold">
-                <span className="flex h-6 w-6 items-center justify-center rounded-md bg-amber-500 text-xs font-black text-black">E</span>
+                <span className="flex h-6 w-6 items-center justify-center rounded-md bg-[#ec4899] text-xs font-black text-black">E</span>
                 Ecom Panel
               </Link>
-              <p className="mt-3 text-xs leading-5 text-zinc-500">One dashboard for Shopify, ads, analytics, courier, orders, and reports.</p>
+              <p className="mt-3 text-xs leading-5 text-[#8d87b8]">One dashboard for Shopify, ads, analytics, courier, orders, and reports.</p>
             </div>
             {[
               { heading: 'Product', links: [['Features', '#features'], ['Integrations', '#integrations'], ['Pricing', '#pricing'], ['Dashboard Preview', '/dashboard']] },
@@ -574,18 +574,18 @@ export default function HomePage() {
               { heading: 'Legal', links: [['Privacy Policy', '/privacy'], ['Terms', '/terms']] },
             ].map((col) => (
               <div key={col.heading}>
-                <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-500">{col.heading}</p>
+                <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-[#8d87b8]">{col.heading}</p>
                 <ul className="space-y-2">
                   {col.links.map(([label, href]) => (
                     <li key={label}>
-                      <a href={href} className="text-sm text-zinc-400 transition-colors hover:text-white">{label}</a>
+                      <a href={href} className="text-sm text-[#a79fd6] transition-colors hover:text-white">{label}</a>
                     </li>
                   ))}
                 </ul>
               </div>
             ))}
           </div>
-          <div className="mt-10 border-t border-white/[0.06] pt-6 text-center text-xs text-zinc-600">
+          <div className="mt-10 border-t border-white/[0.06] pt-6 text-center text-xs text-[#6d64b8]">
             &copy; {new Date().getFullYear()} Ecom Panel. All rights reserved.
           </div>
         </div>

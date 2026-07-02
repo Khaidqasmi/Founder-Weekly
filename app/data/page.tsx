@@ -270,12 +270,12 @@ export default function DataEntryPage() {
   const workspaceId = useWorkspaceId()
 
   return (
-    <div className="min-h-screen bg-zinc-950">
+    <div className="min-h-screen bg-[#f5f3fb]">
       
       <div className="max-w-4xl mx-auto px-4 py-8">
-        <h1 className="text-2xl font-bold text-white mb-6">Manual Data Entry</h1>
+        <h1 className="text-2xl font-bold text-[#312b63] mb-6">Manual Data Entry</h1>
         {!workspaceId ? (
-          <p className="text-zinc-400">Loading...</p>
+          <p className="text-[#6d64b8]">Loading...</p>
         ) : (
           <Tabs defaultValue="order">
             <TabsList className="mb-6">

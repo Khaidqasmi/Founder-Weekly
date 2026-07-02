@@ -61,12 +61,16 @@ export function SiteHeader() {
   }, [pathname, refreshAuth])
 
   useEffect(() => {
-    const supabase = createClient()
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
-      refreshAuth()
-    })
+    try {
+      const supabase = createClient()
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
+        refreshAuth()
+      })
 
-    return () => subscription.unsubscribe()
+      return () => subscription.unsubscribe()
+    } catch {
+      // Supabase not configured (e.g. missing env in local dev) — auth stays logged out.
+    }
   }, [refreshAuth])
 
   useEffect(() => {
@@ -78,7 +82,7 @@ export function SiteHeader() {
   const links = showAppLinks ? appLinks : inApp ? appLinks.filter((l) => !l.authOnly) : marketingLinks
 
   return (
-    <nav className="border-b border-white/10 bg-zinc-900 sticky top-0 z-50">
+    <nav className="border-b border-white/10 bg-[#221c4e] sticky top-0 z-50">
       <div className="relative max-w-7xl mx-auto px-4 h-20 flex items-center justify-between">
         <Link
           href="/"
@@ -101,8 +105,8 @@ export function SiteHeader() {
               className={cn(
                 'px-3 py-2 rounded-md text-sm whitespace-nowrap transition-colors',
                 pathname === item.href
-                  ? 'bg-zinc-800 text-white font-medium'
-                  : 'text-zinc-400 hover:text-white'
+                  ? 'bg-gradient-to-r from-[#ec4899] to-[#d946ef] text-white font-medium'
+                  : 'text-[#a79fd6] hover:text-white'
               )}
             >
               {item.label}
@@ -129,7 +133,7 @@ export function SiteHeader() {
 
       {/* Mobile menu */}
       {open && (
-        <div className="lg:hidden border-t px-4 py-3 space-y-1 bg-zinc-900 max-h-[70vh] overflow-y-auto">
+        <div className="lg:hidden border-t px-4 py-3 space-y-1 bg-[#221c4e] max-h-[70vh] overflow-y-auto">
           {links.map((item) => (
             <Link
               key={item.href}
@@ -137,7 +141,7 @@ export function SiteHeader() {
               onClick={() => setOpen(false)}
               className={cn(
                 'block px-3 py-2 rounded-md text-sm',
-                pathname === item.href ? 'bg-zinc-800 font-medium' : 'text-zinc-400'
+                pathname === item.href ? 'bg-gradient-to-r from-[#ec4899] to-[#d946ef] text-white font-medium' : 'text-[#a79fd6]'
               )}
             >
               {item.label}
@@ -146,8 +150,8 @@ export function SiteHeader() {
 
           {!inApp && (
             <>
-              <Link href="/privacy" className="block px-3 py-2 text-sm text-zinc-400">Privacy</Link>
-              <Link href="/terms" className="block px-3 py-2 text-sm text-zinc-400">Terms</Link>
+              <Link href="/privacy" className="block px-3 py-2 text-sm text-[#a79fd6]">Privacy</Link>
+              <Link href="/terms" className="block px-3 py-2 text-sm text-[#a79fd6]">Terms</Link>
             </>
           )}
 

@@ -103,10 +103,10 @@ export default function UploadPage() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950">
+    <div className="min-h-screen bg-[#f5f3fb]">
       
       <div className="max-w-4xl mx-auto px-4 py-8">
-        <h1 className="text-2xl font-bold text-white mb-6">Upload CSV Data</h1>
+        <h1 className="text-2xl font-bold text-[#312b63] mb-6">Upload CSV Data</h1>
 
         <Card className="mb-6">
           <CardHeader>
@@ -132,7 +132,7 @@ export default function UploadPage() {
                   {UPLOAD_TYPES.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
                 </SelectContent>
               </Select>
-              <p className="text-xs text-zinc-400 mt-1">
+              <p className="text-xs text-[#6d64b8] mt-1">
                 Required columns: {REQUIRED_COLUMNS[uploadType]?.join(', ')}
               </p>
             </div>
@@ -144,7 +144,7 @@ export default function UploadPage() {
 
             {errors.length > 0 && (
               <div className="bg-red-500/10 border border-red-500/25 rounded p-3">
-                {errors.map((e, i) => <p key={i} className="text-sm text-red-300">{e}</p>)}
+                {errors.map((e, i) => <p key={i} className="text-sm text-red-600">{e}</p>)}
               </div>
             )}
 
@@ -176,7 +176,7 @@ export default function UploadPage() {
               </Button>
             )}
 
-            {done && <p className="text-green-400 font-medium">Upload complete! Your dashboard will update automatically.</p>}
+            {done && <p className="text-green-600 font-medium">Upload complete! Your dashboard will update automatically.</p>}
           </CardContent>
         </Card>
       </div>

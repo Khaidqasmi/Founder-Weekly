@@ -106,8 +106,8 @@ function CodReceiptsSection({ couriers }: { couriers: string[] }) {
   const manualTotal = receipts.reduce((s, r) => s + r.amount, 0)
 
   const statusBadge = (status: Remittance['status']) => {
-    if (status === 'paid') return <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/15 text-green-400 font-medium">Paid</span>
-    if (status === 'processing') return <span className="text-xs px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-300 font-medium">Processing</span>
+    if (status === 'paid') return <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/15 text-green-600 font-medium">Paid</span>
+    if (status === 'processing') return <span className="text-xs px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-600 font-medium">Processing</span>
     return <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-500/15 text-yellow-400 font-medium">Pending</span>
   }
 
@@ -116,16 +116,16 @@ function CodReceiptsSection({ couriers }: { couriers: string[] }) {
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className="text-lg font-bold text-white dark:text-gray-100">COD Payment Slips</h2>
-          <p className="text-xs text-zinc-400 mt-0.5">
+          <h2 className="text-lg font-bold text-[#312b63]">COD Payment Slips</h2>
+          <p className="text-xs text-[#6d64b8] mt-0.5">
             {hasApiKeys ? 'Auto-fetched from your connected couriers' : 'Connect a courier on the Integrations page to auto-fetch slips'}
           </p>
         </div>
         <div className="flex items-center gap-3">
           {(remittances.length > 0 || receipts.length > 0) && (
             <div className="text-right">
-              <p className="text-xs text-zinc-400">Total Collected</p>
-              <p className="text-lg font-bold text-green-400">PKR {(apiTotal + manualTotal).toLocaleString()}</p>
+              <p className="text-xs text-[#6d64b8]">Total Collected</p>
+              <p className="text-lg font-bold text-green-600">PKR {(apiTotal + manualTotal).toLocaleString()}</p>
             </div>
           )}
           <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={loadRemittances} disabled={fetching}>
@@ -137,7 +137,7 @@ function CodReceiptsSection({ couriers }: { couriers: string[] }) {
 
       {/* API Errors */}
       {fetchErrors.length > 0 && (
-        <div className="bg-amber-500/10 border border-amber-500/25 rounded-lg p-3 mb-4 text-xs text-amber-300">
+        <div className="bg-[#fce7f3] border border-[#f8cfe4] rounded-lg p-3 mb-4 text-xs text-[#db2777]">
           {fetchErrors.map((e, i) => <p key={i}>{e}</p>)}
         </div>
       )}
@@ -163,10 +163,10 @@ function CodReceiptsSection({ couriers }: { couriers: string[] }) {
                 {remittances.map((r) => (
                   <TableRow key={r.id}>
                     <TableCell className="text-sm font-medium">{r.courier}</TableCell>
-                    <TableCell className="text-xs font-mono text-zinc-400">{r.remittanceNo}</TableCell>
-                    <TableCell className="text-xs text-zinc-400">{r.date ? r.date.slice(0, 10) : '—'}</TableCell>
-                    <TableCell className="text-right font-bold text-green-400 text-sm">PKR {r.amount.toLocaleString()}</TableCell>
-                    <TableCell className="text-center text-xs text-zinc-400">{r.shipmentCount || '—'}</TableCell>
+                    <TableCell className="text-xs font-mono text-[#6d64b8]">{r.remittanceNo}</TableCell>
+                    <TableCell className="text-xs text-[#6d64b8]">{r.date ? r.date.slice(0, 10) : '—'}</TableCell>
+                    <TableCell className="text-right font-bold text-green-600 text-sm">PKR {r.amount.toLocaleString()}</TableCell>
+                    <TableCell className="text-center text-xs text-[#6d64b8]">{r.shipmentCount || '—'}</TableCell>
                     <TableCell>{statusBadge(r.status)}</TableCell>
                     <TableCell>
                       {r.pdfUrl && (
@@ -185,10 +185,10 @@ function CodReceiptsSection({ couriers }: { couriers: string[] }) {
 
       {/* No API keys / no remittances state */}
       {!fetching && remittances.length === 0 && (
-        <div className="bg-zinc-900 dark:bg-gray-900 border border-dashed border-white/10 rounded-lg p-8 text-center mb-6">
-          <FileText className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-          <p className="text-sm font-medium text-zinc-400">No remittance slips found</p>
-          <p className="text-xs text-zinc-500 mt-1">
+        <div className="bg-white border border-dashed border-[#e4defa] rounded-lg p-8 text-center mb-6">
+          <FileText className="w-8 h-8 text-[#c9c2ec] mx-auto mb-2" />
+          <p className="text-sm font-medium text-[#6d64b8]">No remittance slips found</p>
+          <p className="text-xs text-[#8d87b8] mt-1">
             {hasApiKeys
               ? 'Your connected couriers have no remittances yet, or their API does not support remittance fetching.'
               : 'Connect Trax, Leopards, or PostEx on the Integrations page and slips will appear here automatically.'}
@@ -235,7 +235,7 @@ function CodReceiptsSection({ couriers }: { couriers: string[] }) {
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <label className="flex items-center gap-2 cursor-pointer border border-dashed border-white/15 rounded-lg px-4 py-2 text-xs text-zinc-400 hover:border-white/20 transition-colors">
+                <label className="flex items-center gap-2 cursor-pointer border border-dashed border-[#e4defa] rounded-lg px-4 py-2 text-xs text-[#6d64b8] hover:border-[#e4defa] transition-colors">
                   <Upload className="w-4 h-4" />
                   {preview ? 'Change Image' : 'Upload Receipt Photo'}
                   <input type="file" accept="image/*" className="hidden" onChange={handleImage} />
@@ -249,29 +249,29 @@ function CodReceiptsSection({ couriers }: { couriers: string[] }) {
           {receipts.length > 0 && (
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {receipts.map((r) => (
-                <div key={r.id} className="bg-zinc-900 dark:bg-gray-900 rounded-lg border border-white/10 dark:border-gray-700 overflow-hidden shadow-sm">
+                <div key={r.id} className="bg-white rounded-lg border border-[#e4defa] overflow-hidden shadow-sm">
                   {r.imageBase64 ? (
                     <div className="relative group cursor-pointer" onClick={() => setLightbox(r.imageBase64)}>
                       <img src={r.imageBase64} alt="receipt" className="w-full h-36 object-cover" />
                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                        <ZoomIn className="w-6 h-6 text-white" />
+                        <ZoomIn className="w-6 h-6 text-[#312b63]" />
                       </div>
                     </div>
                   ) : (
-                    <div className="w-full h-36 bg-zinc-800 dark:bg-gray-800 flex items-center justify-center">
-                      <p className="text-xs text-zinc-500">No image</p>
+                    <div className="w-full h-36 bg-[#f4f0fd] flex items-center justify-center">
+                      <p className="text-xs text-[#8d87b8]">No image</p>
                     </div>
                   )}
                   <div className="p-3">
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-semibold text-zinc-300 dark:text-gray-200">{r.courier}</span>
-                      <button onClick={() => saveManual(receipts.filter((x) => x.id !== r.id))} className="text-gray-300 hover:text-red-500 transition-colors">
+                      <span className="text-xs font-semibold text-[#4a4477]">{r.courier}</span>
+                      <button onClick={() => saveManual(receipts.filter((x) => x.id !== r.id))} className="text-[#c9c2ec] hover:text-red-500 transition-colors">
                         <X className="w-3.5 h-3.5" />
                       </button>
                     </div>
-                    <p className="text-base font-bold text-green-400">PKR {r.amount.toLocaleString()}</p>
-                    <p className="text-xs text-zinc-500 mt-0.5">{r.date}</p>
-                    {r.notes && <p className="text-xs text-zinc-400 mt-1 truncate">{r.notes}</p>}
+                    <p className="text-base font-bold text-green-600">PKR {r.amount.toLocaleString()}</p>
+                    <p className="text-xs text-[#8d87b8] mt-0.5">{r.date}</p>
+                    {r.notes && <p className="text-xs text-[#6d64b8] mt-1 truncate">{r.notes}</p>}
                   </div>
                 </div>
               ))}
@@ -284,7 +284,7 @@ function CodReceiptsSection({ couriers }: { couriers: string[] }) {
       {lightbox && (
         <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4" onClick={() => setLightbox(null)}>
           <img src={lightbox} alt="receipt" className="max-h-[90vh] max-w-[90vw] rounded-lg shadow-2xl object-contain" />
-          <button className="absolute top-4 right-4 text-white" onClick={() => setLightbox(null)}>
+          <button className="absolute top-4 right-4 text-[#312b63]" onClick={() => setLightbox(null)}>
             <X className="w-6 h-6" />
           </button>
         </div>
@@ -337,7 +337,7 @@ function CourierSetupCard({ provider, onCredentialsChange }: { provider: Courier
           <span className="font-medium text-sm">{provider.name}</span>
         </div>
         {saved ? (
-          <Badge className="bg-green-500/15 text-green-300 text-xs">Connected</Badge>
+          <Badge className="bg-green-500/15 text-green-700 text-xs">Connected</Badge>
         ) : (
           <Badge variant="secondary" className="text-xs">Not Set</Badge>
         )}
@@ -370,11 +370,11 @@ function CourierSetupCard({ provider, onCredentialsChange }: { provider: Courier
 function StatusBadge({ status }: { status: string }) {
   const info = DELIVERY_STATUSES[status] || DELIVERY_STATUSES.unknown
   const colorMap = {
-    green: 'bg-green-500/15 text-green-300',
-    yellow: 'bg-yellow-500/15 text-yellow-300',
-    red: 'bg-red-500/15 text-red-300',
-    blue: 'bg-blue-500/15 text-blue-300',
-    gray: 'bg-zinc-800 text-zinc-100',
+    green: 'bg-green-500/15 text-green-700',
+    yellow: 'bg-yellow-500/15 text-yellow-600',
+    red: 'bg-red-100 text-red-600',
+    blue: 'bg-blue-500/15 text-blue-600',
+    gray: 'bg-[#f4f0fd] text-[#312b63]',
   }
   return <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${colorMap[info.color]}`}>{info.label}</span>
 }
@@ -494,15 +494,15 @@ export default function CouriersPage() {
   const uniqueCouriers = [...new Set(dateFiltered.map((s) => s.courier))]
 
   return (
-    <div className="min-h-screen bg-zinc-950">
+    <div className="min-h-screen bg-[#f5f3fb]">
       
       <div className="max-w-7xl mx-auto px-4 py-8">
 
         {/* Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-white">Courier Management</h1>
-            <p className="text-sm text-zinc-400 mt-0.5">Track all your shipments across couriers in one place</p>
+            <h1 className="text-2xl font-bold text-[#312b63]">Courier Management</h1>
+            <p className="text-sm text-[#6d64b8] mt-0.5">Track all your shipments across couriers in one place</p>
           </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={() => setShowSetup(!showSetup)}>
@@ -517,14 +517,14 @@ export default function CouriersPage() {
 
         {/* Demo Banner */}
         {isDemo && (
-          <div className="bg-amber-500/10 border border-amber-500/25 rounded-lg p-4 mb-6">
-            <p className="text-sm font-medium text-amber-300">Viewing demo shipment data</p>
-            <p className="text-xs text-amber-200/70 mt-0.5">Connect your courier accounts below to see real tracking data.</p>
+          <div className="bg-[#fce7f3] border border-[#f8cfe4] rounded-lg p-4 mb-6">
+            <p className="text-sm font-medium text-[#db2777]">Viewing demo shipment data</p>
+            <p className="text-xs text-[#9333ea]/70 mt-0.5">Connect your courier accounts below to see real tracking data.</p>
           </div>
         )}
         {!isDemo && connectedCouriers.length > 0 && shipments.length === 0 && !loading && (
           <div className="bg-green-500/10 border border-green-500/25 rounded-lg p-4 mb-6">
-            <p className="text-sm font-medium text-green-300">Courier connected: {connectedCouriers.join(', ')}</p>
+            <p className="text-sm font-medium text-green-700">Courier connected: {connectedCouriers.join(', ')}</p>
             <p className="text-xs text-green-200/70 mt-0.5">
               No shipments were returned yet. Use Refresh after creating or booking orders in your courier portal.
             </p>
@@ -532,14 +532,14 @@ export default function CouriersPage() {
         )}
         {!isDemo && connectedCouriers.length > 0 && shipments.length > 0 && (
           <div className="bg-green-500/10 border border-green-500/25 rounded-lg p-3 mb-6">
-            <p className="text-xs font-medium text-green-300">Connected couriers: {connectedCouriers.join(', ')}</p>
+            <p className="text-xs font-medium text-green-700">Connected couriers: {connectedCouriers.join(', ')}</p>
           </div>
         )}
 
         {/* Errors */}
         {errors.length > 0 && (
           <div className="bg-red-500/10 border border-red-500/25 rounded-lg p-4 mb-6">
-            {errors.map((e, i) => <p key={i} className="text-sm text-red-300">{e}</p>)}
+            {errors.map((e, i) => <p key={i} className="text-sm text-red-600">{e}</p>)}
           </div>
         )}
 
@@ -548,7 +548,7 @@ export default function CouriersPage() {
           <Card className="mb-6">
             <CardHeader>
               <CardTitle className="text-lg">Connect Your Courier Portals</CardTitle>
-              <p className="text-xs text-zinc-400">API keys are stored in your browser only — never sent to our servers.</p>
+              <p className="text-xs text-[#6d64b8]">API keys are stored in your browser only — never sent to our servers.</p>
             </CardHeader>
             <CardContent>
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -588,8 +588,8 @@ export default function CouriersPage() {
               onClick={() => setDateFilter(p.value)}
               className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
                 dateFilter === p.value
-                  ? 'bg-amber-500 text-black border-amber-500 font-semibold'
-                  : 'bg-zinc-900 text-zinc-400 border-white/10 hover:border-white/20 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600'
+                  ? 'bg-gradient-to-r from-[#ec4899] to-[#a855f7] text-white border-[#ec4899] font-semibold'
+                  : 'bg-white text-[#6d64b8] border-[#e4defa] hover:border-[#e4defa]'
               }`}
             >
               {p.label}
@@ -600,7 +600,7 @@ export default function CouriersPage() {
         {/* Filters */}
         <div className="flex flex-col sm:flex-row gap-3 mb-4">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8d87b8]" />
             <Input
               placeholder="Search by order ID, tracking #, name, phone, city, product..."
               value={searchQuery}
@@ -628,7 +628,7 @@ export default function CouriersPage() {
           </Select>
         </div>
 
-        <p className="text-xs text-zinc-400 mb-2">{filtered.length} shipment{filtered.length !== 1 ? 's' : ''} found</p>
+        <p className="text-xs text-[#6d64b8] mb-2">{filtered.length} shipment{filtered.length !== 1 ? 's' : ''} found</p>
 
         {/* Shipments Table */}
         <Card>
@@ -660,18 +660,18 @@ export default function CouriersPage() {
                         <TableCell className="font-mono text-xs">{s.trackingNumber}</TableCell>
                         <TableCell className="text-xs">{s.orderId}</TableCell>
                         <TableCell className="text-sm">{s.customerName}</TableCell>
-                        <TableCell className="text-xs font-mono text-zinc-300">{s.customerPhone || '—'}</TableCell>
+                        <TableCell className="text-xs font-mono text-[#4a4477]">{s.customerPhone || '—'}</TableCell>
                         <TableCell className="text-xs">{s.city}</TableCell>
                         <TableCell className="text-xs max-w-[150px] truncate">{s.productName}</TableCell>
                         <TableCell className="text-right font-medium text-sm">{formatCurrency(s.amount)}</TableCell>
                         <TableCell><StatusBadge status={s.deliveryStatus} /></TableCell>
-                        <TableCell className="text-xs text-zinc-400">{s.bookedAt}</TableCell>
-                        <TableCell className="text-xs text-zinc-400">{s.lastUpdate}</TableCell>
+                        <TableCell className="text-xs text-[#6d64b8]">{s.bookedAt}</TableCell>
+                        <TableCell className="text-xs text-[#6d64b8]">{s.lastUpdate}</TableCell>
                       </TableRow>
                     ))}
                     {filtered.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={11} className="text-center py-8 text-zinc-500">
+                        <TableCell colSpan={11} className="text-center py-8 text-[#8d87b8]">
                           No shipments match your filters
                         </TableCell>
                       </TableRow>
