@@ -66,9 +66,9 @@ function fmt(n: number) { return formatNumber(Math.round(n)) }
 
 const PRESETS = [
   { label: 'Today', value: 'today' },
-  { label: '7 Days', value: 'last_7_days' },
-  { label: '30 Days', value: 'last_30_days' },
-  { label: '90 Days', value: 'last_90_days' },
+  { label: '7 Days', value: 'last_7d' },
+  { label: '30 Days', value: 'last_30d' },
+  { label: '90 Days', value: 'last_90d' },
 ]
 
 // ─── Creative Thumbnail ───────────────────────────────────────────────────────
@@ -103,7 +103,7 @@ export default function MetaPage() {
   const [loading, setLoading] = useState(false)
   const [isDemo, setIsDemo] = useState(true)
   const [error, setError] = useState('')
-  const [preset, setPreset] = useState('last_30_days')
+  const [preset, setPreset] = useState('last_30d')
   const [tab, setTab] = useState<ActiveTab>('overview')
   const [expandedCampaign, setExpandedCampaign] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'PAUSED'>('ALL')

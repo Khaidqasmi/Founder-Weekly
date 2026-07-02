@@ -13,9 +13,51 @@ function getActions(actions: any[] = [], type: string) {
   return actions.find((a: any) => a.action_type === type)?.value || 0
 }
 
+function dateKey(date: Date) {
+  return date.toISOString().split('T')[0]
+}
+
+function daysAgo(days: number) {
+  const date = new Date()
+  date.setUTCDate(date.getUTCDate() - days)
+  return dateKey(date)
+}
+
+function metaDateParam(rawPreset: string, since: string, until: string) {
+  if (since && until) {
+    return `time_range=${encodeURIComponent(JSON.stringify({ since, until }))}`
+  }
+
+  const preset = (rawPreset || 'last_30d').trim()
+  const today = dateKey(new Date())
+  const explicitRanges: Record<string, { since: string; until: string }> = {
+    last_7_days: { since: daysAgo(6), until: today },
+    last_7d: { since: daysAgo(6), until: today },
+    last_30_days: { since: daysAgo(29), until: today },
+    last_30d: { since: daysAgo(29), until: today },
+    last_90_days: { since: daysAgo(89), until: today },
+    last_90d: { since: daysAgo(89), until: today },
+  }
+
+  const range = explicitRanges[preset]
+  if (range) {
+    return `time_range=${encodeURIComponent(JSON.stringify(range))}`
+  }
+
+  const legacyPresetMap: Record<string, string> = {
+    maximum: 'maximum',
+    today: 'today',
+    yesterday: 'yesterday',
+    this_month: 'this_month',
+    last_month: 'last_month',
+  }
+
+  return `date_preset=${encodeURIComponent(legacyPresetMap[preset] || preset)}`
+}
+
 export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl
-  const datePreset = searchParams.get('preset') || 'last_30_days'
+  const datePreset = searchParams.get('preset') || 'last_30d'
   const since = searchParams.get('since') || ''
   const until = searchParams.get('until') || ''
 
@@ -47,14 +89,12 @@ export async function GET(req: NextRequest) {
 
   if (!token) return NextResponse.json({ error: 'Meta not connected', demo: true }, { status: 400 })
 
-  const dateParam = since && until
-    ? `time_range={"since":"${since}","until":"${until}"}`
-    : `date_preset=${datePreset}`
+  const dateParam = metaDateParam(datePreset, since, until)
 
   try {
     // 1. Fetch ad accounts if not already known
     if (!adAccountId) {
-      const accounts = await graphGet(`https://graph.facebook.com/v19.0/me/adaccounts?fields=id,name&access_token=${token}`)
+      const accounts = await graphGet(`https://graph.facebook.com/v19.0/me/adaccounts?fields=id,name&access_token=${encodeURIComponent(token)}`)
       adAccountId = accounts.data?.[0]?.id || ''
     }
     if (!adAccountId) throw new Error('No ad account found')
@@ -64,27 +104,27 @@ export async function GET(req: NextRequest) {
 
     // 2. Account-level insights
     const accountInsights = await graphGet(
-      `${base}/insights?fields=${insightFields}&${dateParam}&access_token=${token}`
+      `${base}/insights?fields=${insightFields}&${dateParam}&access_token=${encodeURIComponent(token)}`
     )
     const ai = accountInsights.data?.[0] || {}
 
     // 3. Campaigns with insights
     const campaigns = await graphGet(
       `${base}/campaigns?fields=id,name,status,objective,daily_budget,lifetime_budget,created_time&` +
-      `insights.fields(${insightFields})&${dateParam}&access_token=${token}&limit=50`
+      `insights.fields(${insightFields})&${dateParam}&access_token=${encodeURIComponent(token)}&limit=50`
     )
 
     // 4. Ad sets
     const adsets = await graphGet(
       `${base}/adsets?fields=id,name,status,campaign_id,daily_budget,targeting,optimization_goal,billing_event&` +
-      `insights.fields(${insightFields})&${dateParam}&access_token=${token}&limit=100`
+      `insights.fields(${insightFields})&${dateParam}&access_token=${encodeURIComponent(token)}&limit=100`
     )
 
     // 5. Ads with creative thumbnails
     const ads = await graphGet(
       `${base}/ads?fields=id,name,status,adset_id,campaign_id,` +
       `creative{id,name,thumbnail_url,image_url,body,title,object_story_spec}&` +
-      `insights.fields(${insightFields})&${dateParam}&access_token=${token}&limit=100`
+      `insights.fields(${insightFields})&${dateParam}&access_token=${encodeURIComponent(token)}&limit=100`
     )
 
     // Normalise helper

@@ -162,12 +162,13 @@ export async function syncMetaAdsData(ctx: SyncContext) {
     since.setDate(since.getDate() - 90)
     const sinceStr = since.toISOString().split('T')[0]
     const untilStr = new Date().toISOString().split('T')[0]
+    const timeRange = encodeURIComponent(JSON.stringify({ since: sinceStr, until: untilStr }))
 
     const url = `https://graph.facebook.com/v18.0/${cleanAdAccountId}/insights?` +
       `fields=campaign_name,adset_name,ad_name,spend,impressions,reach,clicks,actions,action_values` +
-      `&time_range={"since":"${sinceStr}","until":"${untilStr}"}` +
+      `&time_range=${timeRange}` +
       `&level=ad&time_increment=1&limit=500` +
-      `&access_token=${cleanAccessToken}`
+      `&access_token=${encodeURIComponent(cleanAccessToken)}`
 
     const res = await fetchWithReadableError(url, undefined, 'Meta API')
     if (!res.ok) throw new Error(await formatHttpError(res, 'Meta API'))
