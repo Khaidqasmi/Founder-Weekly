@@ -147,11 +147,10 @@ function CreativePreview({ ad }: { ad: Ad }) {
         <video
           className="w-full h-full object-contain bg-black"
           controls
-          preload="metadata"
-          poster={poster || undefined}
+          preload="auto"
           onError={() => setVideoFailed(true)}
         >
-          <source src={media.videoSourceUrl} />
+          <source src={media.videoSourceUrl} onError={() => setVideoFailed(true)} />
         </video>
       ) : canUseEmbed ? (
         <iframe

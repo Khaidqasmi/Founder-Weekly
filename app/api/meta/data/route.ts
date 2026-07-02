@@ -26,8 +26,8 @@ async function graphGetAll(url: string, maxPages = 8) {
 }
 
 async function fetchAdsWithCreativeMeta(base: string, encodedToken: string) {
-  const videoFields = 'id,name,status,adset_id,campaign_id,creative{id,name,thumbnail_url,image_url,image_hash,body,title,video_id,object_story_id,effective_object_story_id,object_story_spec,asset_feed_spec}'
-  const richFields = 'id,name,status,adset_id,campaign_id,creative{id,name,thumbnail_url,image_url,image_hash,body,title,object_story_id,effective_object_story_id,object_story_spec,asset_feed_spec}'
+  const videoFields = 'id,name,status,adset_id,campaign_id,creative{id,name,thumbnail_url,image_url,image_hash,body,title,video_id,object_story_id,effective_object_story_id,effective_instagram_media_id,object_story_spec,asset_feed_spec}'
+  const richFields = 'id,name,status,adset_id,campaign_id,creative{id,name,thumbnail_url,image_url,image_hash,body,title,object_story_id,effective_object_story_id,effective_instagram_media_id,object_story_spec,asset_feed_spec}'
   const basicFields = 'id,name,status,adset_id,campaign_id,creative{id,name,thumbnail_url,image_url,image_hash,body,title,object_story_spec}'
 
   try {
@@ -95,6 +95,7 @@ function extractCreativeMedia(creative: any = {}) {
   const videoId = creative.video_id || videoData.video_id || linkData.video_id || assetVideo.video_id || assetVideo.id || ''
   const imageHash = creative.image_hash || linkData.image_hash || photoData.image_hash || assetImage.hash || ''
   const storyId = creative.effective_object_story_id || creative.object_story_id || ''
+  const instagramMediaId = creative.effective_instagram_media_id || ''
   const imageUrl =
     creative.image_url ||
     linkData.picture ||
@@ -111,6 +112,7 @@ function extractCreativeMedia(creative: any = {}) {
     imageHash,
     imageSourceUrl: '',
     storyId,
+    instagramMediaId,
     videoId,
     videoSourceUrl: '',
     videoEmbedUrl: '',
@@ -161,17 +163,95 @@ async function fetchAdPreviewEmbed(adId: string, token: string) {
   }
 }
 
+async function fetchInstagramMedia(mediaId: string, token: string) {
+  if (!mediaId) return null
+  try {
+    return await graphGet(
+      `https://graph.facebook.com/v19.0/${mediaId}?fields=media_type,media_url,thumbnail_url,permalink&access_token=${encodeURIComponent(token)}`
+    )
+  } catch {
+    return null
+  }
+}
+
+function extractAttachmentVideo(attachments: any) {
+  const rows = attachments?.data || []
+
+  for (const row of rows) {
+    const mediaType = String(row.media_type || row.type || '').toLowerCase()
+    const targetId = row.target?.id || row.media?.target?.id || ''
+    const source = row.media?.source || ''
+    const thumbnail = row.media?.image?.src || ''
+    const previewUrl = row.url || row.target?.url || ''
+
+    if (mediaType.includes('video') || source) {
+      return { videoId: targetId, videoSourceUrl: source, thumbnailUrl: thumbnail, previewUrl }
+    }
+
+    const subRows = row.subattachments?.data || []
+    for (const sub of subRows) {
+      const subType = String(sub.media_type || sub.type || '').toLowerCase()
+      const subTargetId = sub.target?.id || sub.media?.target?.id || ''
+      const subSource = sub.media?.source || ''
+      const subThumbnail = sub.media?.image?.src || ''
+      const subPreviewUrl = sub.url || sub.target?.url || ''
+
+      if (subType.includes('video') || subSource) {
+        return { videoId: subTargetId, videoSourceUrl: subSource, thumbnailUrl: subThumbnail, previewUrl: subPreviewUrl }
+      }
+    }
+  }
+
+  return null
+}
+
 async function enrichCreativeMedia(media: ReturnType<typeof extractCreativeMedia>, base: string, token: string, adId: string) {
   let resolvedMedia = media
+
+  if (resolvedMedia.instagramMediaId) {
+    const instagramMedia = await fetchInstagramMedia(resolvedMedia.instagramMediaId, token)
+    const mediaType = String(instagramMedia?.media_type || '').toUpperCase()
+
+    if (instagramMedia?.media_url && mediaType.includes('VIDEO')) {
+      return {
+        ...resolvedMedia,
+        mediaType: 'video',
+        videoSourceUrl: instagramMedia.media_url,
+        thumbnailUrl: resolvedMedia.thumbnailUrl || instagramMedia.thumbnail_url || '',
+        previewUrl: instagramMedia.permalink || '',
+        permalinkUrl: instagramMedia.permalink || '',
+      }
+    }
+
+    if (instagramMedia?.media_url && !resolvedMedia.videoId) {
+      return {
+        ...resolvedMedia,
+        mediaType: 'image',
+        imageSourceUrl: instagramMedia.media_url,
+        imageUrl: instagramMedia.media_url,
+        previewUrl: instagramMedia.permalink || '',
+        permalinkUrl: instagramMedia.permalink || '',
+      }
+    }
+  }
 
   if (!resolvedMedia.videoId && resolvedMedia.storyId) {
     try {
       const story = await graphGet(
-        `https://graph.facebook.com/v19.0/${resolvedMedia.storyId}?fields=attachments{media_type,type,target,media,subattachments}&access_token=${encodeURIComponent(token)}`
+        `https://graph.facebook.com/v19.0/${resolvedMedia.storyId}?fields=attachments{media_type,type,target,media,url,subattachments{media_type,type,target,media,url}}&access_token=${encodeURIComponent(token)}`
       )
-      const storyVideoId = videoIdFromAttachments(story.attachments)
-      if (storyVideoId) {
-        resolvedMedia = { ...resolvedMedia, mediaType: 'video', videoId: storyVideoId }
+      const storyVideo = extractAttachmentVideo(story.attachments)
+      const storyVideoId = storyVideo?.videoId || videoIdFromAttachments(story.attachments)
+      if (storyVideoId || storyVideo?.videoSourceUrl) {
+        resolvedMedia = {
+          ...resolvedMedia,
+          mediaType: 'video',
+          videoId: storyVideoId || resolvedMedia.videoId,
+          videoSourceUrl: storyVideo?.videoSourceUrl || resolvedMedia.videoSourceUrl,
+          thumbnailUrl: resolvedMedia.thumbnailUrl || storyVideo?.thumbnailUrl || '',
+          previewUrl: resolvedMedia.previewUrl || storyVideo?.previewUrl || '',
+          permalinkUrl: resolvedMedia.permalinkUrl || storyVideo?.previewUrl || '',
+        }
       }
     } catch {}
   }
@@ -193,6 +273,8 @@ async function enrichCreativeMedia(media: ReturnType<typeof extractCreativeMedia
     }
   }
 
+  if (resolvedMedia.videoSourceUrl && !resolvedMedia.videoId) return resolvedMedia
+
   if (!resolvedMedia.videoId) return resolvedMedia
 
   try {
@@ -203,7 +285,7 @@ async function enrichCreativeMedia(media: ReturnType<typeof extractCreativeMedia
 
     return {
       ...resolvedMedia,
-      videoSourceUrl: video.source || '',
+      videoSourceUrl: resolvedMedia.videoSourceUrl || video.source || '',
       videoEmbedUrl: embedUrl,
       thumbnailUrl: resolvedMedia.thumbnailUrl || video.picture || '',
       previewUrl: video.permalink_url || '',
