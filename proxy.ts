@@ -9,6 +9,9 @@ import { NextResponse, type NextRequest } from 'next/server'
    - Oversized request bodies are rejected before they reach any route
    Note: this blunts application-layer (L7) floods and brute-force attempts.
    Volumetric DDoS must be absorbed at the platform edge (see Vercel notes).
+
+   Next.js 16 renamed the "middleware" convention to "proxy" — this file is
+   the proxy (same behavior, runs on the Node.js runtime).
    ========================================================================== */
 
 const WINDOW_MS = 60_000
@@ -99,7 +102,7 @@ function tooManyRequests(retryAfterSeconds: number) {
   })
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname
   const ip = getClientIp(request)
 
