@@ -236,34 +236,44 @@ export const KPIWidget = memo(function KPIWidget({
         isAccent ? `${gradient} text-white` : 'border border-[#eeeaf9] bg-white'
       }`}
     >
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
+      <div>
+        <div className="flex items-start justify-between gap-2">
           <p
-            className={`flex items-start gap-1.5 text-[10px] font-semibold uppercase tracking-wider sm:text-[11px] ${
+            className={`flex min-w-0 items-start gap-1.5 text-[10px] font-semibold uppercase tracking-wider sm:text-[11px] ${
               isAccent ? 'text-white/75' : 'text-[#8d87b8]'
             }`}
           >
             <span className="line-clamp-2 leading-snug [overflow-wrap:anywhere]">{title}</span>
             {dot && <span className="mt-0.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#ec4899] shadow-[0_0_6px_rgba(236,72,153,0.8)]" />}
           </p>
-          <p
-            className={`mt-1.5 truncate text-base font-bold sm:text-xl lg:text-2xl ${isAccent ? 'text-white' : 'text-[#312b63]'}`}
-            title={value}
-          >
-            {value}
-          </p>
+          {typeof ring === 'number' ? (
+            <RadialProgress value={ring} size={44} strokeWidth={5} />
+          ) : Icon ? (
+            <span
+              className={`hidden h-8 w-8 shrink-0 items-center justify-center rounded-xl sm:flex ${
+                isAccent ? 'bg-white/20 text-white' : 'bg-[#f4f0fd] text-[#8b5cf6]'
+              }`}
+            >
+              <Icon className="h-4 w-4" />
+            </span>
+          ) : null}
         </div>
-        {typeof ring === 'number' ? (
-          <RadialProgress value={ring} size={52} strokeWidth={6} />
-        ) : Icon ? (
-          <span
-            className={`hidden h-9 w-9 shrink-0 items-center justify-center rounded-xl sm:flex ${
-              isAccent ? 'bg-white/20 text-white' : 'bg-[#f4f0fd] text-[#8b5cf6]'
-            }`}
-          >
-            <Icon className="h-4 w-4" />
-          </span>
-        ) : null}
+        {/* Value gets the full card width on its own line; font shrinks as the
+            value gets longer so the number is always fully visible. */}
+        <p
+          className={`mt-1 line-clamp-2 font-bold leading-tight [overflow-wrap:anywhere] ${
+            value.length > 14
+              ? 'text-sm sm:text-base'
+              : value.length > 10
+                ? 'text-base sm:text-lg'
+                : value.length > 7
+                  ? 'text-base sm:text-xl'
+                  : 'text-lg sm:text-2xl'
+          } ${isAccent ? 'text-white' : 'text-[#312b63]'}`}
+          title={value}
+        >
+          {value}
+        </p>
       </div>
       {spark && spark.length > 1 && (
         <div className="mt-2 -mb-1">
