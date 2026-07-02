@@ -32,8 +32,23 @@ export interface ShopifyAnalytics {
   analyticsError?: string
 }
 
+function addDays(date: string, days: number) {
+  const d = new Date(`${date}T00:00:00Z`)
+  d.setUTCDate(d.getUTCDate() + days)
+  return d.toISOString().split('T')[0]
+}
+
 function sinceUntil(from: string, to: string) {
-  return `SINCE ${from} UNTIL ${to}`
+  // ShopifyQL treats UNTIL like an upper boundary in several reports. Extending
+  // by one day makes Today/Yesterday ranges include the whole selected date.
+  return `SINCE ${from} UNTIL ${addDays(to, 1)}`
+}
+
+function shopifyRestDateRange(from: string, to: string) {
+  return {
+    min: `${from}T00:00:00Z`,
+    max: `${addDays(to, 1)}T00:00:00Z`,
+  }
 }
 
 function previousDateRange(from: string, to: string) {
@@ -257,9 +272,10 @@ export async function fetchShopifyAnalytics(
   }
 
   let orderCount = 0
+  const restRange = shopifyRestDateRange(dateFrom, dateTo)
   try {
     const countRes = await fetch(
-      `${baseUrl}/orders/count.json?created_at_min=${dateFrom}T00:00:00Z&created_at_max=${dateTo}T23:59:59Z&status=any`,
+      `${baseUrl}/orders/count.json?created_at_min=${restRange.min}&created_at_max=${restRange.max}&status=any`,
       { headers }
     )
     if (countRes.ok) {
@@ -269,7 +285,7 @@ export async function fetchShopifyAnalytics(
   } catch {}
 
   const ordersRes = await fetch(
-    `${baseUrl}/orders.json?created_at_min=${dateFrom}T00:00:00Z&created_at_max=${dateTo}T23:59:59Z&status=any&limit=250&fields=id,total_price,financial_status,source_name,shipping_address,billing_address,line_items,created_at,customer`,
+    `${baseUrl}/orders.json?created_at_min=${restRange.min}&created_at_max=${restRange.max}&status=any&limit=250&fields=id,total_price,financial_status,source_name,shipping_address,billing_address,line_items,created_at,customer`,
     { headers }
   )
   const orders = ordersRes.ok ? (await ordersRes.json()).orders || [] : []
