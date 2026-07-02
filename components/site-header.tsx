@@ -68,10 +68,18 @@ export function SiteHeader() {
     : marketingLinks
 
   return (
-    <nav className="border-b bg-zinc-900 sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
-        <Link href="/" className="font-bold text-lg shrink-0">
-          Founder Weekly
+    <nav className="border-b border-white/10 bg-zinc-900 sticky top-0 z-50">
+      <div className="relative max-w-7xl mx-auto px-4 h-20 flex items-center justify-between">
+        <Link
+          href="/"
+          className="absolute left-1/2 -translate-x-1/2 rounded-xl bg-white px-3 py-1.5 shadow-sm shadow-black/20 lg:static lg:translate-x-0 shrink-0"
+          aria-label="Ecom Panel home"
+        >
+          <img
+            src="/ecom-panel-logo.png"
+            alt="Ecom Panel"
+            className="h-10 w-auto max-w-[170px] object-contain sm:h-11 lg:h-12 lg:max-w-[210px]"
+          />
         </Link>
 
         {/* Desktop links */}
