@@ -9,7 +9,6 @@ import {
   FileText,
   Globe,
   LineChart,
-  Menu,
   Package,
   Plug,
   ShoppingBag,
@@ -20,16 +19,6 @@ import {
 } from 'lucide-react'
 
 /* ─── Shared bits ─────────────────────────────────────────────────────────── */
-
-const NAV_LINKS = [
-  { href: '/', label: 'Home' },
-  { href: '#features', label: 'Features' },
-  { href: '#integrations', label: 'Integrations' },
-  { href: '#preview', label: 'Dashboard Preview' },
-  { href: '#pricing', label: 'Pricing' },
-  { href: '#faqs', label: 'FAQs' },
-  { href: '#contact', label: 'Contact' },
-]
 
 function SectionHeading({ eyebrow, title, sub }: { eyebrow?: string; title: string; sub?: string }) {
   return (
@@ -315,34 +304,7 @@ export default function HomePage() {
     <div className="min-h-screen bg-zinc-950 text-white">
 
       {/* ── Header ── */}
-      <header className="sticky top-0 z-50 border-b border-white/[0.08] bg-zinc-950/90 backdrop-blur">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4">
-          <Link href="/" className="flex shrink-0 items-center gap-2 text-lg font-bold tracking-tight">
-            <span className="flex h-7 w-7 items-center justify-center rounded-md bg-amber-500 text-sm font-black text-black">E</span>
-            Ecom Panel
-          </Link>
 
-          <nav className="hidden items-center gap-1 lg:flex">
-            {NAV_LINKS.map((l) => (
-              <a key={l.label} href={l.href} className="rounded-md px-3 py-2 text-sm text-zinc-400 transition-colors hover:text-white">
-                {l.label}
-              </a>
-            ))}
-          </nav>
-
-          <div className="flex items-center gap-2">
-            <Link href="/login" className="hidden rounded-md px-3 py-2 text-sm text-zinc-300 transition-colors hover:text-white sm:block">
-              Login
-            </Link>
-            <Link href="/signup" className="rounded-md bg-amber-500 px-4 py-2 text-sm font-semibold text-black transition-colors hover:bg-amber-400">
-              Book a Demo
-            </Link>
-            <a href="#features" className="text-zinc-400 lg:hidden" aria-label="Menu">
-              <Menu className="h-5 w-5" />
-            </a>
-          </div>
-        </div>
-      </header>
 
       {/* ── Hero ── */}
       <section className="border-b border-white/[0.06]">

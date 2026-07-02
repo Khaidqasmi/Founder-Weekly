@@ -26,10 +26,13 @@ const appLinks = [
 ]
 
 const marketingLinks = [
-  { href: '/dashboard', label: 'Dashboard' },
-  { href: '/pricing', label: 'Pricing' },
-  { href: '/couriers', label: 'Couriers' },
-  { href: '/integrations', label: 'Integrations' },
+  { href: '/', label: 'Home' },
+  { href: '/#features', label: 'Features' },
+  { href: '/#integrations', label: 'Integrations' },
+  { href: '/#preview', label: 'Preview' },
+  { href: '/#pricing', label: 'Pricing' },
+  { href: '/#faqs', label: 'FAQs' },
+  { href: '/#contact', label: 'Contact' },
 ]
 
 const isAppPage = (path: string) =>
@@ -57,11 +60,10 @@ export function SiteHeader() {
     setOpen(false)
   }, [pathname])
 
-  // Homepage renders its own marketing header
-  if (pathname === '/') return null
-
   const inApp = isAppPage(pathname)
-  const links = inApp
+  const links = isLoggedIn
+    ? appLinks.filter((l) => !l.authOnly || isLoggedIn)
+    : inApp
     ? appLinks.filter((l) => !l.authOnly || isLoggedIn)
     : marketingLinks
 
@@ -102,7 +104,7 @@ export function SiteHeader() {
         </div>
 
         {/* Mobile menu button */}
-        <button className="lg:hidden" onClick={() => setOpen(!open)}>
+        <button className="lg:hidden" onClick={() => setOpen(!open)} aria-label="Toggle navigation menu" aria-expanded={open}>
           {open ? <X size={24} /> : <Menu size={24} />}
         </button>
       </div>
@@ -114,6 +116,7 @@ export function SiteHeader() {
             <Link
               key={item.href}
               href={item.href}
+              onClick={() => setOpen(false)}
               className={cn(
                 'block px-3 py-2 rounded-md text-sm',
                 pathname === item.href ? 'bg-zinc-800 font-medium' : 'text-zinc-400'
