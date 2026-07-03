@@ -5,7 +5,15 @@ import { decryptToken } from '@/lib/crypto'
 async function graphGet(url: string) {
   const res = await fetch(url)
   const json = await res.json()
-  if (json.error) throw new Error(json.error.message)
+  if (json.error) {
+    const message = String(json.error.message || 'Meta API request failed')
+    if (message.toLowerCase().includes('api access blocked')) {
+      throw new Error(
+        'Meta API access blocked. Reconnect Meta from Integrations with a fresh token, then verify the Meta app has ads_read permission with Marketing API Access and that this user has access to the selected ad account.'
+      )
+    }
+    throw new Error(message)
+  }
   return json
 }
 

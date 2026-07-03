@@ -5,10 +5,10 @@ import crypto from 'crypto'
 const APP_ID = process.env.META_APP_ID!
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL!
 
-const SCOPES = [
-  'ads_read', 'ads_management', 'business_management',
-  'read_insights', 'pages_read_engagement',
-].join(',')
+// The dashboard only reads ad accounts, insights, and creatives. Requesting
+// write/business scopes can trigger stricter Meta review/access blocks for
+// merchants who only need reporting.
+const SCOPES = ['ads_read'].join(',')
 
 export async function GET(req: NextRequest) {
   if (!APP_ID) {
