@@ -23,6 +23,13 @@ const POSTEX_ENDPOINTS = {
   legacyOrders: 'https://api.postex.pk/services/integration/api/order/v3/all-orders',
 }
 
+// §3.15 Order Status API — documented orderStatusID values. Some PostEx gateway
+// deployments do not honor "0 = all orders" (despite the guide saying they do)
+// and silently return an empty list for it, even though the account has plenty
+// of orders sitting in other statuses. Querying every real status individually
+// and merging is the only way to reliably get the full order list in that case.
+const ALL_ORDER_STATUS_IDS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 15, 16, 17, 18]
+
 function isoDateKey(date: Date) {
   // Guide requires yyyy-mm-dd for fromDate/toDate.
   return date.toISOString().split('T')[0]
@@ -74,6 +81,7 @@ function safeJson(text: string) {
 }
 
 type PostExResult = { status: number; ok: boolean; data: any }
+type AttemptLog = { source: string; status: number; ok: boolean; rowCount: number; message: string }
 
 // Standard fetch for GET-with-query and POST calls.
 async function fetchPostEx(url: string, token: string, init?: RequestInit): Promise<PostExResult> {
@@ -133,32 +141,81 @@ async function tryAttempt(fn: () => Promise<PostExResult>): Promise<PostExResult
   }
 }
 
-// Ordered, spec-first attempts. Stops at the first that returns rows.
-function orderAttempts(token: string): Array<{ source: string; run: () => Promise<PostExResult> }> {
-  const { fromDate, toDate } = dateWindow()
-  const allBody = JSON.stringify({ orderStatusID: 0, fromDate, toDate })
-  const allQuery = new URLSearchParams({ orderStatusID: '0', fromDate, toDate }).toString()
-  // Some gateway deployments expect lowercase "Id" — cheap one-call insurance.
-  const allQueryAltCase = new URLSearchParams({ orderStatusId: '0', fromDate, toDate }).toString()
-  const unbookedQuery = new URLSearchParams({ startDate: fromDate, endDate: toDate }).toString()
+function dedupeByTrackingNumber(rows: any[]) {
+  const seen = new Map<string, any>()
+  for (const row of rows) {
+    const key = String(row.trackingNumber || row.tracking_number || '').trim()
+    if (!key) continue
+    if (!seen.has(key)) seen.set(key, row)
+  }
+  return [...seen.values()]
+}
 
-  return [
-    // 1. Spec-accurate: GET get-all-order with JSON body (§3.16).
-    { source: 'get-all-order GET+body', run: () => getWithBody(POSTEX_ENDPOINTS.allOrders, token, allBody) },
-    // 2. GET get-all-order with query params.
-    { source: 'get-all-order GET query', run: () => fetchPostEx(`${POSTEX_ENDPOINTS.allOrders}?${allQuery}`, token) },
-    { source: 'get-all-order GET query (orderStatusId)', run: () => fetchPostEx(`${POSTEX_ENDPOINTS.allOrders}?${allQueryAltCase}`, token) },
-    // 3. POST get-all-order with JSON body.
-    { source: 'get-all-order POST', run: () => fetchPostEx(POSTEX_ENDPOINTS.allOrders, token, { method: 'POST', body: allBody }) },
-    // 4. Un-booked orders (§3.6) so freshly created orders still appear.
-    { source: 'get-unbooked-orders GET query', run: () => fetchPostEx(`${POSTEX_ENDPOINTS.unbookedOrders}?${unbookedQuery}`, token) },
-    {
-      source: 'get-unbooked-orders GET+body',
-      run: () => getWithBody(POSTEX_ENDPOINTS.unbookedOrders, token, JSON.stringify({ startDate: fromDate, endDate: toDate })),
-    },
-    // 5. Legacy endpoint fallback.
-    { source: 'legacy v3 all-orders', run: () => fetchPostEx(`${POSTEX_ENDPOINTS.legacyOrders}?${allQuery}`, token) },
-  ]
+/**
+ * Fetch every order across every status, merged and de-duplicated.
+ *
+ * "orderStatusID: 0" is documented as meaning "all orders", but some PostEx
+ * gateway deployments silently return an empty list for it — the fast path
+ * below has been observed to succeed (HTTP 200) with zero rows while orders
+ * genuinely exist in other statuses. When that happens, every real status ID
+ * is queried in parallel and the results merged so nothing is missed.
+ */
+async function fetchAllOrders(token: string): Promise<{ rows: any[]; source: string; attempts: AttemptLog[] }> {
+  const { fromDate, toDate } = dateWindow()
+  const attempts: AttemptLog[] = []
+
+  const record = (source: string, result: PostExResult | null, rows: any[]) => {
+    attempts.push({
+      source,
+      status: result?.status ?? 0,
+      ok: result?.ok ?? false,
+      rowCount: rows.length,
+      message: result ? String(postexError(result.data, '') || '') : 'request failed',
+    })
+  }
+
+  // Fast path: orderStatusID = 0 ("all orders" per the guide).
+  const allBody = JSON.stringify({ orderStatusID: 0, fromDate, toDate })
+  const fastResult = await tryAttempt(() => getWithBody(POSTEX_ENDPOINTS.allOrders, token, allBody))
+  const fastRows = fastResult ? normalizeOrderRows(extractRows(fastResult.data)) : []
+  record('get-all-order status=0 (GET+body)', fastResult, fastRows)
+  if (fastResult?.ok && fastRows.length > 0) {
+    return { rows: fastRows, source: 'get-all-order status=0 (GET+body)', attempts }
+  }
+
+  // Fallback: query every documented status in parallel and merge. Also pull
+  // Un-booked Orders (§3.6), which is a separate endpoint from get-all-order
+  // and has proven reliable even when the "all" query returns nothing.
+  const statusCalls = ALL_ORDER_STATUS_IDS.map(async (statusId) => {
+    const body = JSON.stringify({ orderStatusID: statusId, fromDate, toDate })
+    const result = await tryAttempt(() => getWithBody(POSTEX_ENDPOINTS.allOrders, token, body))
+    const rows = result ? normalizeOrderRows(extractRows(result.data)) : []
+    record(`get-all-order status=${statusId} (GET+body)`, result, rows)
+    return rows
+  })
+
+  const unbookedQuery = new URLSearchParams({ startDate: fromDate, endDate: toDate }).toString()
+  const unbookedCall = (async () => {
+    const result = await tryAttempt(() => fetchPostEx(`${POSTEX_ENDPOINTS.unbookedOrders}?${unbookedQuery}`, token))
+    const rows = result ? normalizeOrderRows(extractRows(result.data)) : []
+    record('get-unbooked-orders (GET query)', result, rows)
+    return rows
+  })()
+
+  const [statusRowSets, unbookedRows] = await Promise.all([Promise.all(statusCalls), unbookedCall])
+  const merged = dedupeByTrackingNumber([...statusRowSets.flat(), ...unbookedRows])
+
+  if (merged.length > 0) {
+    return { rows: merged, source: 'get-all-order per-status + get-unbooked-orders (merged)', attempts }
+  }
+
+  // Last resort: legacy v3 endpoint for older accounts.
+  const allQuery = new URLSearchParams({ orderStatusID: '0', fromDate, toDate }).toString()
+  const legacyResult = await tryAttempt(() => fetchPostEx(`${POSTEX_ENDPOINTS.legacyOrders}?${allQuery}`, token))
+  const legacyRows = legacyResult ? normalizeOrderRows(extractRows(legacyResult.data)) : []
+  record('legacy v3 all-orders', legacyResult, legacyRows)
+
+  return { rows: legacyRows, source: 'legacy v3 all-orders', attempts }
 }
 
 async function fetchPaymentRows(token: string, rows: any[]) {
@@ -204,59 +261,40 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'PostEx API token is missing.' }, { status: 400 })
     }
 
-    let lastResult: PostExResult | null = null
-    let lastMessage = ''
+    const { rows, source, attempts } = await fetchAllOrders(cleanToken)
 
-    for (const attempt of orderAttempts(cleanToken)) {
-      const result = await tryAttempt(attempt.run)
-      if (!result) continue
-      lastResult = result
-      lastMessage = String(postexError(result.data, lastMessage) || lastMessage)
-
-      const rows = normalizeOrderRows(extractRows(result.data))
-      if (result.ok && rows.length > 0) {
-        if (type === 'remittances') {
-          const payments = await fetchPaymentRows(cleanToken, rows)
-          return NextResponse.json({ ...result.data, dist: payments, source: attempt.source })
-        }
-        return NextResponse.json({ ...result.data, dist: rows, source: attempt.source })
+    if (rows.length > 0) {
+      if (type === 'remittances') {
+        const payments = await fetchPaymentRows(cleanToken, rows)
+        return NextResponse.json({ statusCode: '200', dist: payments, source, attempts })
       }
+      return NextResponse.json({ statusCode: '200', dist: rows, source, attempts })
     }
 
-    // No rows from any attempt — report clearly instead of failing silently.
-    if (!lastResult) {
+    // Every status came back empty — check whether that's an auth problem or
+    // a genuinely empty account before reporting.
+    const authFailure = attempts.find((a) => a.status === 401 || a.status === 403)
+    if (authFailure) {
       return NextResponse.json(
-        { error: 'Could not reach PostEx. Check your internet connection and API token.' },
-        { status: 502 }
-      )
-    }
-
-    const data = lastResult.data
-    const message = String(postexError(data, '') || '')
-    const statusCode = Number(data?.statusCode || data?.status || lastResult.status)
-
-    // Authentication/authorization failures should surface as an error.
-    if (lastResult.status === 401 || lastResult.status === 403 || statusCode === 401 || statusCode === 403) {
-      return NextResponse.json(
-        { error: `PostEx rejected the API token. ${message || 'Verify the token on your PostEx merchant portal.'}` },
+        { error: `PostEx rejected the API token. ${authFailure.message || 'Verify the token on your PostEx merchant portal.'}`, attempts },
         { status: 401 }
       )
     }
 
-    // Successful call but no orders in range — treat as an empty (not error) result.
-    if (lastResult.ok || message.toLowerCase().includes('no message available') || statusCode === 200) {
-      return NextResponse.json({
-        dist: [],
-        warning: `PostEx returned no orders for this account in the selected range. Last API message: ${
-          lastMessage || message || 'No response message'
-        }`,
-      })
+    const reachedServer = attempts.some((a) => a.status > 0)
+    if (!reachedServer) {
+      return NextResponse.json(
+        { error: 'Could not reach PostEx. Check your internet connection and API token.', attempts },
+        { status: 502 }
+      )
     }
 
-    return NextResponse.json(
-      { error: postexError(data, `PostEx API error: ${lastResult.status}`), details: data },
-      { status: lastResult.status >= 400 ? lastResult.status : 400 }
-    )
+    return NextResponse.json({
+      dist: [],
+      source,
+      attempts,
+      warning: 'PostEx returned no orders in any status for this account across the last 3 years.',
+    })
   } catch (error: any) {
     return NextResponse.json({ error: error?.message || 'PostEx request failed.' }, { status: 500 })
   }
