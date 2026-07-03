@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 
 const POSTEX_ENDPOINTS = {
   orders: 'https://api.postex.pk/services/integration/api/order/v1/get-all-order',
+  legacyOrders: 'https://api.postex.pk/services/integration/api/order/v3/all-orders',
   paymentStatus: 'https://api.postex.pk/services/integration/api/order/v1/payment-status',
 }
 
@@ -9,12 +10,22 @@ function isoDateKey(date: Date) {
   return date.toISOString().split('T')[0]
 }
 
+function dmyDateKey(date: Date) {
+  const dd = String(date.getDate()).padStart(2, '0')
+  const mm = String(date.getMonth() + 1).padStart(2, '0')
+  const yyyy = date.getFullYear()
+  return `${dd}-${mm}-${yyyy}`
+}
+
 function orderRanges() {
   const to = new Date()
-  return [30, 90, 365, 1095].map((days) => {
+  return [30, 90, 365, 1095].flatMap((days) => {
     const from = new Date()
     from.setDate(from.getDate() - days)
-    return { fromDate: isoDateKey(from), toDate: isoDateKey(to) }
+    return [
+      { fromDate: isoDateKey(from), toDate: isoDateKey(to) },
+      { fromDate: dmyDateKey(from), toDate: dmyDateKey(to) },
+    ]
   })
 }
 
@@ -78,12 +89,25 @@ function orderAttempts(token: string) {
   // PDF v4.1.9: List Orders API is GET /order/v1/get-all-order
   // with token header and orderStatusID/fromDate/toDate parameters.
   for (const range of orderRanges()) {
-    const params = new URLSearchParams({ orderStatusID: '0', ...range })
-    attempts.push(() => fetchPostEx(`${POSTEX_ENDPOINTS.orders}?${params.toString()}`, token))
-    attempts.push(() => fetchPostEx(POSTEX_ENDPOINTS.orders, token, {
-      method: 'POST',
-      body: JSON.stringify({ orderStatusID: 0, ...range }),
-    }))
+    const bodyVariants = [
+      { orderStatusID: 0, ...range },
+      { orderStatusId: 0, ...range },
+      { orderStatusID: '0', ...range },
+    ]
+
+    for (const body of bodyVariants) {
+      const params = new URLSearchParams(Object.fromEntries(Object.entries(body).map(([key, value]) => [key, String(value)])))
+      attempts.push(() => fetchPostEx(`${POSTEX_ENDPOINTS.orders}?${params.toString()}`, token))
+      attempts.push(() => fetchPostEx(POSTEX_ENDPOINTS.orders, token, {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }))
+      attempts.push(() => fetchPostEx(`${POSTEX_ENDPOINTS.legacyOrders}?${params.toString()}`, token))
+      attempts.push(() => fetchPostEx(POSTEX_ENDPOINTS.legacyOrders, token, {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }))
+    }
   }
 
   return attempts
@@ -127,9 +151,11 @@ export async function POST(request: NextRequest) {
     const attempts = orderAttempts(cleanToken)
 
     let lastResult: { res: Response; data: any } | null = null
+    let lastMessage = ''
     for (const attempt of attempts) {
       const result = await attempt()
       lastResult = result
+      lastMessage = String(postexError(result.data, lastMessage) || lastMessage)
       const rows = normalizeOrderRows(extractRows(result.data))
       if (result.res.ok && rows.length > 0) {
         if (type === 'remittances') {
@@ -148,7 +174,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         ...data,
         dist: [],
-        warning: 'PostEx did not return shipments for the selected account/range.',
+        warning: `PostEx did not return shipments for the selected account/range. Last API message: ${lastMessage || message}`,
       })
     }
 
@@ -163,7 +189,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       ...data,
       dist: normalizeOrderRows(extractRows(data)),
-      warning: postexError(data, 'No PostEx shipments were returned for the last 1 year.'),
+      warning: postexError(data, `No PostEx shipments were returned after trying documented and legacy endpoints. Last API message: ${lastMessage || 'No response message'}`),
     })
   } catch (error: any) {
     return NextResponse.json({ error: error?.message || 'PostEx request failed.' }, { status: 500 })
