@@ -5,6 +5,12 @@ import https from 'node:https'
 // Server-side proxy so the merchant token never touches the browser and CORS is avoided.
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
+// Several upstream attempts can add up; without this Vercel kills the function
+// at its default limit and the panel gets a 504 instead of shipments.
+export const maxDuration = 60
+
+// Per-attempt timeout so one slow PostEx endpoint can't eat the whole budget.
+const ATTEMPT_TIMEOUT_MS = 8000
 
 const POSTEX_ENDPOINTS = {
   // §3.16 List Orders API — GET, params sent as a JSON body per the guide.
@@ -80,6 +86,7 @@ async function fetchPostEx(url: string, token: string, init?: RequestInit): Prom
       ...(init?.headers || {}),
     },
     cache: 'no-store',
+    signal: AbortSignal.timeout(ATTEMPT_TIMEOUT_MS),
   })
   const data = safeJson(await res.text())
   return { status: res.status, ok: res.ok, data }
@@ -111,6 +118,7 @@ function getWithBody(url: string, token: string, body: string): Promise<PostExRe
         })
       }
     )
+    req.setTimeout(ATTEMPT_TIMEOUT_MS, () => req.destroy(new Error('PostEx request timed out')))
     req.on('error', reject)
     req.write(body)
     req.end()
@@ -126,25 +134,30 @@ async function tryAttempt(fn: () => Promise<PostExResult>): Promise<PostExResult
 }
 
 // Ordered, spec-first attempts. Stops at the first that returns rows.
-function orderAttempts(token: string) {
+function orderAttempts(token: string): Array<{ source: string; run: () => Promise<PostExResult> }> {
   const { fromDate, toDate } = dateWindow()
   const allBody = JSON.stringify({ orderStatusID: 0, fromDate, toDate })
   const allQuery = new URLSearchParams({ orderStatusID: '0', fromDate, toDate }).toString()
+  // Some gateway deployments expect lowercase "Id" — cheap one-call insurance.
+  const allQueryAltCase = new URLSearchParams({ orderStatusId: '0', fromDate, toDate }).toString()
   const unbookedQuery = new URLSearchParams({ startDate: fromDate, endDate: toDate }).toString()
 
   return [
-    // 1. Spec-accurate: GET get-all-order with JSON body.
-    () => getWithBody(POSTEX_ENDPOINTS.allOrders, token, allBody),
+    // 1. Spec-accurate: GET get-all-order with JSON body (§3.16).
+    { source: 'get-all-order GET+body', run: () => getWithBody(POSTEX_ENDPOINTS.allOrders, token, allBody) },
     // 2. GET get-all-order with query params.
-    () => fetchPostEx(`${POSTEX_ENDPOINTS.allOrders}?${allQuery}`, token),
+    { source: 'get-all-order GET query', run: () => fetchPostEx(`${POSTEX_ENDPOINTS.allOrders}?${allQuery}`, token) },
+    { source: 'get-all-order GET query (orderStatusId)', run: () => fetchPostEx(`${POSTEX_ENDPOINTS.allOrders}?${allQueryAltCase}`, token) },
     // 3. POST get-all-order with JSON body.
-    () => fetchPostEx(POSTEX_ENDPOINTS.allOrders, token, { method: 'POST', body: allBody }),
-    // 4. Un-booked orders (GET) so freshly created orders still appear.
-    () => fetchPostEx(`${POSTEX_ENDPOINTS.unbookedOrders}?${unbookedQuery}`, token),
-    () =>
-      getWithBody(POSTEX_ENDPOINTS.unbookedOrders, token, JSON.stringify({ startDate: fromDate, endDate: toDate })),
+    { source: 'get-all-order POST', run: () => fetchPostEx(POSTEX_ENDPOINTS.allOrders, token, { method: 'POST', body: allBody }) },
+    // 4. Un-booked orders (§3.6) so freshly created orders still appear.
+    { source: 'get-unbooked-orders GET query', run: () => fetchPostEx(`${POSTEX_ENDPOINTS.unbookedOrders}?${unbookedQuery}`, token) },
+    {
+      source: 'get-unbooked-orders GET+body',
+      run: () => getWithBody(POSTEX_ENDPOINTS.unbookedOrders, token, JSON.stringify({ startDate: fromDate, endDate: toDate })),
+    },
     // 5. Legacy endpoint fallback.
-    () => fetchPostEx(`${POSTEX_ENDPOINTS.legacyOrders}?${allQuery}`, token),
+    { source: 'legacy v3 all-orders', run: () => fetchPostEx(`${POSTEX_ENDPOINTS.legacyOrders}?${allQuery}`, token) },
   ]
 }
 
@@ -195,7 +208,7 @@ export async function POST(request: NextRequest) {
     let lastMessage = ''
 
     for (const attempt of orderAttempts(cleanToken)) {
-      const result = await tryAttempt(attempt)
+      const result = await tryAttempt(attempt.run)
       if (!result) continue
       lastResult = result
       lastMessage = String(postexError(result.data, lastMessage) || lastMessage)
@@ -204,9 +217,9 @@ export async function POST(request: NextRequest) {
       if (result.ok && rows.length > 0) {
         if (type === 'remittances') {
           const payments = await fetchPaymentRows(cleanToken, rows)
-          return NextResponse.json({ ...result.data, dist: payments })
+          return NextResponse.json({ ...result.data, dist: payments, source: attempt.source })
         }
-        return NextResponse.json({ ...result.data, dist: rows })
+        return NextResponse.json({ ...result.data, dist: rows, source: attempt.source })
       }
     }
 
