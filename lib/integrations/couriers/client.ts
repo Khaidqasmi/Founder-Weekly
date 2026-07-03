@@ -18,19 +18,28 @@ function getStoredKey(key: string): string {
 
 function normalizeStatus(raw: string): string {
   const s = raw.toLowerCase().trim()
-  // Un-booked must be checked before the generic "book" rule below.
-  if (s.includes('unbook') || s.includes('un-book')) return 'booked'
+  if (!s) return 'unknown'
+  // Delivered
   if (['delivered', 'completed', 'dlvd'].some((k) => s.includes(k))) return 'delivered'
-  // PostEx: "Out For Return" is a return-in-progress; check before generic return.
+  // Returns — "Returned" and "Out For Return" both map here.
   if (['return', 'rto', 'rts'].some((k) => s.includes(k))) return 'returned'
-  if (['cancel'].some((k) => s.includes(k))) return 'cancelled'
+  if (s.includes('cancel')) return 'cancelled'
+  // Out for delivery (before generic "delivery"/"warehouse" checks)
   if (['out for delivery', 'ofd', 'dispatched to consignee'].some((k) => s.includes(k))) return 'out_for_delivery'
-  // PostEx transit-like statuses: "PostEx WareHouse", "En-Route to PostEx warehouse".
-  if (['transit', 'hub', 'received at', 'forwarded', 'enroute', 'en-route', 'en route', 'warehouse', 'on root', 'on route'].some((k) => s.includes(k))) return 'in_transit'
+  // Picked By PostEx
   if (['pick', 'collected'].some((k) => s.includes(k))) return 'picked'
+  // "At Merchant's Warehouse" is the origin (not yet moving) — booked.
+  // Must be checked BEFORE the generic "warehouse" -> in_transit rule.
+  if (s.includes('merchant')) return 'booked'
+  // PostEx transit-like: "PostEx WareHouse", "En-Route to PostEx warehouse", "Package on Route".
+  if (['transit', 'hub', 'received at', 'forwarded', 'enroute', 'en-route', 'en route', 'warehouse', 'on root', 'on route', 'package on'].some((k) => s.includes(k))) return 'in_transit'
+  // Attempted delivery / failed attempt -> failed (surfaces in Returned/Failed KPI).
+  if (['attempt', 'fail', 'undelivered'].some((k) => s.includes(k))) return 'failed'
+  // Delivery Under Review / on hold -> on_hold (a pending, non-final state).
+  if (['under review', 'review', 'hold', 'pending'].some((k) => s.includes(k))) return 'on_hold'
+  if (s.includes('expired')) return 'cancelled'
+  // Booked / Unbooked / Created / Registered (unbooked contains "book").
   if (['book', 'created', 'registered'].some((k) => s.includes(k))) return 'booked'
-  if (['fail', 'attempt', 'undelivered', 'expired', 'under review'].some((k) => s.includes(k))) return 'failed'
-  if (['hold', 'pending'].some((k) => s.includes(k))) return 'on_hold'
   return 'unknown'
 }
 

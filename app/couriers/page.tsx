@@ -14,6 +14,7 @@ import { COURIER_PROVIDERS, DELIVERY_STATUSES } from '@/lib/integrations/courier
 import type { Shipment, CourierProvider } from '@/lib/integrations/couriers/types'
 import { fetchAllShipments, fetchAllRemittances } from '@/lib/integrations/couriers/client'
 import type { Remittance } from '@/lib/integrations/couriers/client'
+import { parseCourierDate, formatCompactPKR } from '@/lib/integrations/couriers/format'
 import { formatCurrency, formatNumber } from '@/lib/utils'
 import { toast } from 'sonner'
 import { notify } from '@/lib/notifications'
@@ -32,18 +33,26 @@ interface CodReceipt {
   uploadedAt: string
 }
 
+// Dates relative to today so the date filters (7d/30d/3m/6m/…) each show a
+// meaningful subset in demo mode instead of an empty table.
+function demoDate(daysAgo: number): string {
+  const d = new Date()
+  d.setDate(d.getDate() - daysAgo)
+  return d.toISOString().slice(0, 10)
+}
+
 // Demo shipments so the page works without any API keys
 const DEMO_SHIPMENTS: Shipment[] = [
-  { id: '1', courier: 'Trax', trackingNumber: 'TRX-20240115001', orderId: 'ORD-1001', customerName: 'Ali Khan', customerPhone: '03001234567', city: 'Karachi', productName: 'Premium T-Shirt x2', amount: 3000, deliveryStatus: 'delivered', statusColor: 'green', bookedAt: '2024-01-15', deliveredAt: '2024-01-18', lastUpdate: '2024-01-18', remarks: 'Delivered' },
-  { id: '2', courier: 'Leopards', trackingNumber: 'LP-90001234', orderId: 'ORD-1003', customerName: 'Usman Raza', customerPhone: '03211234567', city: 'Islamabad', productName: 'Premium T-Shirt x3', amount: 4500, deliveryStatus: 'in_transit', statusColor: 'yellow', bookedAt: '2024-01-16', lastUpdate: '2024-01-17', remarks: 'In Transit - Islamabad Hub' },
-  { id: '3', courier: 'Call Courier', trackingNumber: 'CC-5550001', orderId: 'ORD-1004', customerName: 'Fatima Noor', customerPhone: '03331234567', city: 'Rawalpindi', productName: 'Jogger Pants', amount: 2800, deliveryStatus: 'out_for_delivery', statusColor: 'yellow', bookedAt: '2024-01-15', lastUpdate: '2024-01-17', remarks: 'Out for Delivery' },
-  { id: '4', courier: 'PostEx', trackingNumber: 'PX-88001122', orderId: 'ORD-1005', customerName: 'Hassan Ali', customerPhone: '03451234567', city: 'Faisalabad', productName: 'Cap Minimal x2', amount: 1600, deliveryStatus: 'returned', statusColor: 'red', bookedAt: '2024-01-14', lastUpdate: '2024-01-17', remarks: 'Returned - Customer refused' },
-  { id: '5', courier: 'Trax', trackingNumber: 'TRX-20240116002', orderId: 'ORD-1006', customerName: 'Ayesha Malik', customerPhone: '03111234567', city: 'Multan', productName: 'Hoodie Classic', amount: 3500, deliveryStatus: 'delivered', statusColor: 'green', bookedAt: '2024-01-14', deliveredAt: '2024-01-17', lastUpdate: '2024-01-17', remarks: 'Delivered' },
-  { id: '6', courier: 'Leopards', trackingNumber: 'LP-90001235', orderId: 'ORD-1007', customerName: 'Zain Ul Abideen', customerPhone: '03001112233', city: 'Karachi', productName: 'Premium T-Shirt', amount: 1500, deliveryStatus: 'booked', statusColor: 'blue', bookedAt: '2024-01-17', lastUpdate: '2024-01-17', remarks: 'Booked' },
-  { id: '7', courier: 'Call Courier', trackingNumber: 'CC-5550002', orderId: 'ORD-1008', customerName: 'Maryam Shah', customerPhone: '03221234567', city: 'Lahore', productName: 'Jogger Pants x2', amount: 5600, deliveryStatus: 'in_transit', statusColor: 'yellow', bookedAt: '2024-01-16', lastUpdate: '2024-01-17', remarks: 'In Transit - Lahore Hub' },
-  { id: '8', courier: 'Trax', trackingNumber: 'TRX-20240117003', orderId: 'ORD-1009', customerName: 'Bilal Hussain', customerPhone: '03339998877', city: 'Peshawar', productName: 'Cap Minimal x3', amount: 2400, deliveryStatus: 'picked', statusColor: 'blue', bookedAt: '2024-01-17', lastUpdate: '2024-01-17', remarks: 'Picked Up' },
-  { id: '9', courier: 'PostEx', trackingNumber: 'PX-88001123', orderId: 'ORD-1010', customerName: 'Nadia Farooq', customerPhone: '03451112233', city: 'Sialkot', productName: 'Premium T-Shirt', amount: 1500, deliveryStatus: 'failed', statusColor: 'red', bookedAt: '2024-01-15', lastUpdate: '2024-01-17', remarks: 'Failed - Address incomplete' },
-  { id: '10', courier: 'Leopards', trackingNumber: 'LP-90001236', orderId: 'ORD-1011', customerName: 'Kamran Yousuf', customerPhone: '03001234568', city: 'Quetta', productName: 'Hoodie Classic', amount: 3500, deliveryStatus: 'delivered', statusColor: 'green', bookedAt: '2024-01-13', deliveredAt: '2024-01-16', lastUpdate: '2024-01-16', remarks: 'Delivered' },
+  { id: '1', courier: 'Trax', trackingNumber: 'TRX-20240115001', orderId: 'ORD-1001', customerName: 'Ali Khan', customerPhone: '03001234567', city: 'Karachi', productName: 'Premium T-Shirt x2', amount: 3000, deliveryStatus: 'delivered', statusColor: 'green', bookedAt: demoDate(1), deliveredAt: demoDate(0), lastUpdate: demoDate(0), remarks: 'Delivered' },
+  { id: '2', courier: 'Leopards', trackingNumber: 'LP-90001234', orderId: 'ORD-1003', customerName: 'Usman Raza', customerPhone: '03211234567', city: 'Islamabad', productName: 'Premium T-Shirt x3', amount: 4500, deliveryStatus: 'in_transit', statusColor: 'yellow', bookedAt: demoDate(3), lastUpdate: demoDate(2), remarks: 'In Transit - Islamabad Hub' },
+  { id: '3', courier: 'Call Courier', trackingNumber: 'CC-5550001', orderId: 'ORD-1004', customerName: 'Fatima Noor', customerPhone: '03331234567', city: 'Rawalpindi', productName: 'Jogger Pants', amount: 2800, deliveryStatus: 'out_for_delivery', statusColor: 'yellow', bookedAt: demoDate(5), lastUpdate: demoDate(1), remarks: 'Out for Delivery' },
+  { id: '4', courier: 'PostEx', trackingNumber: 'PX-88001122', orderId: 'ORD-1005', customerName: 'Hassan Ali', customerPhone: '03451234567', city: 'Faisalabad', productName: 'Cap Minimal x2', amount: 1600, deliveryStatus: 'returned', statusColor: 'red', bookedAt: demoDate(6), lastUpdate: demoDate(2), remarks: 'Returned - Customer refused' },
+  { id: '5', courier: 'Trax', trackingNumber: 'TRX-20240116002', orderId: 'ORD-1006', customerName: 'Ayesha Malik', customerPhone: '03111234567', city: 'Multan', productName: 'Hoodie Classic', amount: 3500, deliveryStatus: 'delivered', statusColor: 'green', bookedAt: demoDate(12), deliveredAt: demoDate(9), lastUpdate: demoDate(9), remarks: 'Delivered' },
+  { id: '6', courier: 'Leopards', trackingNumber: 'LP-90001235', orderId: 'ORD-1007', customerName: 'Zain Ul Abideen', customerPhone: '03001112233', city: 'Karachi', productName: 'Premium T-Shirt', amount: 1500, deliveryStatus: 'booked', statusColor: 'blue', bookedAt: demoDate(18), lastUpdate: demoDate(18), remarks: 'Booked' },
+  { id: '7', courier: 'Call Courier', trackingNumber: 'CC-5550002', orderId: 'ORD-1008', customerName: 'Maryam Shah', customerPhone: '03221234567', city: 'Lahore', productName: 'Jogger Pants x2', amount: 5600, deliveryStatus: 'in_transit', statusColor: 'yellow', bookedAt: demoDate(25), lastUpdate: demoDate(24), remarks: 'In Transit - Lahore Hub' },
+  { id: '8', courier: 'Trax', trackingNumber: 'TRX-20240117003', orderId: 'ORD-1009', customerName: 'Bilal Hussain', customerPhone: '03339998877', city: 'Peshawar', productName: 'Cap Minimal x3', amount: 2400, deliveryStatus: 'picked', statusColor: 'blue', bookedAt: demoDate(48), lastUpdate: demoDate(47), remarks: 'Picked Up' },
+  { id: '9', courier: 'PostEx', trackingNumber: 'PX-88001123', orderId: 'ORD-1010', customerName: 'Nadia Farooq', customerPhone: '03451112233', city: 'Sialkot', productName: 'Premium T-Shirt', amount: 1500, deliveryStatus: 'failed', statusColor: 'red', bookedAt: demoDate(75), lastUpdate: demoDate(73), remarks: 'Failed - Address incomplete' },
+  { id: '10', courier: 'Leopards', trackingNumber: 'LP-90001236', orderId: 'ORD-1011', customerName: 'Kamran Yousuf', customerPhone: '03001234568', city: 'Quetta', productName: 'Hoodie Classic', amount: 3500, deliveryStatus: 'delivered', statusColor: 'green', bookedAt: demoDate(140), deliveredAt: demoDate(137), lastUpdate: demoDate(137), remarks: 'Delivered' },
 ]
 
 function CodReceiptsSection({ couriers }: { couriers: string[] }) {
@@ -384,26 +393,6 @@ function StatusBadge({ status }: { status: string }) {
   return <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${colorMap[info.color]}`}>{info.label}</span>
 }
 
-function parseCourierDate(value: string) {
-  const raw = String(value || '').trim()
-  if (!raw) return null
-
-  const isoMatch = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/)
-  if (isoMatch) {
-    const [, year, month, day] = isoMatch
-    return new Date(Number(year), Number(month) - 1, Number(day))
-  }
-
-  const dmyMatch = raw.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})/)
-  if (dmyMatch) {
-    const [, day, month, year] = dmyMatch
-    return new Date(Number(year), Number(month) - 1, Number(day))
-  }
-
-  const parsed = new Date(raw)
-  return Number.isNaN(parsed.getTime()) ? null : parsed
-}
-
 export default function CouriersPage() {
   const [shipments, setShipments] = useState<Shipment[]>(DEMO_SHIPMENTS)
   const [loading, setLoading] = useState(false)
@@ -603,8 +592,8 @@ export default function CouriersPage() {
           <KPICard title="Delivered" value={formatNumber(delivered)} subtitle={`${deliveryRate}%`} />
           <KPICard title="In Transit" value={formatNumber(inTransit)} />
           <KPICard title="Returned/Failed" value={formatNumber(returned)} subtitle={`${returnRate}%`} />
-          <KPICard title="Total COD" value={formatCurrency(totalCOD)} />
-          <KPICard title="COD Collected" value={formatCurrency(deliveredCOD)} />
+          <KPICard title="Total COD" value={formatCompactPKR(totalCOD)} subtitle={formatCurrency(totalCOD)} />
+          <KPICard title="COD Collected" value={formatCompactPKR(deliveredCOD)} subtitle={formatCurrency(deliveredCOD)} />
           <KPICard title="Couriers" value={formatNumber(uniqueCouriers.length)} />
         </div>
 
