@@ -1,30 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 
 const POSTEX_ENDPOINTS = {
-  shipments: 'https://api.postex.pk/services/integration/api/order/v3/all-orders',
-  remittances: 'https://api.postex.pk/services/integration/api/order/v3/remittance',
+  orders: 'https://api.postex.pk/services/integration/api/order/v1/get-all-order',
+  paymentStatus: 'https://api.postex.pk/services/integration/api/order/v1/payment-status',
 }
 
 function isoDateKey(date: Date) {
   return date.toISOString().split('T')[0]
 }
 
-function dmyDateKey(date: Date) {
-  const dd = String(date.getDate()).padStart(2, '0')
-  const mm = String(date.getMonth() + 1).padStart(2, '0')
-  const yyyy = date.getFullYear()
-  return `${dd}-${mm}-${yyyy}`
-}
-
 function orderRanges() {
   const to = new Date()
-  return [30, 90, 365, 1095].flatMap((days) => {
+  return [30, 90, 365, 1095].map((days) => {
     const from = new Date()
     from.setDate(from.getDate() - days)
-    return [
-      { fromDate: isoDateKey(from), toDate: isoDateKey(to) },
-      { fromDate: dmyDateKey(from), toDate: dmyDateKey(to) },
-    ]
+    return { fromDate: isoDateKey(from), toDate: isoDateKey(to) }
   })
 }
 
@@ -48,6 +38,14 @@ function extractRows(data: any) {
     }
   }
   return []
+}
+
+function normalizeOrderRows(rows: any[]) {
+  return rows.map((row) => ({
+    ...(row?.trackingResponse || row || {}),
+    trackingNumber: row?.trackingResponse?.trackingNumber || row?.trackingNumber || row?.tracking_number || '',
+    message: row?.message || row?.trackingResponse?.message || '',
+  }))
 }
 
 async function parseResponse(res: Response) {
@@ -74,25 +72,46 @@ async function fetchPostEx(url: string, token: string, init?: RequestInit) {
   return { res, data }
 }
 
-function shipmentAttempts(token: string) {
+function orderAttempts(token: string) {
   const attempts: Array<() => Promise<{ res: Response; data: any }>> = []
 
-  // PostEx account/API versions differ on date format and GET vs POST.
-  // Try the documented JSON body first, then the query-string fallback.
+  // PDF v4.1.9: List Orders API is GET /order/v1/get-all-order
+  // with token header and orderStatusID/fromDate/toDate parameters.
   for (const range of orderRanges()) {
-    attempts.push(() => fetchPostEx(POSTEX_ENDPOINTS.shipments, token, {
+    const params = new URLSearchParams({ orderStatusID: '0', ...range })
+    attempts.push(() => fetchPostEx(`${POSTEX_ENDPOINTS.orders}?${params.toString()}`, token))
+    attempts.push(() => fetchPostEx(POSTEX_ENDPOINTS.orders, token, {
       method: 'POST',
       body: JSON.stringify({ orderStatusID: 0, ...range }),
     }))
   }
 
-  // GET fallback with query params (some integration tiers support this)
-  for (const range of orderRanges()) {
-    const params = new URLSearchParams({ orderStatusID: '0', ...range })
-    attempts.push(() => fetchPostEx(`${POSTEX_ENDPOINTS.shipments}?${params.toString()}`, token))
-  }
-
   return attempts
+}
+
+async function fetchPaymentRows(token: string, rows: any[]) {
+  const trackingNumbers = rows
+    .map((row) => String(row.trackingNumber || row.tracking_number || '').trim())
+    .filter(Boolean)
+    .slice(0, 50)
+
+  const payments = await Promise.all(
+    trackingNumbers.map(async (trackingNumber) => {
+      try {
+        const { res, data } = await fetchPostEx(`${POSTEX_ENDPOINTS.paymentStatus}/${encodeURIComponent(trackingNumber)}`, token)
+        if (!res.ok) return null
+        const payment = data?.dist || data?.data || data
+        return {
+          ...payment,
+          trackingNumber: payment?.trackingNumber || trackingNumber,
+        }
+      } catch {
+        return null
+      }
+    })
+  )
+
+  return payments.filter(Boolean)
 }
 
 export async function POST(request: NextRequest) {
@@ -105,18 +124,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'PostEx API token is missing.' }, { status: 400 })
     }
 
-    const attempts = type === 'shipments'
-      ? shipmentAttempts(cleanToken)
-      : [
-          () => fetchPostEx(POSTEX_ENDPOINTS.remittances, cleanToken),
-        ]
+    const attempts = orderAttempts(cleanToken)
 
     let lastResult: { res: Response; data: any } | null = null
     for (const attempt of attempts) {
       const result = await attempt()
       lastResult = result
-      const rows = extractRows(result.data)
-      if (result.res.ok && rows.length > 0) return NextResponse.json(result.data)
+      const rows = normalizeOrderRows(extractRows(result.data))
+      if (result.res.ok && rows.length > 0) {
+        if (type === 'remittances') {
+          const payments = await fetchPaymentRows(cleanToken, rows)
+          return NextResponse.json({ ...result.data, dist: payments })
+        }
+        return NextResponse.json({ ...result.data, dist: rows })
+      }
     }
 
     const res = lastResult!.res
@@ -141,7 +162,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       ...data,
-      dist: extractRows(data),
+      dist: normalizeOrderRows(extractRows(data)),
       warning: postexError(data, 'No PostEx shipments were returned for the last 1 year.'),
     })
   } catch (error: any) {

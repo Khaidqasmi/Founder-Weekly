@@ -179,9 +179,9 @@ export async function fetchPostExShipments(): Promise<Shipment[]> {
     amount: Number(s.orderAmount || s.invoicePayment || s.codAmount || s.amount) || 0,
     deliveryStatus: normalizeStatus(firstString(s.orderStatus, s.transactionStatus, s.status)),
     statusColor: statusColor(normalizeStatus(firstString(s.orderStatus, s.transactionStatus, s.status))),
-    bookedAt: firstString(s.createdAt, s.orderDate, s.bookingDate, s.bookedAt),
-    deliveredAt: firstString(s.deliveredAt, s.deliveryDate) || undefined,
-    lastUpdate: firstString(s.updatedAt, s.statusDate, s.createdAt, s.orderDate),
+    bookedAt: firstString(s.createdAt, s.transactionDate, s.orderDate, s.orderPickupDate, s.bookingDate, s.bookedAt),
+    deliveredAt: firstString(s.deliveredAt, s.orderDeliveryDate, s.deliveryDate) || undefined,
+    lastUpdate: firstString(s.updatedAt, s.statusDate, s.transactionDate, s.orderDate, s.orderPickupDate),
     remarks: firstString(s.orderStatus, s.transactionStatus, s.status, s.statusMessage),
   }))
 }
@@ -250,7 +250,7 @@ export async function fetchPostExRemittances(): Promise<Remittance[]> {
     courier: 'PostEx',
     remittanceNo: firstString(r.remittanceRefNumber, r.remittanceNo, r.id, r.cprNumber_1, r.cprNumber),
     date: firstString(r.remittanceDate, r.settlementDate, r.upfrontPaymentDate, r.createdAt),
-    amount: Number(r.remittanceAmount || r.amount || r.invoicePayment || r.codAmount) || 0,
+    amount: Number(r.remittanceAmount || r.amount || r.invoicePayment || r.codAmount || r.upfrontPayment || r.reservePayment) || 0,
     shipmentCount: Number(r.orderCount || r.shipments || r.shipmentCount) || 0,
     status: firstString(r.status, r.paymentStatus).toLowerCase().includes('paid') || r.settle === true ? 'paid' : 'pending',
     pdfUrl: firstString(r.slipUrl, r.pdfUrl, r.url) || undefined,
