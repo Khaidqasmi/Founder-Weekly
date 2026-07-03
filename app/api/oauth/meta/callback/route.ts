@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
   let accessToken: string, adAccountId = ''
   try {
     const tokenRes = await fetch(
-      `https://graph.facebook.com/v19.0/oauth/access_token?client_id=${APP_ID}&client_secret=${APP_SECRET}&redirect_uri=${encodeURIComponent(redirectUri)}&code=${code}`
+      `https://graph.facebook.com/v25.0/oauth/access_token?client_id=${APP_ID}&client_secret=${APP_SECRET}&redirect_uri=${encodeURIComponent(redirectUri)}&code=${code}`
     )
     if (!tokenRes.ok) throw new Error(`Token exchange failed: ${tokenRes.status}`)
     const tokenData = await tokenRes.json()
@@ -37,14 +37,14 @@ export async function GET(req: NextRequest) {
 
     // Exchange for long-lived token
     const longLivedRes = await fetch(
-      `https://graph.facebook.com/v19.0/oauth/access_token?grant_type=fb_exchange_token&client_id=${APP_ID}&client_secret=${APP_SECRET}&fb_exchange_token=${accessToken}`
+      `https://graph.facebook.com/v25.0/oauth/access_token?grant_type=fb_exchange_token&client_id=${APP_ID}&client_secret=${APP_SECRET}&fb_exchange_token=${accessToken}`
     )
     const longLived = await longLivedRes.json()
     if (longLived.access_token) accessToken = longLived.access_token
 
     // Fetch first ad account
     const adRes = await fetch(
-      `https://graph.facebook.com/v19.0/me/adaccounts?fields=id,name&limit=1&access_token=${accessToken}`
+      `https://graph.facebook.com/v25.0/me/adaccounts?fields=id,name&limit=1&access_token=${accessToken}`
     )
     const adData = await adRes.json()
     adAccountId = adData?.data?.[0]?.id || ''

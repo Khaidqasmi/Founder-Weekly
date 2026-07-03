@@ -1,5 +1,5 @@
 export function getMetaClient(accessToken: string) {
-  const baseUrl = 'https://graph.facebook.com/v18.0'
+  const baseUrl = 'https://graph.facebook.com/v25.0'
 
   async function fetchMeta(endpoint: string) {
     const res = await fetch(`${baseUrl}${endpoint}`, {

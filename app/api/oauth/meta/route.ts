@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
     state,
   })
 
-  const authUrl = `https://www.facebook.com/v19.0/dialog/oauth?${params}`
+  const authUrl = `https://www.facebook.com/v25.0/dialog/oauth?${params}`
   const res = NextResponse.redirect(authUrl)
   res.cookies.set('meta_oauth_state', state, { httpOnly: true, maxAge: 300, path: '/' })
   return res

@@ -166,7 +166,7 @@ export async function syncMetaAdsData(ctx: SyncContext) {
     const untilStr = new Date().toISOString().split('T')[0]
     const timeRange = encodeURIComponent(JSON.stringify({ since: sinceStr, until: untilStr }))
 
-    const url = `https://graph.facebook.com/v18.0/${cleanAdAccountId}/insights?` +
+    const url = `https://graph.facebook.com/v25.0/${cleanAdAccountId}/insights?` +
       `fields=campaign_name,adset_name,ad_name,spend,impressions,reach,clicks,actions,action_values` +
       `&time_range=${timeRange}` +
       `&level=ad&time_increment=1&limit=500` +

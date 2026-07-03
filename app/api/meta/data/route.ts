@@ -155,7 +155,7 @@ async function fetchAdPreviewEmbed(adId: string, token: string) {
   if (!adId) return ''
   try {
     const preview = await graphGet(
-      `https://graph.facebook.com/v19.0/${adId}/previews?ad_format=DESKTOP_FEED_STANDARD&access_token=${encodeURIComponent(token)}`
+      `https://graph.facebook.com/v25.0/${adId}/previews?ad_format=DESKTOP_FEED_STANDARD&access_token=${encodeURIComponent(token)}`
     )
     return iframeSrcFromHtml(preview.data?.[0]?.body || '')
   } catch {
@@ -167,7 +167,7 @@ async function fetchInstagramMedia(mediaId: string, token: string) {
   if (!mediaId) return null
   try {
     return await graphGet(
-      `https://graph.facebook.com/v19.0/${mediaId}?fields=media_type,media_url,thumbnail_url,permalink&access_token=${encodeURIComponent(token)}`
+      `https://graph.facebook.com/v25.0/${mediaId}?fields=media_type,media_url,thumbnail_url,permalink&access_token=${encodeURIComponent(token)}`
     )
   } catch {
     return null
@@ -238,7 +238,7 @@ async function enrichCreativeMedia(media: ReturnType<typeof extractCreativeMedia
   if (!resolvedMedia.videoId && resolvedMedia.storyId) {
     try {
       const story = await graphGet(
-        `https://graph.facebook.com/v19.0/${resolvedMedia.storyId}?fields=attachments{media_type,type,target,media,url,subattachments{media_type,type,target,media,url}}&access_token=${encodeURIComponent(token)}`
+        `https://graph.facebook.com/v25.0/${resolvedMedia.storyId}?fields=attachments{media_type,type,target,media,url,subattachments{media_type,type,target,media,url}}&access_token=${encodeURIComponent(token)}`
       )
       const storyVideo = extractAttachmentVideo(story.attachments)
       const storyVideoId = storyVideo?.videoId || videoIdFromAttachments(story.attachments)
@@ -279,7 +279,7 @@ async function enrichCreativeMedia(media: ReturnType<typeof extractCreativeMedia
 
   try {
     const video = await graphGet(
-      `https://graph.facebook.com/v19.0/${resolvedMedia.videoId}?fields=source,picture,permalink_url,embed_html&access_token=${encodeURIComponent(token)}`
+      `https://graph.facebook.com/v25.0/${resolvedMedia.videoId}?fields=source,picture,permalink_url,embed_html&access_token=${encodeURIComponent(token)}`
     )
     const embedUrl = iframeSrcFromHtml(video.embed_html || '') || await fetchAdPreviewEmbed(adId, token)
 
@@ -294,7 +294,7 @@ async function enrichCreativeMedia(media: ReturnType<typeof extractCreativeMedia
   } catch {
     try {
       const fallback = await graphGet(
-        `https://graph.facebook.com/v19.0/${resolvedMedia.videoId}?fields=source,picture,permalink_url&access_token=${encodeURIComponent(token)}`
+        `https://graph.facebook.com/v25.0/${resolvedMedia.videoId}?fields=source,picture,permalink_url&access_token=${encodeURIComponent(token)}`
       )
 
       return {
@@ -395,12 +395,12 @@ export async function GET(req: NextRequest) {
   try {
     // 1. Fetch ad accounts if not already known
     if (!adAccountId) {
-      const accounts = await graphGet(`https://graph.facebook.com/v19.0/me/adaccounts?fields=id,name&access_token=${encodeURIComponent(token)}`)
+      const accounts = await graphGet(`https://graph.facebook.com/v25.0/me/adaccounts?fields=id,name&access_token=${encodeURIComponent(token)}`)
       adAccountId = accounts.data?.[0]?.id || ''
     }
     if (!adAccountId) throw new Error('No ad account found')
 
-    const base = `https://graph.facebook.com/v19.0/${adAccountId}`
+    const base = `https://graph.facebook.com/v25.0/${adAccountId}`
     const insightFields = 'spend,impressions,clicks,ctr,cpc,cpm,reach,frequency,actions,action_values,cost_per_action_type'
     const encodedToken = encodeURIComponent(token)
 
