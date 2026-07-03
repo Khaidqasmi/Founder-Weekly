@@ -174,7 +174,7 @@ export async function buildAIContext(
         decryptToken(shopifyConnection.refresh_token_encrypted || '')
       )
       const liveAnalytics = await fetchShopifyAnalytics(shopifyConnection.shop_domain, accessToken, range.from, range.to)
-      if (liveAnalytics && liveAnalytics.sessions > 0) {
+      if (liveAnalytics) {
         analytics = {
           sessions: liveAnalytics.sessions,
           conversionRate: liveAnalytics.conversionRate,

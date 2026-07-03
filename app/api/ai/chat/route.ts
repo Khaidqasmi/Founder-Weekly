@@ -44,13 +44,13 @@ export async function POST(request: NextRequest) {
     })
   }
 
-  // Priority: an explicit range from the dashboard's current filter, then a
-  // period mentioned in the question itself ("90 day summary"), then the
-  // 7-day default. Without this, questions about longer periods than the
-  // client happened to send would always look like "no data" even though
-  // the workspace has it.
-  const parsedExplicitRange = !body?.from && !body?.to ? parseExplicitDateRangeFromMessage(message) : null
-  const parsedDays = !body?.from && !body?.to && !parsedExplicitRange ? parseRangeDaysFromMessage(message) : null
+  // Priority: the date range the user explicitly asked for in the message,
+  // then period phrases such as "last 90 days", then the dashboard's current
+  // filter, then the 7-day default. This lets someone ask "1 June to 10 June"
+  // while the dashboard is currently showing "last 7 days" and still receive
+  // the June data instead of the visible dashboard filter.
+  const parsedExplicitRange = parseExplicitDateRangeFromMessage(message)
+  const parsedDays = !parsedExplicitRange ? parseRangeDaysFromMessage(message) : null
   const range = parsedExplicitRange || (parsedDays !== null ? resolveDateRangeForDays(parsedDays) : resolveDateRange(body?.from, body?.to))
   const cacheKey = `${member.workspace_id}:${range.from}:${range.to}`
   let context = getCachedContext(cacheKey)
@@ -128,8 +128,8 @@ export async function POST(request: NextRequest) {
 
         const result = await queryWorkspaceData(supabase, member.workspace_id, {
           table: String(args.table || ''),
-          from: typeof args.from === 'string' ? args.from : undefined,
-          to: typeof args.to === 'string' ? args.to : undefined,
+          from: typeof args.from === 'string' ? args.from : range.from,
+          to: typeof args.to === 'string' ? args.to : range.to,
           limit: typeof args.limit === 'number' ? args.limit : undefined,
         })
 
