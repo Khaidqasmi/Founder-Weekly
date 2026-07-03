@@ -1,4 +1,5 @@
 import { SupabaseClient } from '@supabase/supabase-js'
+import { isCODPaymentMethod } from '@/lib/calculations'
 
 interface SyncContext {
   supabase: SupabaseClient
@@ -63,6 +64,7 @@ export async function syncShopifyData(ctx: SyncContext) {
     let updatedOrders = 0
 
     for (const o of shopifyOrders) {
+      const paymentMethod = o.gateway || o.payment_gateway_names?.join(', ') || ''
       const mapped = {
         workspace_id: workspaceId,
         order_date: o.created_at?.split('T')[0] || new Date().toISOString().split('T')[0],
@@ -74,9 +76,9 @@ export async function syncShopifyData(ctx: SyncContext) {
         quantity: o.line_items?.reduce((s: number, li: any) => s + li.quantity, 0) || 0,
         selling_price: Number(o.total_price) || 0,
         revenue: Number(o.total_price) || 0,
-        payment_method: o.gateway || '',
+        payment_method: paymentMethod,
         order_status: mapShopifyStatus(o.financial_status, o.fulfillment_status),
-        cod_status: o.gateway === 'cash_on_delivery' ? (o.financial_status === 'paid' ? 'Confirmed' : 'Pending') : 'N/A',
+        cod_status: isCODPaymentMethod(paymentMethod) ? (o.financial_status === 'paid' ? 'Confirmed' : 'Pending') : 'N/A',
         source: 'shopify',
       }
 

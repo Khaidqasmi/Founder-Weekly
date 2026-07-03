@@ -26,12 +26,42 @@ export function calculateCancellationRate(orders: Partial<Order>[]): number {
   return (calculateCancelledOrders(orders) / total) * 100
 }
 
+function normalizeText(value?: string | null): string {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+export function isCODPaymentMethod(paymentMethod?: string | null): boolean {
+  const value = normalizeText(paymentMethod)
+  if (!value) return false
+  return (
+    value === 'cod' ||
+    value.includes('cash on delivery') ||
+    value.includes('cash upon delivery') ||
+    value.includes('cash delivery') ||
+    value.includes('cod payment') ||
+    value.includes('payment on delivery')
+  )
+}
+
+function normalizeCODStatusLabel(status?: string | null): string {
+  const value = normalizeText(status)
+  if (!value || value === 'n/a' || value === 'na') return 'Pending'
+  if (value.includes('confirm') || value.includes('paid') || value.includes('approve')) return 'Confirmed'
+  if (value.includes('reject') || value.includes('cancel') || value.includes('fail')) return 'Rejected'
+  if (value.includes('pending') || value.includes('wait')) return 'Pending'
+  return status?.trim() || 'Pending'
+}
+
 export function calculateCODOrders(orders: Partial<Order>[]): number {
-  return orders.filter((o) => o.payment_method === 'COD').length
+  return orders.filter((o) => isCODPaymentMethod(o.payment_method)).length
 }
 
 export function calculateConfirmedCODOrders(orders: Partial<Order>[]): number {
-  return orders.filter((o) => o.payment_method === 'COD' && o.cod_status === 'Confirmed').length
+  return orders.filter((o) => isCODPaymentMethod(o.payment_method) && normalizeCODStatusLabel(o.cod_status) === 'Confirmed').length
 }
 
 export function calculateCODConfirmationRate(orders: Partial<Order>[]): number {
@@ -148,10 +178,10 @@ export function getROASByCampaign(ads: Partial<Ad>[]) {
 }
 
 export function getCODStatusBreakdown(orders: Partial<Order>[]) {
-  const codOrders = orders.filter((o) => o.payment_method === 'COD')
+  const codOrders = orders.filter((o) => isCODPaymentMethod(o.payment_method))
   const breakdown: Record<string, number> = {}
   codOrders.forEach((o) => {
-    const status = o.cod_status || 'Unknown'
+    const status = normalizeCODStatusLabel(o.cod_status)
     breakdown[status] = (breakdown[status] || 0) + 1
   })
   return Object.entries(breakdown).map(([label, value]) => ({ label, value }))

@@ -117,13 +117,14 @@ export const DonutChartWidget = memo(function DonutChartWidget({
   centerLabel?: string
 }) {
   const total = data.reduce((sum, d) => sum + (Number(d.value) || 0), 0)
+  const chartData = total > 0 ? data : [{ label: 'No COD orders', value: 1 }]
   return (
     <ChartCard title={title}>
       <div className="relative">
         <ResponsiveContainer width="100%" height={220}>
           <PieChart>
             <Pie
-              data={data}
+              data={chartData}
               cx="50%"
               cy="50%"
               outerRadius={88}
@@ -134,11 +135,11 @@ export const DonutChartWidget = memo(function DonutChartWidget({
               nameKey="label"
               stroke="none"
             >
-              {data.map((_, i) => (
-                <Cell key={i} fill={DONUT_COLORS[i % DONUT_COLORS.length]} />
+              {chartData.map((_, i) => (
+                <Cell key={i} fill={total > 0 ? DONUT_COLORS[i % DONUT_COLORS.length] : '#eeeaf9'} />
               ))}
             </Pie>
-            <Tooltip contentStyle={tooltipStyle} />
+            {total > 0 && <Tooltip contentStyle={tooltipStyle} />}
           </PieChart>
         </ResponsiveContainer>
         <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
@@ -146,7 +147,11 @@ export const DonutChartWidget = memo(function DonutChartWidget({
           <span className="text-[11px] font-medium uppercase tracking-wider text-[#8d87b8]">{centerLabel}</span>
         </div>
       </div>
-      <ChartLegend items={data.map((d, i) => ({ label: d.label, color: DONUT_COLORS[i % DONUT_COLORS.length] }))} />
+      {total > 0 ? (
+        <ChartLegend items={data.map((d, i) => ({ label: d.label, color: DONUT_COLORS[i % DONUT_COLORS.length] }))} />
+      ) : (
+        <p className="text-center text-xs text-[#a79fd6]">No COD orders found for this date range</p>
+      )}
     </ChartCard>
   )
 })
