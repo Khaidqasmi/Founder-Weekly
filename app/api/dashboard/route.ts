@@ -5,7 +5,7 @@ import {
   calculateROAS, calculateCODOrders, calculateConfirmedCODOrders, calculateCODConfirmationRate,
   calculateCancelledOrders, calculateCancellationRate, calculateTopProduct, calculateWeakProduct,
   calculateLowStockProducts, calculatePendingFollowups, getRevenueByDay, getOrdersByDay,
-  getProductPerformance, getAdSpendByCampaign, getROASByCampaign, getCODStatusBreakdown,
+  getProductPerformance, getAdSpendByCampaign, getROASByCampaign, getOrderStatusBreakdown,
 } from '@/lib/calculations'
 
 export async function GET(request: NextRequest) {
@@ -110,7 +110,7 @@ export async function GET(request: NextRequest) {
       productPerformance: getProductPerformance(orders),
       adSpendByCampaign: getAdSpendByCampaign(ads),
       roasByCampaign: getROASByCampaign(ads),
-      codStatusBreakdown: getCODStatusBreakdown(orders),
+      orderStatusBreakdown: getOrderStatusBreakdown(orders),
     },
     lowStockProducts: calculateLowStockProducts(inventory),
     actions,

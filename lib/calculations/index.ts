@@ -186,3 +186,14 @@ export function getCODStatusBreakdown(orders: Partial<Order>[]) {
   })
   return Object.entries(breakdown).map(([label, value]) => ({ label, value }))
 }
+
+export function getOrderStatusBreakdown(orders: Partial<Order>[]) {
+  const breakdown: Record<string, number> = {}
+  orders.forEach((o) => {
+    const status = o.order_status?.trim() || 'Unknown'
+    breakdown[status] = (breakdown[status] || 0) + 1
+  })
+  return Object.entries(breakdown)
+    .map(([label, value]) => ({ label, value }))
+    .sort((a, b) => b.value - a.value)
+}

@@ -14,7 +14,7 @@ import {
   calculateCODConfirmationRate, calculateCancellationRate, calculateTopProduct,
   calculateWeakProduct, calculateLowStockProducts, calculatePendingFollowups,
   getRevenueByDay, getOrdersByDay, getProductPerformance, getAdSpendByCampaign,
-  getROASByCampaign, getCODStatusBreakdown, calculateAdRevenue,
+  getROASByCampaign, getOrderStatusBreakdown, calculateAdRevenue,
   calculateCODOrders, calculateConfirmedCODOrders, calculateCancelledOrders,
 } from '@/lib/calculations'
 
@@ -58,7 +58,7 @@ function buildDemoData() {
       productPerformance: getProductPerformance(orders),
       adSpendByCampaign: getAdSpendByCampaign(ads),
       roasByCampaign: getROASByCampaign(ads),
-      codStatusBreakdown: getCODStatusBreakdown(orders),
+      orderStatusBreakdown: getOrderStatusBreakdown(orders),
     },
     lowStockProducts: calculateLowStockProducts(inventory),
     actions: actions.slice(0, 5),
@@ -436,7 +436,7 @@ export default function DashboardPage() {
             <BarChartWidget data={data.charts.adSpendByCampaign} title="Ad Spend by Campaign" from="#8b5cf6" to="#c4b5fd" />
             <BarChartWidget data={data.charts.roasByCampaign} title="ROAS by Campaign" from="#d946ef" to="#f0abfc" />
             <BarChartWidget data={topProductsChart} title="Top Products by Revenue" from="#6d64b8" to="#a78bfa" />
-            <DonutChartWidget data={data.charts.codStatusBreakdown} title="COD Status Breakdown" centerLabel="Orders" />
+            <DonutChartWidget data={data.charts.orderStatusBreakdown || []} title="Order Status Breakdown" centerLabel="Orders" />
           </div>
 
           {/* Tables */}

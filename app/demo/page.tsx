@@ -6,7 +6,7 @@ import {
   calculateCODConfirmationRate, calculateCancellationRate, calculateTopProduct,
   calculateWeakProduct, calculateLowStockProducts, calculatePendingFollowups,
   getRevenueByDay, getOrdersByDay, getProductPerformance, getAdSpendByCampaign,
-  getROASByCampaign, getCODStatusBreakdown,
+  getROASByCampaign, getOrderStatusBreakdown,
 } from '@/lib/calculations'
 import { formatCurrency, formatNumber, formatPercent } from '@/lib/utils'
 import { KPICard } from '@/components/dashboard/kpi-card'
@@ -80,7 +80,7 @@ export default function DemoPage() {
             />
           </div>
           <div className="bg-[#221c4e] rounded-lg p-4 shadow-sm">
-            <SimplePieChart data={getCODStatusBreakdown(demoOrders)} title="COD Status Breakdown" />
+            <SimplePieChart data={getOrderStatusBreakdown(demoOrders)} title="Order Status Breakdown" />
           </div>
         </div>
 
