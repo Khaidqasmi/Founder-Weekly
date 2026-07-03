@@ -152,7 +152,7 @@ function CreativePreview({ ad }: { ad: Ad }) {
   const imageSource = media.imageSourceUrl || media.imageUrl
   const poster = isVideo ? (media.thumbnailUrl || imageSource) : (imageSource || media.thumbnailUrl)
   const canUseVideoFile = isVideo && Boolean(media.videoSourceUrl) && !videoFailed
-  const canUseEmbed = isVideo && Boolean(media.videoEmbedUrl)
+  const previewUrl = media.previewUrl || media.permalinkUrl || media.videoEmbedUrl
 
   useEffect(() => {
     setVideoFailed(false)
@@ -169,16 +169,18 @@ function CreativePreview({ ad }: { ad: Ad }) {
         >
           <source src={media.videoSourceUrl} onError={() => setVideoFailed(true)} />
         </video>
-      ) : canUseEmbed ? (
-        <iframe
-          src={media.videoEmbedUrl}
-          className="w-full h-full bg-black"
-          allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
-          allowFullScreen
-          title={ad.name}
-        />
       ) : poster ? (
-        <img src={poster} alt={ad.name} className="w-full h-full object-contain bg-black" decoding="async" />
+        <>
+          <img src={poster} alt={ad.name} className="w-full h-full object-contain bg-black" decoding="async" />
+          {isVideo && (
+            <div className="absolute inset-0 bg-black/20 flex items-center justify-center pointer-events-none">
+              <div className="rounded-full bg-black/70 border border-white/15 px-3 py-2 flex items-center gap-2 text-xs font-semibold text-white">
+                <PlayCircle className="w-4 h-4 text-[#ec4899]" />
+                Preview image
+              </div>
+            </div>
+          )}
+        </>
       ) : (
         <div className="text-center px-4">
           <div className="w-12 h-12 mx-auto mb-2 bg-[#1877F2] rounded-xl flex items-center justify-center">
@@ -188,9 +190,9 @@ function CreativePreview({ ad }: { ad: Ad }) {
         </div>
       )}
 
-      {isVideo && !canUseVideoFile && !canUseEmbed && (
+      {isVideo && !canUseVideoFile && !poster && (
         <div className="absolute inset-0 bg-black/35 flex items-center justify-center">
-          <div className="rounded-full bg-black/70 border border-[#e4defa] px-3 py-2 flex items-center gap-2 text-xs font-semibold text-[#312b63]">
+          <div className="rounded-full bg-black/70 border border-white/15 px-3 py-2 flex items-center gap-2 text-xs font-semibold text-white">
             <PlayCircle className="w-4 h-4 text-[#db2777]" />
             Video creative
           </div>
@@ -201,14 +203,14 @@ function CreativePreview({ ad }: { ad: Ad }) {
       <div className="absolute top-2 left-2 rounded-full bg-black/70 border border-[#e4defa] px-2 py-1 text-[11px] font-semibold text-[#312b63]">
         {isVideo ? 'Video' : 'Image'}
       </div>
-      {isVideo && !canUseVideoFile && !canUseEmbed && media.previewUrl && (
+      {isVideo && !canUseVideoFile && previewUrl && (
         <a
-          href={media.previewUrl}
+          href={previewUrl}
           target="_blank"
           rel="noreferrer"
           className="absolute bottom-2 right-2 rounded-full bg-gradient-to-r from-[#ec4899] to-[#a855f7] text-white px-3 py-1.5 text-xs font-semibold flex items-center gap-1"
         >
-          Open preview <ExternalLink className="w-3 h-3" />
+          Open in Meta <ExternalLink className="w-3 h-3" />
         </a>
       )}
     </div>

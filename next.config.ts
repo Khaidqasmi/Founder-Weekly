@@ -23,7 +23,7 @@ const securityHeaders = [
       "media-src 'self' data: blob: https:",
       "font-src 'self' data:",
       "connect-src 'self' https:",
-      "frame-src 'self' https://www.facebook.com https://web.facebook.com https://www.instagram.com",
+      "frame-src 'self' https://www.facebook.com https://web.facebook.com https://business.facebook.com https://*.facebook.com https://www.instagram.com https://*.instagram.com",
       "frame-ancestors https://admin.shopify.com https://*.myshopify.com",
       "base-uri 'self'",
       "form-action 'self'",
