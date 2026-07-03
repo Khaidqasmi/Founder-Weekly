@@ -393,6 +393,14 @@ function StatusBadge({ status }: { status: string }) {
   return <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${colorMap[info.color]}`}>{info.label}</span>
 }
 
+function shipmentFilterDate(shipment: Shipment): Date | null {
+  return (
+    parseCourierDate(shipment.lastUpdate) ||
+    parseCourierDate(shipment.deliveredAt) ||
+    parseCourierDate(shipment.bookedAt)
+  )
+}
+
 export default function CouriersPage() {
   const [shipments, setShipments] = useState<Shipment[]>(DEMO_SHIPMENTS)
   const [loading, setLoading] = useState(false)
@@ -474,9 +482,9 @@ export default function CouriersPage() {
     if (statusFilter !== 'all' && s.deliveryStatus !== statusFilter) return false
     if (courierFilter !== 'all' && s.courier !== courierFilter) return false
     if (dateFrom && dateTo) {
-      const booked = parseCourierDate(s.bookedAt || s.lastUpdate)
-      if (!booked) return false
-      if (booked < dateFrom || booked > dateTo) return false
+      const shipmentDate = shipmentFilterDate(s)
+      if (!shipmentDate) return false
+      if (shipmentDate < dateFrom || shipmentDate > dateTo) return false
     }
     if (searchQuery) {
       const q = searchQuery.toLowerCase()
@@ -495,9 +503,9 @@ export default function CouriersPage() {
   // KPIs based on date-filtered shipments (status/search filters excluded so totals reflect the date range)
   const dateFiltered = shipments.filter((s) => {
     if (!dateFrom || !dateTo) return true
-    const booked = parseCourierDate(s.bookedAt || s.lastUpdate)
-    if (!booked) return false
-    return booked >= dateFrom && booked <= dateTo
+    const shipmentDate = shipmentFilterDate(s)
+    if (!shipmentDate) return false
+    return shipmentDate >= dateFrom && shipmentDate <= dateTo
   })
 
   useEffect(() => {

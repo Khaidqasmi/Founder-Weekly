@@ -68,6 +68,42 @@ function firstString(...values: any[]) {
   return values.find((value) => typeof value === 'string' && value.trim()) || ''
 }
 
+function summarizePostExItem(item: any): string {
+  if (!item) return ''
+  if (typeof item === 'string') return item.trim()
+  if (typeof item !== 'object') return ''
+
+  const name = firstString(
+    item.productName,
+    item.product_name,
+    item.itemName,
+    item.item_name,
+    item.name,
+    item.title,
+    item.description,
+    item.itemDescription,
+    item.sku,
+    item.SKU
+  )
+  if (!name) return ''
+
+  const qty = Number(item.quantity || item.qty || item.orderQty || item.itemQty) || 0
+  return qty > 1 ? `${name} x${qty}` : name
+}
+
+function summarizePostExItems(value: any): string {
+  if (!value) return ''
+  if (typeof value === 'string') return value.trim()
+  if (Array.isArray(value)) return value.map(summarizePostExItem).filter(Boolean).slice(0, 3).join(', ')
+  if (typeof value === 'object') {
+    const direct = summarizePostExItem(value)
+    if (direct) return direct
+    const nested = Object.values(value).find(Array.isArray)
+    if (Array.isArray(nested)) return summarizePostExItems(nested)
+  }
+  return ''
+}
+
 async function postexProxy(resource: 'shipments' | 'remittances', token: string) {
   const res = await fetch('/api/couriers/postex', {
     method: 'POST',
@@ -198,16 +234,30 @@ export async function fetchPostExShipments(): Promise<Shipment[]> {
       s.city,
       s.destinationCity
     )
+    const trackingNumber = firstString(s.trackingNumber, s.tracking_number, s.cn)
+    const orderId = firstString(s.orderRefNumber, s.orderReferenceNumber, s.order_id, s.invoiceReference)
+    const productName = firstString(
+      s.orderDetail,
+      s.productName,
+      s.itemDescription,
+      s.product,
+      s.itemName,
+      summarizePostExItems(s.items),
+      summarizePostExItems(s.item),
+      summarizePostExItems(s.orderItems),
+      summarizePostExItems(s.lineItems),
+      summarizePostExItems(s.products)
+    ) || (orderId ? `Order ${orderId}` : trackingNumber ? `Tracking ${trackingNumber}` : 'Product not provided by PostEx')
 
     return {
-      id: firstString(s.trackingNumber, s.tracking_number, s.cn, s.orderRefNumber, s.orderReferenceNumber, s.id),
+      id: firstString(trackingNumber, orderId, s.id),
       courier: 'PostEx',
-      trackingNumber: firstString(s.trackingNumber, s.tracking_number, s.cn),
-      orderId: firstString(s.orderRefNumber, s.orderReferenceNumber, s.order_id, s.invoiceReference),
+      trackingNumber,
+      orderId,
       customerName: firstString(s.customerName, s.consigneeName, s.name),
       customerPhone: firstString(s.customerPhone, s.consigneePhone, s.phone),
       city: cityName,
-      productName: firstString(s.orderDetail, s.productName, s.itemDescription),
+      productName,
       amount: Number(s.orderAmount || s.invoicePayment || s.codAmount || s.amount) || 0,
       deliveryStatus: normalizeStatus(rawStatus),
       statusColor: statusColor(normalizeStatus(rawStatus)),
