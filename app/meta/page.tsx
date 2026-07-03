@@ -88,10 +88,26 @@ function fmt(n: number) { return formatNumber(Math.round(n)) }
 
 const PRESETS = [
   { label: 'Today', value: 'today' },
+  { label: 'Yesterday', value: 'yesterday' },
   { label: '7 Days', value: 'last_7d' },
   { label: '30 Days', value: 'last_30d' },
   { label: '90 Days', value: 'last_90d' },
+  { label: 'Custom', value: 'custom' },
 ]
+
+function dateInputValue(date: Date) {
+  return date.toISOString().split('T')[0]
+}
+
+function defaultCustomRange() {
+  const until = new Date()
+  const since = new Date()
+  since.setUTCDate(since.getUTCDate() - 29)
+  return {
+    since: dateInputValue(since),
+    until: dateInputValue(until),
+  }
+}
 
 // ─── Creative Thumbnail ───────────────────────────────────────────────────────
 
@@ -205,14 +221,23 @@ export default function MetaPage() {
   const [isDemo, setIsDemo] = useState(true)
   const [error, setError] = useState('')
   const [preset, setPreset] = useState('last_30d')
+  const [customRange, setCustomRange] = useState(defaultCustomRange)
   const [tab, setTab] = useState<ActiveTab>('overview')
   const [expandedCampaign, setExpandedCampaign] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'PAUSED'>('ALL')
 
-  async function fetchData(p = preset) {
+  async function fetchData(p = preset, range = customRange) {
     setLoading(true); setError('')
     try {
-      const res = await fetch(`/api/meta/data?preset=${p}`)
+      const params = new URLSearchParams({ preset: p })
+      if (p === 'custom') {
+        if (!range.since || !range.until) throw new Error('Select both start and end dates')
+        if (range.since > range.until) throw new Error('Start date cannot be after end date')
+        params.set('since', range.since)
+        params.set('until', range.until)
+      }
+
+      const res = await fetch(`/api/meta/data?${params.toString()}`)
       if (!res.ok) {
         const e = await res.json()
         if (e.demo) { setIsDemo(true); setData(DEMO) }
@@ -273,14 +298,46 @@ export default function MetaPage() {
         </div>
 
         {/* Date presets */}
-        <div className="flex gap-2 mb-6 flex-wrap">
+        <div className="flex gap-2 mb-3 flex-wrap">
           {PRESETS.map((p) => (
-            <button key={p.value} onClick={() => { setPreset(p.value); fetchData(p.value) }}
+            <button key={p.value} onClick={() => {
+              setPreset(p.value)
+              if (p.value !== 'custom') fetchData(p.value)
+            }}
               className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${preset === p.value ? 'bg-gradient-to-r from-[#ec4899] to-[#a855f7] text-white border-[#ec4899] font-semibold' : 'bg-white text-[#6d64b8] border-[#e4defa] hover:border-[#e4defa]'}`}>
               {p.label}
             </button>
           ))}
         </div>
+        {preset === 'custom' && (
+          <div className="bg-white border border-[#e4defa] rounded-2xl p-3 mb-6 flex flex-col sm:flex-row sm:items-end gap-3 w-full sm:w-fit">
+            <label className="text-xs font-medium text-[#6d64b8]">
+              From
+              <input
+                type="date"
+                value={customRange.since}
+                onChange={(e) => setCustomRange((range) => ({ ...range, since: e.target.value }))}
+                className="mt-1 block w-full sm:w-40 rounded-xl border border-[#e4defa] bg-[#f8f6fd] px-3 py-2 text-sm text-[#312b63] outline-none focus:border-[#ec4899]"
+              />
+            </label>
+            <label className="text-xs font-medium text-[#6d64b8]">
+              To
+              <input
+                type="date"
+                value={customRange.until}
+                onChange={(e) => setCustomRange((range) => ({ ...range, until: e.target.value }))}
+                className="mt-1 block w-full sm:w-40 rounded-xl border border-[#e4defa] bg-[#f8f6fd] px-3 py-2 text-sm text-[#312b63] outline-none focus:border-[#ec4899]"
+              />
+            </label>
+            <button
+              onClick={() => fetchData('custom', customRange)}
+              disabled={loading}
+              className="rounded-xl bg-gradient-to-r from-[#ec4899] to-[#a855f7] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+            >
+              Apply
+            </button>
+          </div>
+        )}
 
         {/* Error */}
         {error && (
