@@ -20,6 +20,7 @@ import { notify } from '@/lib/notifications'
 import { Eye, EyeOff, RefreshCw, Search, Upload, X, ZoomIn, FileText, ExternalLink } from 'lucide-react'
 
 const RECEIPTS_KEY = 'fw-cod-receipts'
+const PAGE_SIZE = 25
 
 interface CodReceipt {
   id: string
@@ -383,6 +384,26 @@ function StatusBadge({ status }: { status: string }) {
   return <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${colorMap[info.color]}`}>{info.label}</span>
 }
 
+function parseCourierDate(value: string) {
+  const raw = String(value || '').trim()
+  if (!raw) return null
+
+  const isoMatch = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/)
+  if (isoMatch) {
+    const [, year, month, day] = isoMatch
+    return new Date(Number(year), Number(month) - 1, Number(day))
+  }
+
+  const dmyMatch = raw.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})/)
+  if (dmyMatch) {
+    const [, day, month, year] = dmyMatch
+    return new Date(Number(year), Number(month) - 1, Number(day))
+  }
+
+  const parsed = new Date(raw)
+  return Number.isNaN(parsed.getTime()) ? null : parsed
+}
+
 export default function CouriersPage() {
   const [shipments, setShipments] = useState<Shipment[]>(DEMO_SHIPMENTS)
   const [loading, setLoading] = useState(false)
@@ -394,6 +415,7 @@ export default function CouriersPage() {
   const [statusFilter, setStatusFilter] = useState('all')
   const [courierFilter, setCourierFilter] = useState('all')
   const [dateFilter, setDateFilter] = useState('all')
+  const [page, setPage] = useState(1)
 
   function readConnectedCouriers() {
     if (typeof window === 'undefined') return []
@@ -453,6 +475,7 @@ export default function CouriersPage() {
     if (filter === '3m') { const f = new Date(today); f.setMonth(f.getMonth() - 3); return { from: f, to: now } }
     if (filter === '6m') { const f = new Date(today); f.setMonth(f.getMonth() - 6); return { from: f, to: now } }
     if (filter === '1y') { const f = new Date(today); f.setFullYear(f.getFullYear() - 1); return { from: f, to: now } }
+    if (filter === '3y') { const f = new Date(today); f.setFullYear(f.getFullYear() - 3); return { from: f, to: now } }
     return { from: null, to: null }
   }
 
@@ -462,7 +485,8 @@ export default function CouriersPage() {
     if (statusFilter !== 'all' && s.deliveryStatus !== statusFilter) return false
     if (courierFilter !== 'all' && s.courier !== courierFilter) return false
     if (dateFrom && dateTo) {
-      const booked = new Date(s.bookedAt)
+      const booked = parseCourierDate(s.bookedAt || s.lastUpdate)
+      if (!booked) return false
       if (booked < dateFrom || booked > dateTo) return false
     }
     if (searchQuery) {
@@ -482,9 +506,14 @@ export default function CouriersPage() {
   // KPIs based on date-filtered shipments (status/search filters excluded so totals reflect the date range)
   const dateFiltered = shipments.filter((s) => {
     if (!dateFrom || !dateTo) return true
-    const booked = new Date(s.bookedAt)
+    const booked = parseCourierDate(s.bookedAt || s.lastUpdate)
+    if (!booked) return false
     return booked >= dateFrom && booked <= dateTo
   })
+
+  useEffect(() => {
+    setPage(1)
+  }, [searchQuery, statusFilter, courierFilter, dateFilter, shipments.length])
 
   const totalShipments = dateFiltered.length
   const delivered = dateFiltered.filter((s) => s.deliveryStatus === 'delivered').length
@@ -496,6 +525,10 @@ export default function CouriersPage() {
   const returnRate = totalShipments > 0 ? ((returned / totalShipments) * 100).toFixed(1) : '0'
 
   const uniqueCouriers = [...new Set(dateFiltered.map((s) => s.courier))]
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const safePage = Math.min(page, totalPages)
+  const pageStart = (safePage - 1) * PAGE_SIZE
+  const paginated = filtered.slice(pageStart, pageStart + PAGE_SIZE)
 
   return (
     <div className="min-h-screen bg-[#f5f3fb]">
@@ -586,6 +619,7 @@ export default function CouriersPage() {
             { label: '3 Months', value: '3m' },
             { label: '6 Months', value: '6m' },
             { label: '1 Year', value: '1y' },
+            { label: '3 Years', value: '3y' },
           ].map((p) => (
             <button
               key={p.value}
@@ -632,7 +666,21 @@ export default function CouriersPage() {
           </Select>
         </div>
 
-        <p className="text-xs text-[#6d64b8] mb-2">{filtered.length} shipment{filtered.length !== 1 ? 's' : ''} found</p>
+        <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs text-[#6d64b8]">
+            {filtered.length} shipment{filtered.length !== 1 ? 's' : ''} found
+            {filtered.length > 0 && ` - showing ${pageStart + 1}-${Math.min(pageStart + PAGE_SIZE, filtered.length)}`}
+          </p>
+          {totalPages > 1 && (
+            <div className="flex items-center gap-1">
+              <Button variant="outline" size="sm" className="h-8 px-2 text-xs" onClick={() => setPage(1)} disabled={safePage === 1}>First</Button>
+              <Button variant="outline" size="sm" className="h-8 px-2 text-xs" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={safePage === 1}>Prev</Button>
+              <span className="px-2 text-xs font-medium text-[#6d64b8]">Page {safePage} of {totalPages}</span>
+              <Button variant="outline" size="sm" className="h-8 px-2 text-xs" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={safePage === totalPages}>Next</Button>
+              <Button variant="outline" size="sm" className="h-8 px-2 text-xs" onClick={() => setPage(totalPages)} disabled={safePage === totalPages}>Last</Button>
+            </div>
+          )}
+        </div>
 
         {/* Shipments Table */}
         <Card>
@@ -640,10 +688,10 @@ export default function CouriersPage() {
             {loading ? (
               <LoadingSpinner />
             ) : (
-              <div className="overflow-x-auto">
-                <Table>
+              <div className="max-h-[70vh] overflow-auto">
+                <Table className="min-w-[1120px]">
                   <TableHeader>
-                    <TableRow>
+                    <TableRow className="sticky top-0 z-10 bg-white">
                       <TableHead>Courier</TableHead>
                       <TableHead>Tracking #</TableHead>
                       <TableHead>Order ID</TableHead>
@@ -658,7 +706,7 @@ export default function CouriersPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filtered.map((s) => (
+                    {paginated.map((s) => (
                       <TableRow key={`${s.courier}-${s.id}`}>
                         <TableCell className="font-medium text-xs">{s.courier}</TableCell>
                         <TableCell className="font-mono text-xs">{s.trackingNumber}</TableCell>
@@ -686,6 +734,15 @@ export default function CouriersPage() {
             )}
           </CardContent>
         </Card>
+        {totalPages > 1 && (
+          <div className="mt-3 flex flex-wrap items-center justify-end gap-1">
+            <Button variant="outline" size="sm" className="h-8 px-2 text-xs" onClick={() => setPage(1)} disabled={safePage === 1}>First</Button>
+            <Button variant="outline" size="sm" className="h-8 px-2 text-xs" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={safePage === 1}>Prev</Button>
+            <span className="px-2 text-xs font-medium text-[#6d64b8]">Page {safePage} of {totalPages}</span>
+            <Button variant="outline" size="sm" className="h-8 px-2 text-xs" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={safePage === totalPages}>Next</Button>
+            <Button variant="outline" size="sm" className="h-8 px-2 text-xs" onClick={() => setPage(totalPages)} disabled={safePage === totalPages}>Last</Button>
+          </div>
+        )}
 
         {/* COD Receipts */}
         <CodReceiptsSection couriers={uniqueCouriers} />

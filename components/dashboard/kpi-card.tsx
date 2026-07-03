@@ -9,9 +9,9 @@ interface KPICardProps {
 export function KPICard({ title, value, subtitle }: KPICardProps) {
   return (
     <Card>
-      <CardContent className="pt-6">
+      <CardContent className="min-w-0 pt-6">
         <p className="text-sm text-[#6d64b8]">{title}</p>
-        <p className="text-2xl font-bold mt-1">{value}</p>
+        <p className="mt-1 min-w-0 break-words text-[clamp(1rem,1.55vw,1.5rem)] font-bold leading-tight">{value}</p>
         {subtitle && <p className="text-xs text-[#8d87b8] mt-1">{subtitle}</p>}
       </CardContent>
     </Card>
