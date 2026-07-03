@@ -4,7 +4,7 @@ import { buildAIContext, resolveDateRange, resolveDateRangeForDays } from '@/lib
 import { getCachedContext, setCachedContext, isRateLimited } from '@/lib/ai/cache'
 import { AI_SYSTEM_PROMPT } from '@/lib/ai/system-prompt'
 import { sanitizeAIAnswer } from '@/lib/ai/format'
-import { parseRangeDaysFromMessage } from '@/lib/ai/parse-range'
+import { parseExplicitDateRangeFromMessage, parseRangeDaysFromMessage } from '@/lib/ai/parse-range'
 import { AI_TOOLS } from '@/lib/ai/tools'
 import { queryWorkspaceData } from '@/lib/ai/db-reader'
 
@@ -49,8 +49,9 @@ export async function POST(request: NextRequest) {
   // 7-day default. Without this, questions about longer periods than the
   // client happened to send would always look like "no data" even though
   // the workspace has it.
-  const parsedDays = !body?.from && !body?.to ? parseRangeDaysFromMessage(message) : null
-  const range = parsedDays !== null ? resolveDateRangeForDays(parsedDays) : resolveDateRange(body?.from, body?.to)
+  const parsedExplicitRange = !body?.from && !body?.to ? parseExplicitDateRangeFromMessage(message) : null
+  const parsedDays = !body?.from && !body?.to && !parsedExplicitRange ? parseRangeDaysFromMessage(message) : null
+  const range = parsedExplicitRange || (parsedDays !== null ? resolveDateRangeForDays(parsedDays) : resolveDateRange(body?.from, body?.to))
   const cacheKey = `${member.workspace_id}:${range.from}:${range.to}`
   let context = getCachedContext(cacheKey)
   if (!context) {
@@ -149,4 +150,3 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to reach the AI service.' }, { status: 502 })
   }
 }
-
