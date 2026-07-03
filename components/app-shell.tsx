@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { AIAssistant } from '@/components/ai-assistant/ai-assistant'
 
 const COLLAPSE_KEY = 'fw-sidebar-collapsed'
 
@@ -302,6 +303,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </header>
         <main className="flex-1">{children}</main>
       </div>
+
+      {isLoggedIn && <AIAssistant />}
     </div>
   )
 }
