@@ -59,6 +59,14 @@ export function resolveDateRange(fromRaw?: string | null, toRaw?: string | null)
   return { from, to, label }
 }
 
+/** Resolves a compact from/to range spanning the last N days (inclusive of today). */
+export function resolveDateRangeForDays(days: number) {
+  const to = new Date().toISOString().split('T')[0]
+  const from = dateNDaysAgo(days)
+  const label = days === 0 ? 'today' : `last_${days + 1}_days`
+  return { from, to, label }
+}
+
 export async function buildAIContext(
   supabase: SupabaseClient,
   workspaceId: string,

@@ -76,18 +76,19 @@ export function AIAssistant() {
 
   return (
     <>
-      {/* Floating button */}
-      <button
-        onClick={() => setOpen((v) => !v)}
-        aria-label={open ? 'Close AI assistant' : 'Open AI assistant'}
-        className={cn(
-          'fixed bottom-5 right-5 z-[60] flex h-13 w-13 items-center justify-center rounded-full bg-gradient-to-br from-[#8b5cf6] to-[#ec4899] text-white shadow-[0_8px_24px_rgba(139,92,246,0.45)] transition-transform hover:scale-105 active:scale-95 sm:bottom-6 sm:right-6',
-          open && 'scale-95'
-        )}
-        style={{ height: 52, width: 52 }}
-      >
-        {open ? <X className="h-5 w-5" /> : <Bot className="h-5.5 w-5.5" />}
-      </button>
+      {/* Floating button — hidden while the panel is open since the panel
+          has its own header close button, and this fixed circle would
+          otherwise sit on top of the panel's input row. */}
+      {!open && (
+        <button
+          onClick={() => setOpen(true)}
+          aria-label="Open AI assistant"
+          className="fixed bottom-5 right-5 z-[60] flex h-13 w-13 items-center justify-center rounded-full bg-gradient-to-br from-[#8b5cf6] to-[#ec4899] text-white shadow-[0_8px_24px_rgba(139,92,246,0.45)] transition-transform hover:scale-105 active:scale-95 sm:bottom-6 sm:right-6"
+          style={{ height: 52, width: 52 }}
+        >
+          <Bot className="h-5.5 w-5.5" />
+        </button>
+      )}
 
       {/* Chat panel */}
       {open && (
@@ -97,7 +98,7 @@ export function AIAssistant() {
 
           <div
             className={cn(
-              'fixed z-[58] flex flex-col bg-[#1c1642] shadow-2xl',
+              'fixed z-[58] flex flex-col overflow-hidden bg-[#1c1642] shadow-2xl',
               // Mobile: bottom sheet
               'inset-x-0 bottom-0 max-h-[80vh] rounded-t-2xl border-t border-white/10',
               // Desktop: small panel bottom-right
@@ -107,7 +108,7 @@ export function AIAssistant() {
             {/* Header */}
             <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
               <div className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-[#8b5cf6] to-[#ec4899]">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#8b5cf6] to-[#ec4899]">
                   <Sparkles className="h-4 w-4 text-white" />
                 </div>
                 <div>
@@ -117,19 +118,19 @@ export function AIAssistant() {
               </div>
               <button
                 onClick={() => setOpen(false)}
-                aria-label="Close"
-                className="flex h-7 w-7 items-center justify-center rounded-full text-white/60 hover:bg-white/10 hover:text-white"
+                aria-label="Close AI assistant"
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-white/60 hover:bg-white/10 hover:text-white"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
 
             {/* Messages */}
-            <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto px-4 py-3">
+            <div ref={scrollRef} className="min-w-0 flex-1 space-y-3 overflow-y-auto overflow-x-hidden px-4 py-3">
               {messages.map((m) => (
                 <div
                   key={m.id}
-                  className={cn('max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed whitespace-pre-wrap', m.role === 'user'
+                  className={cn('max-w-[85%] min-w-0 rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed whitespace-pre-wrap break-words [overflow-wrap:anywhere]', m.role === 'user'
                     ? 'ml-auto bg-gradient-to-br from-[#8b5cf6] to-[#ec4899] text-white'
                     : 'mr-auto bg-white/[0.07] text-white/90')}
                 >
@@ -143,7 +144,7 @@ export function AIAssistant() {
                 </div>
               )}
               {error && (
-                <div className="mr-auto max-w-[85%] rounded-2xl bg-red-500/15 px-3.5 py-2.5 text-sm text-red-300">
+                <div className="mr-auto max-w-[85%] min-w-0 rounded-2xl bg-red-500/15 px-3.5 py-2.5 text-sm text-red-300 break-words [overflow-wrap:anywhere]">
                   {error}
                 </div>
               )}
@@ -159,7 +160,7 @@ export function AIAssistant() {
                   placeholder="Ask about revenue, ads, courier, stock…"
                   rows={1}
                   maxLength={MAX_LENGTH}
-                  className="max-h-24 flex-1 resize-none bg-transparent px-2 py-1.5 text-sm text-white placeholder:text-white/40 outline-none"
+                  className="max-h-24 min-w-0 flex-1 resize-none bg-transparent px-2 py-1.5 text-sm text-white placeholder:text-white/40 outline-none"
                 />
                 <button
                   onClick={sendMessage}
