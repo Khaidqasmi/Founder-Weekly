@@ -173,7 +173,7 @@ export async function syncMetaAdsData(ctx: SyncContext) {
       `&access_token=${encodeURIComponent(cleanAccessToken)}`
 
     const res = await fetchWithReadableError(url, undefined, 'Meta API')
-    if (!res.ok) throw new Error(await formatHttpError(res, 'Meta API'))
+    if (!res.ok) throw new Error(await formatMetaError(res))
     const data = await res.json()
     const rows = data.data || []
 
@@ -314,6 +314,28 @@ async function formatHttpError(response: Response, label: string) {
   const text = await response.text().catch(() => '')
   const message = text.slice(0, 300) || response.statusText
   return `${label}: ${response.status} ${message}`
+}
+
+// Meta's raw error JSON (e.g. {"error":{"message":"API access blocked.",...}})
+// is unreadable to end users. Give the same actionable guidance the
+// Meta Ads dashboard page already shows for this specific failure, and fall
+// back to the generic HTTP error formatting for anything else.
+async function formatMetaError(response: Response) {
+  const text = await response.text().catch(() => '')
+  let message = ''
+  try {
+    message = String(JSON.parse(text)?.error?.message || '')
+  } catch {}
+
+  if (message.toLowerCase().includes('api access blocked')) {
+    return (
+      'Meta API access blocked. Reconnect Meta from Integrations with a fresh token, ' +
+      'then verify the Meta app has ads_read permission with Marketing API Access ' +
+      'and that this user has access to the selected ad account.'
+    )
+  }
+
+  return `Meta API: ${response.status} ${message || text.slice(0, 300) || response.statusText}`
 }
 
 export async function resolveShopifyAccessToken(shopDomain: string, accessTokenOrClientId: string, clientSecret: string) {
