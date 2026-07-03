@@ -263,7 +263,19 @@ export async function fetchPostExShipments(): Promise<Shipment[]> {
       statusColor: statusColor(normalizeStatus(rawStatus)),
       bookedAt: firstString(s.createdAt, s.transactionDate, s.orderDate, s.orderPickupDate, s.bookingDate, s.bookedAt),
       deliveredAt: firstString(s.deliveredAt, s.orderDeliveryDate, s.deliveryDate) || undefined,
-      lastUpdate: firstString(s.updatedAt, s.statusDate, s.transactionDate, s.orderDate, s.orderPickupDate),
+      lastUpdate: firstString(
+        s.updatedAt,
+        s.statusDate,
+        s.lastUpdatedAt,
+        s.lastUpdate,
+        latestHistory?.transactionStatusDate,
+        latestHistory?.statusDate,
+        latestHistory?.updatedAt,
+        latestHistory?.createdAt,
+        s.transactionDate,
+        s.orderDate,
+        s.orderPickupDate
+      ),
       remarks: firstString(rawStatus, s.statusMessage, s.transactionNotes),
     }
   })
