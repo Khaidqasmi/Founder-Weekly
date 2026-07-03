@@ -17,6 +17,10 @@ import {
   getROASByCampaign, getOrderStatusBreakdown, calculateAdRevenue,
   calculateCODOrders, calculateConfirmedCODOrders, calculateCancelledOrders,
 } from '@/lib/calculations'
+import { fetchAllShipments } from '@/lib/integrations/couriers/client'
+import { DELIVERY_STATUSES } from '@/lib/integrations/couriers/types'
+import type { Shipment } from '@/lib/integrations/couriers/types'
+import { parseCourierDate } from '@/lib/integrations/couriers/format'
 
 // Charts are code-split so recharts stays out of the initial bundle — the
 // KPIs and layout paint immediately while the chart chunk loads in parallel.
@@ -86,6 +90,32 @@ const DATE_PRESETS: { label: string; fromDays?: number; toDays?: number; all?: b
   { label: 'All', all: true },
 ]
 
+function shipmentActivityDate(shipment: Shipment): Date | null {
+  return (
+    parseCourierDate(shipment.lastUpdate) ||
+    parseCourierDate(shipment.deliveredAt) ||
+    parseCourierDate(shipment.bookedAt)
+  )
+}
+
+function inDashboardDateRange(date: Date | null, from: string, to: string) {
+  if (!from || !to) return true
+  if (!date) return false
+  const start = new Date(`${from}T00:00:00`)
+  const end = new Date(`${to}T23:59:59.999`)
+  return date >= start && date <= end
+}
+
+function hasCourierCredentials() {
+  if (typeof window === 'undefined') return false
+  return [
+    'fwgr_trax_api_key',
+    'fwgr_leopards_api_key',
+    'fwgr_callcourier_login_id',
+    'fwgr_postex_api_token',
+  ].some((key) => !!localStorage.getItem(key))
+}
+
 /* ---------- Pastel table styling ---------- */
 
 const thClass = 'px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wider text-[#8d87b8]'
@@ -151,6 +181,7 @@ export default function DashboardPage() {
   const [dateFrom, setDateFrom] = useState(daysAgoStr(0))
   const [dateTo, setDateTo] = useState(daysAgoStr(0))
   const [syncing, setSyncing] = useState<string | null>(null)
+  const [courierShipments, setCourierShipments] = useState<Shipment[]>([])
   const fetchSeq = useRef(0)
 
   async function fetchDashboard(from?: string, to?: string) {
@@ -236,6 +267,25 @@ export default function DashboardPage() {
   }, [])
 
   useEffect(() => {
+    let cancelled = false
+
+    async function loadCourierShipments() {
+      if (!hasCourierCredentials()) return
+      try {
+        const result = await fetchAllShipments()
+        if (!cancelled) setCourierShipments(result.shipments)
+      } catch {
+        if (!cancelled) setCourierShipments([])
+      }
+    }
+
+    loadCourierShipments()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
     if (!isLoggedIn) return
     const interval = setInterval(() => {
       // Skip background polling when the tab is hidden to cut server load
@@ -261,6 +311,24 @@ export default function DashboardPage() {
     () => (data?.charts?.ordersByDay || []).map((d: any) => Number(d.value) || 0),
     [data?.charts?.ordersByDay]
   )
+  const courierStatusBreakdown = useMemo(() => {
+    const breakdown: Record<string, number> = {}
+    courierShipments
+      .filter((shipment) => inDashboardDateRange(shipmentActivityDate(shipment), dateFrom, dateTo))
+      .forEach((shipment) => {
+        const key = shipment.deliveryStatus || 'unknown'
+        const label = DELIVERY_STATUSES[key]?.label || key
+        breakdown[label] = (breakdown[label] || 0) + 1
+      })
+
+    return Object.entries(breakdown)
+      .map(([label, value]) => ({ label, value }))
+      .sort((a, b) => b.value - a.value)
+  }, [courierShipments, dateFrom, dateTo])
+  const statusBreakdownData = courierStatusBreakdown.length > 0
+    ? courierStatusBreakdown
+    : data?.charts?.orderStatusBreakdown || []
+  const statusBreakdownTitle = courierStatusBreakdown.length > 0 ? 'Courier Status Breakdown' : 'Order Status Breakdown'
 
   if (loading) {
     return (
@@ -436,7 +504,7 @@ export default function DashboardPage() {
             <BarChartWidget data={data.charts.adSpendByCampaign} title="Ad Spend by Campaign" from="#8b5cf6" to="#c4b5fd" />
             <BarChartWidget data={data.charts.roasByCampaign} title="ROAS by Campaign" from="#d946ef" to="#f0abfc" />
             <BarChartWidget data={topProductsChart} title="Top Products by Revenue" from="#6d64b8" to="#a78bfa" />
-            <DonutChartWidget data={data.charts.orderStatusBreakdown || []} title="Order Status Breakdown" centerLabel="Orders" />
+            <DonutChartWidget data={statusBreakdownData} title={statusBreakdownTitle} centerLabel="Orders" />
           </div>
 
           {/* Tables */}
