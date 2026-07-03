@@ -18,14 +18,18 @@ function getStoredKey(key: string): string {
 
 function normalizeStatus(raw: string): string {
   const s = raw.toLowerCase().trim()
+  // Un-booked must be checked before the generic "book" rule below.
+  if (s.includes('unbook') || s.includes('un-book')) return 'booked'
   if (['delivered', 'completed', 'dlvd'].some((k) => s.includes(k))) return 'delivered'
+  // PostEx: "Out For Return" is a return-in-progress; check before generic return.
   if (['return', 'rto', 'rts'].some((k) => s.includes(k))) return 'returned'
   if (['cancel'].some((k) => s.includes(k))) return 'cancelled'
   if (['out for delivery', 'ofd', 'dispatched to consignee'].some((k) => s.includes(k))) return 'out_for_delivery'
-  if (['transit', 'hub', 'received at', 'forwarded', 'enroute'].some((k) => s.includes(k))) return 'in_transit'
+  // PostEx transit-like statuses: "PostEx WareHouse", "En-Route to PostEx warehouse".
+  if (['transit', 'hub', 'received at', 'forwarded', 'enroute', 'en-route', 'en route', 'warehouse', 'on root', 'on route'].some((k) => s.includes(k))) return 'in_transit'
   if (['pick', 'collected'].some((k) => s.includes(k))) return 'picked'
   if (['book', 'created', 'registered'].some((k) => s.includes(k))) return 'booked'
-  if (['fail', 'attempt', 'undelivered'].some((k) => s.includes(k))) return 'failed'
+  if (['fail', 'attempt', 'undelivered', 'expired', 'under review'].some((k) => s.includes(k))) return 'failed'
   if (['hold', 'pending'].some((k) => s.includes(k))) return 'on_hold'
   return 'unknown'
 }
@@ -167,23 +171,43 @@ export async function fetchPostExShipments(): Promise<Shipment[]> {
   const data = await postexProxy('shipments', token)
   const rows = firstArray(data.dist, data.data, data.orders, data.shipments, data)
 
-  return rows.map((s: any) => ({
-    id: firstString(s.trackingNumber, s.tracking_number, s.cn, s.orderRefNumber, s.orderReferenceNumber, s.id),
-    courier: 'PostEx',
-    trackingNumber: firstString(s.trackingNumber, s.tracking_number, s.cn),
-    orderId: firstString(s.orderRefNumber, s.orderReferenceNumber, s.order_id, s.invoiceReference),
-    customerName: firstString(s.customerName, s.consigneeName, s.name),
-    customerPhone: firstString(s.customerPhone, s.consigneePhone, s.phone),
-    city: firstString(s.deliveryAddress?.cityName, s.cityName, s.city, s.destinationCity),
-    productName: firstString(s.orderDetail, s.productName, s.itemDescription, s.items),
-    amount: Number(s.orderAmount || s.invoicePayment || s.codAmount || s.amount) || 0,
-    deliveryStatus: normalizeStatus(firstString(s.orderStatus, s.transactionStatus, s.status)),
-    statusColor: statusColor(normalizeStatus(firstString(s.orderStatus, s.transactionStatus, s.status))),
-    bookedAt: firstString(s.createdAt, s.transactionDate, s.orderDate, s.orderPickupDate, s.bookingDate, s.bookedAt),
-    deliveredAt: firstString(s.deliveredAt, s.orderDeliveryDate, s.deliveryDate) || undefined,
-    lastUpdate: firstString(s.updatedAt, s.statusDate, s.transactionDate, s.orderDate, s.orderPickupDate),
-    remarks: firstString(s.orderStatus, s.transactionStatus, s.status, s.statusMessage),
-  }))
+  return rows.map((s: any) => {
+    // §3.16: latest status can come from transactionStatus or the last entry of
+    // transactionStatusHistory ({ transactionStatusMessage, transactionStatusMessageCode }).
+    const history = Array.isArray(s.transactionStatusHistory) ? s.transactionStatusHistory : []
+    const latestHistory = history.length ? history[history.length - 1] : null
+    const rawStatus = firstString(
+      s.orderStatus,
+      s.transactionStatus,
+      s.status,
+      latestHistory?.transactionStatusMessage
+    )
+    // deliveryAddress is a plain string in the guide, but tolerate an object shape too.
+    const cityName = firstString(
+      s.cityName,
+      typeof s.deliveryAddress === 'object' ? s.deliveryAddress?.cityName : '',
+      s.city,
+      s.destinationCity
+    )
+
+    return {
+      id: firstString(s.trackingNumber, s.tracking_number, s.cn, s.orderRefNumber, s.orderReferenceNumber, s.id),
+      courier: 'PostEx',
+      trackingNumber: firstString(s.trackingNumber, s.tracking_number, s.cn),
+      orderId: firstString(s.orderRefNumber, s.orderReferenceNumber, s.order_id, s.invoiceReference),
+      customerName: firstString(s.customerName, s.consigneeName, s.name),
+      customerPhone: firstString(s.customerPhone, s.consigneePhone, s.phone),
+      city: cityName,
+      productName: firstString(s.orderDetail, s.productName, s.itemDescription),
+      amount: Number(s.orderAmount || s.invoicePayment || s.codAmount || s.amount) || 0,
+      deliveryStatus: normalizeStatus(rawStatus),
+      statusColor: statusColor(normalizeStatus(rawStatus)),
+      bookedAt: firstString(s.createdAt, s.transactionDate, s.orderDate, s.orderPickupDate, s.bookingDate, s.bookedAt),
+      deliveredAt: firstString(s.deliveredAt, s.orderDeliveryDate, s.deliveryDate) || undefined,
+      lastUpdate: firstString(s.updatedAt, s.statusDate, s.transactionDate, s.orderDate, s.orderPickupDate),
+      remarks: firstString(rawStatus, s.statusMessage, s.transactionNotes),
+    }
+  })
 }
 
 export async function fetchAllShipments(): Promise<{ shipments: Shipment[]; errors: string[] }> {
@@ -245,16 +269,21 @@ export async function fetchPostExRemittances(): Promise<Remittance[]> {
   const data = await postexProxy('remittances', token)
   const rows = firstArray(data.dist, data.data, data.remittances, data)
 
-  return rows.map((r: any) => ({
-    id: firstString(r.remittanceRefNumber, r.remittanceNo, r.id, r.cprNumber_1, r.cprNumber),
-    courier: 'PostEx',
-    remittanceNo: firstString(r.remittanceRefNumber, r.remittanceNo, r.id, r.cprNumber_1, r.cprNumber),
-    date: firstString(r.remittanceDate, r.settlementDate, r.upfrontPaymentDate, r.createdAt),
-    amount: Number(r.remittanceAmount || r.amount || r.invoicePayment || r.codAmount || r.upfrontPayment || r.reservePayment) || 0,
-    shipmentCount: Number(r.orderCount || r.shipments || r.shipmentCount) || 0,
-    status: firstString(r.status, r.paymentStatus).toLowerCase().includes('paid') || r.settle === true ? 'paid' : 'pending',
-    pdfUrl: firstString(r.slipUrl, r.pdfUrl, r.url) || undefined,
-  }))
+  return rows.map((r: any) => {
+    const settled = r.settle === true || firstString(r.status, r.paymentStatus).toLowerCase().includes('paid')
+    const trackingNumber = firstString(r.trackingNumber, r.tracking_number)
+    return {
+      id: firstString(r.cprNumber_1, r.cprNumber_2, r.remittanceRefNumber, r.remittanceNo, trackingNumber, r.id),
+      courier: 'PostEx',
+      // Cash Payment Receipt number (§3.14) is PostEx's slip reference; fall back to tracking #.
+      remittanceNo: firstString(r.cprNumber_1, r.cprNumber_2, r.remittanceRefNumber, trackingNumber),
+      date: firstString(r.settlementDate, r.reservePaymentDate, r.upfrontPaymentDate, r.remittanceDate, r.createdAt),
+      amount: Number(r.amount || r.invoicePayment || r.remittanceAmount || r.codAmount || r.upfrontPayment || r.reservePayment) || 0,
+      shipmentCount: Number(r.orderCount || r.shipments || r.shipmentCount) || (trackingNumber ? 1 : 0),
+      status: settled ? 'paid' : 'pending',
+      pdfUrl: firstString(r.slipUrl, r.pdfUrl, r.url) || undefined,
+    } as Remittance
+  })
 }
 
 export async function fetchTraxRemittances(): Promise<Remittance[]> {
