@@ -60,11 +60,18 @@ function CodReceiptsSection({ couriers }: { couriers: string[] }) {
   const [remittances, setRemittances] = useState<Remittance[]>([])
   const [fetching, setFetching] = useState(false)
   const [fetchErrors, setFetchErrors] = useState<string[]>([])
-  const hasApiKeys = typeof window !== 'undefined' && (
-    !!localStorage.getItem('fwgr_trax_api_key') ||
-    !!localStorage.getItem('fwgr_leopards_api_key') ||
-    !!localStorage.getItem('fwgr_postex_api_token')
-  )
+  // Read from localStorage only after mount — reading it during render makes
+  // the server (no window) and the client's first paint disagree, which
+  // triggers a React hydration mismatch (error #418) on whatever text this
+  // flag controls below.
+  const [hasApiKeys, setHasApiKeys] = useState(false)
+  useEffect(() => {
+    setHasApiKeys(
+      !!localStorage.getItem('fwgr_trax_api_key') ||
+      !!localStorage.getItem('fwgr_leopards_api_key') ||
+      !!localStorage.getItem('fwgr_postex_api_token')
+    )
+  }, [])
 
   // Manual receipts (fallback for couriers without API support)
   const [receipts, setReceipts] = useState<CodReceipt[]>([])

@@ -593,7 +593,13 @@ function ShopifyTab({ tab, setTab }: { tab: Tab; setTab: (tab: Tab) => void }) {
 // ─── Google Analytics Tab ────────────────────────────────────────────────────
 
 function GoogleAnalyticsTab({ tab, setTab }: { tab: Tab; setTab: (tab: Tab) => void }) {
-  const propertyId = typeof window !== 'undefined' ? localStorage.getItem('fwgr_ga4_property_id') || '' : ''
+  // Read localStorage after mount only — reading it during render disagrees
+  // between the server (no window) and the client's first paint, which
+  // triggers a React hydration mismatch on the connected/not-connected text.
+  const [propertyId, setPropertyId] = useState('')
+  useEffect(() => {
+    setPropertyId(localStorage.getItem('fwgr_ga4_property_id') || '')
+  }, [])
   const connected = !!propertyId
 
   return (
