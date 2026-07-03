@@ -16,6 +16,7 @@ import { fetchAllShipments, fetchAllRemittances } from '@/lib/integrations/couri
 import type { Remittance } from '@/lib/integrations/couriers/client'
 import { formatCurrency, formatNumber } from '@/lib/utils'
 import { toast } from 'sonner'
+import { notify } from '@/lib/notifications'
 import { Eye, EyeOff, RefreshCw, Search, Upload, X, ZoomIn, FileText, ExternalLink } from 'lucide-react'
 
 const RECEIPTS_KEY = 'fw-cod-receipts'
@@ -100,6 +101,7 @@ function CodReceiptsSection({ couriers }: { couriers: string[] }) {
     setForm({ courier: '', date: '', amount: '', notes: '' })
     setImageBase64(''); setPreview(null)
     toast.success('Receipt saved')
+    notify({ kind: 'success', title: 'Payment received', message: `COD slip saved: ${receipt.courier} — PKR ${receipt.amount.toLocaleString()}` })
   }
 
   const apiTotal = remittances.reduce((s, r) => s + r.amount, 0)
@@ -319,6 +321,7 @@ function CourierSetupCard({ provider, onCredentialsChange }: { provider: Courier
     setSaved(Object.values(values).some((v) => v.trim()))
     onCredentialsChange?.()
     toast.success(`${provider.name} credentials saved`)
+    notify({ kind: 'success', title: 'Courier update', message: `${provider.name} connected` })
   }
 
   function handleRemove() {
@@ -327,6 +330,7 @@ function CourierSetupCard({ provider, onCredentialsChange }: { provider: Courier
     setSaved(false)
     onCredentialsChange?.()
     toast.success(`${provider.name} disconnected`)
+    notify({ kind: 'info', title: 'Courier update', message: `${provider.name} disconnected` })
   }
 
   return (

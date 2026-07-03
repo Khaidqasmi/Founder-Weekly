@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label'
 import { parseCSV, validateColumns, REQUIRED_COLUMNS } from '@/lib/csv/parser'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
+import { notify } from '@/lib/notifications'
 import Link from 'next/link'
 
 const UPLOAD_TYPES = [
@@ -95,8 +96,10 @@ export default function UploadPage() {
 
     if (error) {
       toast.error(`Upload failed: ${error.message}`)
+      notify({ kind: 'error', title: 'CSV upload failed', message: error.message })
     } else {
       toast.success(`${mapped.length} rows uploaded successfully!`)
+      notify({ kind: 'success', title: 'CSV upload complete', message: `${mapped.length} rows uploaded` })
       setDone(true)
     }
     setUploading(false)

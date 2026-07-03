@@ -9,6 +9,7 @@ import { LoadingSpinner } from '@/components/loading'
 import { formatCurrency, formatNumber, formatPercent } from '@/lib/utils'
 import { RefreshCw, AlertCircle, Target, Image, LayoutGrid, ChevronDown, ChevronRight, ExternalLink, Zap, PlayCircle } from 'lucide-react'
 import { toast } from 'sonner'
+import { notify } from '@/lib/notifications'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -220,7 +221,10 @@ export default function MetaPage() {
         const d = await res.json()
         setData(d); setIsDemo(false)
       }
-    } catch (e: any) { setError(e.message) }
+    } catch (e: any) {
+      setError(e.message)
+      notify({ kind: 'error', title: 'Meta data refresh failed', message: e.message })
+    }
     setLoading(false)
   }
 

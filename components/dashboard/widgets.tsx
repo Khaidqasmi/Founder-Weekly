@@ -1,9 +1,26 @@
 'use client'
 
-import { memo, useId, useMemo, useState } from 'react'
+import { memo, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Search, Bell } from 'lucide-react'
+import { Search, Bell, CheckCheck, Settings, CreditCard, LogOut, CheckCircle2, AlertCircle, Info } from 'lucide-react'
+import { signOut } from '@/lib/auth/actions'
+import { useNotifications, markRead, markAllRead, timeAgo, type NotificationKind } from '@/lib/notifications'
+
+/** Close a dropdown when clicking/tapping outside of it. */
+function useClickOutside(ref: React.RefObject<HTMLElement | null>, onOutside: () => void) {
+  useEffect(() => {
+    function handler(e: MouseEvent | TouchEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) onOutside()
+    }
+    document.addEventListener('mousedown', handler)
+    document.addEventListener('touchstart', handler)
+    return () => {
+      document.removeEventListener('mousedown', handler)
+      document.removeEventListener('touchstart', handler)
+    }
+  }, [ref, onOutside])
+}
 
 /* ------------------------------------------------------------------ */
 /* Pastel design tokens (shared by the dashboard widget kit)           */
@@ -302,7 +319,7 @@ export function ChartLegend({ items }: { items: { label: string; color: string }
 }
 
 /* ------------------------------------------------------------------ */
-/* SearchBar — pill search that jumps to app pages                     */
+/* SearchBar — pill search with navigation suggestions                 */
 /* ------------------------------------------------------------------ */
 
 export function SearchBar({
@@ -314,55 +331,192 @@ export function SearchBar({
 }) {
   const router = useRouter()
   const [q, setQ] = useState('')
+  const [open, setOpen] = useState(false)
+  const [highlight, setHighlight] = useState(0)
+  const rootRef = useRef<HTMLDivElement>(null)
+  const close = useCallback(() => setOpen(false), [])
+  useClickOutside(rootRef, close)
 
-  function onSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    const query = q.trim().toLowerCase()
+  const query = q.trim().toLowerCase()
+  const matches = useMemo(
+    () => (query ? pages.filter((p) => p.label.toLowerCase().includes(query)) : []),
+    [pages, query]
+  )
+
+  function go(href: string) {
+    router.push(href)
+    setQ('')
+    setOpen(false)
+  }
+
+  function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'Escape') {
+      setOpen(false)
+      return
+    }
     if (!query) return
-    const match = pages.find((p) => p.label.toLowerCase().includes(query))
-    if (match) {
-      router.push(match.href)
-      setQ('')
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setOpen(true)
+      setHighlight((h) => (matches.length ? (h + 1) % matches.length : 0))
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setOpen(true)
+      setHighlight((h) => (matches.length ? (h - 1 + matches.length) % matches.length : 0))
+    } else if (e.key === 'Enter') {
+      e.preventDefault()
+      const target = matches[highlight] || matches[0]
+      if (target) go(target.href)
     }
   }
 
   return (
-    <form onSubmit={onSubmit} className={`relative ${className}`}>
+    <div ref={rootRef} className={`relative ${className}`}>
       <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40" />
       <input
         value={q}
-        onChange={(e) => setQ(e.target.value)}
+        onChange={(e) => {
+          setQ(e.target.value)
+          setOpen(true)
+          setHighlight(0)
+        }}
+        onFocus={() => q.trim() && setOpen(true)}
+        onKeyDown={onKeyDown}
         placeholder="Search pages…"
+        role="combobox"
+        aria-expanded={open && !!query}
+        aria-label="Search pages"
         className="h-9 w-full rounded-full border border-white/10 bg-white/[0.08] pl-10 pr-4 text-sm text-white placeholder:text-white/40 outline-none transition-colors focus:border-[#ec4899]/60 focus:bg-white/[0.12]"
       />
-    </form>
-  )
-}
-
-/* ------------------------------------------------------------------ */
-/* NotificationIcon — bell with pink dot                               */
-/* ------------------------------------------------------------------ */
-
-export function NotificationIcon({ href = '/actions', showDot = false }: { href?: string; showDot?: boolean }) {
-  return (
-    <Link
-      href={href}
-      aria-label="Notifications"
-      className="relative flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.08] text-white/80 transition-colors hover:bg-white/[0.15] hover:text-white"
-    >
-      <Bell className="h-4 w-4" />
-      {showDot && (
-        <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-[#ec4899] shadow-[0_0_8px_rgba(236,72,153,0.9)]" />
+      {open && query && (
+        <div className="absolute left-0 right-0 top-full z-50 mt-2 overflow-hidden rounded-2xl border border-[#eeeaf9] bg-white py-1.5 shadow-[0_16px_50px_rgba(93,77,190,0.25)]">
+          {matches.length > 0 ? (
+            matches.map((m, i) => (
+              <button
+                key={m.href}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => go(m.href)}
+                onMouseEnter={() => setHighlight(i)}
+                className={`flex w-full items-center gap-2.5 px-4 py-2 text-left text-sm font-medium transition-colors ${
+                  i === highlight ? 'bg-[#f4f0fd] text-[#312b63]' : 'text-[#4a4477]'
+                }`}
+              >
+                <Search className="h-3.5 w-3.5 shrink-0 text-[#8b5cf6]" />
+                {m.label}
+              </button>
+            ))
+          ) : (
+            <p className="px-4 py-3 text-sm text-[#8d87b8]">No results for &ldquo;{q.trim()}&rdquo;</p>
+          )}
+        </div>
       )}
-    </Link>
+    </div>
   )
 }
 
 /* ------------------------------------------------------------------ */
-/* ProfileBlock — avatar + identity (or auth pills when logged out)    */
+/* NotificationBell — bell with unread badge + dropdown feed           */
+/* ------------------------------------------------------------------ */
+
+const KIND_STYLE: Record<NotificationKind, { icon: React.ElementType; className: string }> = {
+  success: { icon: CheckCircle2, className: 'bg-emerald-50 text-emerald-600' },
+  error: { icon: AlertCircle, className: 'bg-rose-50 text-rose-600' },
+  info: { icon: Info, className: 'bg-[#f4f0fd] text-[#8b5cf6]' },
+}
+
+export function NotificationBell() {
+  const [open, setOpen] = useState(false)
+  const rootRef = useRef<HTMLDivElement>(null)
+  const close = useCallback(() => setOpen(false), [])
+  useClickOutside(rootRef, close)
+
+  const items = useNotifications()
+  const unread = items.reduce((n, i) => n + (i.read ? 0 : 1), 0)
+
+  return (
+    <div ref={rootRef} className="relative">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        aria-label={unread > 0 ? `Notifications (${unread} unread)` : 'Notifications'}
+        aria-expanded={open}
+        className="relative flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.08] text-white/80 transition-colors hover:bg-white/[0.15] hover:text-white"
+      >
+        <Bell className="h-4 w-4" />
+        {unread > 0 && (
+          <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-gradient-to-r from-[#ec4899] to-[#d946ef] px-1 text-[10px] font-bold text-white shadow-[0_0_8px_rgba(236,72,153,0.7)]">
+            {unread > 9 ? '9+' : unread}
+          </span>
+        )}
+      </button>
+
+      {open && (
+        <div className="absolute right-0 top-full z-50 mt-2 w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-[#eeeaf9] bg-white shadow-[0_16px_50px_rgba(93,77,190,0.25)]">
+          <div className="flex items-center justify-between border-b border-[#f0ecfb] px-4 py-3">
+            <p className="text-sm font-bold text-[#312b63]">Notifications</p>
+            {unread > 0 && (
+              <button
+                onClick={markAllRead}
+                className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold text-[#8b5cf6] transition-colors hover:bg-[#f4f0fd]"
+              >
+                <CheckCheck className="h-3.5 w-3.5" /> Mark all read
+              </button>
+            )}
+          </div>
+
+          {items.length === 0 ? (
+            <div className="px-4 py-10 text-center">
+              <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[#f4f0fd]">
+                <Bell className="h-5 w-5 text-[#8b5cf6]" />
+              </span>
+              <p className="mt-3 text-sm font-semibold text-[#312b63]">No notifications yet</p>
+              <p className="mt-1 text-xs text-[#8d87b8]">Order syncs, payments, and courier updates will show up here.</p>
+            </div>
+          ) : (
+            <ul className="max-h-96 overflow-y-auto">
+              {items.map((n) => {
+                const style = KIND_STYLE[n.kind] || KIND_STYLE.info
+                const KindIcon = style.icon
+                return (
+                  <li key={n.id}>
+                    <button
+                      onClick={() => markRead(n.id)}
+                      className={`flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-[#f8f6fd] ${
+                        n.read ? '' : 'bg-[#fdf0f7]/60'
+                      }`}
+                    >
+                      <span className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${style.className}`}>
+                        <KindIcon className="h-4 w-4" />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="flex items-center gap-1.5">
+                          <span className="truncate text-sm font-semibold text-[#312b63]">{n.title}</span>
+                          {!n.read && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#ec4899]" />}
+                        </span>
+                        <span className="mt-0.5 line-clamp-2 block text-xs text-[#6d64b8]">{n.message}</span>
+                        <span className="mt-1 block text-[11px] text-[#a79fd6]">{timeAgo(n.ts)}</span>
+                      </span>
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/* ProfileBlock — avatar dropdown (or auth pills when logged out)      */
 /* ------------------------------------------------------------------ */
 
 export function ProfileBlock({ email, checked }: { email: string | null; checked: boolean }) {
+  const [open, setOpen] = useState(false)
+  const rootRef = useRef<HTMLDivElement>(null)
+  const close = useCallback(() => setOpen(false), [])
+  useClickOutside(rootRef, close)
+
   if (!checked) return <div className="h-9 w-9 animate-pulse rounded-full bg-white/[0.08]" />
 
   if (!email) {
@@ -384,12 +538,39 @@ export function ProfileBlock({ email, checked }: { email: string | null; checked
     )
   }
 
+  const menuItem =
+    'flex w-full items-center gap-2.5 px-4 py-2.5 text-left text-sm font-medium text-[#4a4477] transition-colors hover:bg-[#f4f0fd] hover:text-[#312b63]'
+
   return (
-    <div className="flex items-center gap-2.5">
-      <span className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-[#8b5cf6] to-[#ec4899] text-sm font-bold uppercase text-white">
-        {email[0]}
-      </span>
-      <span className="hidden max-w-[160px] truncate text-sm font-medium text-white/85 md:block">{email}</span>
+    <div ref={rootRef} className="relative">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        aria-label="Account menu"
+        aria-expanded={open}
+        className="flex items-center gap-2.5 rounded-full transition-opacity hover:opacity-90"
+      >
+        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-[#8b5cf6] to-[#ec4899] text-sm font-bold uppercase text-white">
+          {email[0]}
+        </span>
+        <span className="hidden max-w-[160px] truncate text-sm font-medium text-white/85 md:block">{email}</span>
+      </button>
+
+      {open && (
+        <div className="absolute right-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-2xl border border-[#eeeaf9] bg-white py-1.5 shadow-[0_16px_50px_rgba(93,77,190,0.25)]">
+          <p className="truncate border-b border-[#f0ecfb] px-4 py-2.5 text-xs font-semibold text-[#8d87b8]">{email}</p>
+          <Link href="/billing" onClick={close} className={menuItem}>
+            <CreditCard className="h-4 w-4 text-[#8b5cf6]" /> Billing
+          </Link>
+          <Link href="/settings" onClick={close} className={menuItem}>
+            <Settings className="h-4 w-4 text-[#8b5cf6]" /> Settings
+          </Link>
+          <form action={signOut}>
+            <button type="submit" className={`${menuItem} border-t border-[#f0ecfb] text-rose-600 hover:text-rose-700`}>
+              <LogOut className="h-4 w-4" /> Logout
+            </button>
+          </form>
+        </div>
+      )}
     </div>
   )
 }

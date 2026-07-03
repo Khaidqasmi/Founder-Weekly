@@ -7,6 +7,7 @@ import { formatCurrency, formatNumber, formatPercent, getTrialDaysRemaining } fr
 import { toast } from 'sonner'
 import { RefreshCw, TrendingUp, ShoppingCart, Wallet, Megaphone, Target, PhoneCall, XCircle, Trophy, TrendingDown, PackageSearch, Bell } from 'lucide-react'
 import { demoOrders, demoAds, demoLeads, demoInventory, demoActions } from '@/lib/demo-data'
+import { notify } from '@/lib/notifications'
 import { DashboardCard, KPIWidget, ProgressSlider } from '@/components/dashboard/widgets'
 import {
   calculateRevenue, calculateOrders, calculateAOV, calculateAdSpend, calculateROAS,
@@ -194,14 +195,19 @@ export default function DashboardPage() {
       })
       const result = await res.json()
       if (res.ok) {
-        toast.success(`${provider} synced: ${result.result?.new || 0} new, ${result.result?.updated || 0} updated`)
+        const newCount = result.result?.new || 0
+        toast.success(`${provider} synced: ${newCount} new, ${result.result?.updated || 0} updated`)
+        notify({ kind: 'success', title: 'Sync completed', message: `${provider}: ${newCount} new, ${result.result?.updated || 0} updated` })
+        if (newCount > 0) notify({ kind: 'info', title: `${newCount} new order${newCount !== 1 ? 's' : ''}`, message: `Synced from ${provider}` })
         rangeCache.clear() // synced data invalidates every cached range
         fetchDashboard(dateFrom || undefined, dateTo || undefined)
       } else {
         toast.error(result.error)
+        notify({ kind: 'error', title: 'Sync failed', message: `${provider}: ${result.error}` })
       }
     } catch (err: any) {
       toast.error(err.message)
+      notify({ kind: 'error', title: 'Sync failed', message: `${provider}: ${err.message}` })
     }
     setSyncing(null)
   }

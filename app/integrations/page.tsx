@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
+import { notify } from '@/lib/notifications'
 import {
   AlertCircle,
   BarChart3,
@@ -466,6 +467,7 @@ export default function IntegrationsPage() {
     if (!res.ok) throw new Error(data.error || 'Failed to save credentials')
 
     toast.success(`${providerName(provider)} connected`)
+    notify({ kind: 'success', title: 'Integration connected', message: `${providerName(provider)} is now connected` })
     await loadStatus()
   }
 
@@ -496,9 +498,11 @@ export default function IntegrationsPage() {
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data.error || 'Sync failed')
       toast.success('Sync started')
+      notify({ kind: 'info', title: 'Sync started', message: `${providerName(provider)} sync is running in the background` })
       setTimeout(loadStatus, 3000)
     } catch (err: any) {
       toast.error(err.message || 'Sync failed')
+      notify({ kind: 'error', title: 'Sync failed', message: `${providerName(provider)}: ${err.message || 'Sync failed'}` })
     }
     setSyncing((state) => ({ ...state, [provider]: false }))
   }
