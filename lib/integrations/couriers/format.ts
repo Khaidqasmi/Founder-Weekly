@@ -50,13 +50,37 @@ export function parseCourierDate(input?: string | null): Date | null {
   }
 
   // dd-mm-yyyy or dd/mm/yyyy, day-first as used by many Pakistan couriers.
+  // Some PostEx responses emit month-first (mm-dd-yyyy) instead, and when both
+  // numbers are <= 12 the string is ambiguous. A day/month swap silently shifts
+  // orders months into the past (July 1 read as January 7), which breaks short
+  // date filters while long ones still pass. Resolve by validity first, then
+  // by rejecting readings that land in the future when the other one doesn't.
   m = raw.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?\s*(am|pm)?)?/i)
   if (m) {
-    const [, d, mo, y, h = '0', mi = '0', s = '0', ampm] = m
+    const [, a, b, y, h = '0', mi = '0', s = '0', ampm] = m
     const year = Number(y)
-    const month = Number(mo) - 1
-    const day = Number(d)
-    return validDate(new Date(year, month, day, toHour24(h, ampm), Number(mi), Number(s)), year, month, day)
+    const hour = toHour24(h, ampm)
+    const dayFirst = validDate(
+      new Date(year, Number(b) - 1, Number(a), hour, Number(mi), Number(s)),
+      year, Number(b) - 1, Number(a)
+    )
+    const monthFirst = validDate(
+      new Date(year, Number(a) - 1, Number(b), hour, Number(mi), Number(s)),
+      year, Number(a) - 1, Number(b)
+    )
+    if (dayFirst && !monthFirst) return dayFirst
+    if (monthFirst && !dayFirst) return monthFirst
+    if (dayFirst && monthFirst) {
+      // Both readings are plausible: prefer day-first (local convention),
+      // unless it lands in the future and the swapped reading doesn't —
+      // couriers don't report events that haven't happened yet.
+      const endOfTomorrow = new Date()
+      endOfTomorrow.setDate(endOfTomorrow.getDate() + 1)
+      endOfTomorrow.setHours(23, 59, 59, 999)
+      if (dayFirst > endOfTomorrow && monthFirst <= endOfTomorrow) return monthFirst
+      return dayFirst
+    }
+    return null
   }
 
   // dd Mon yyyy / dd-Mon-yyyy / dd Mon, yyyy.

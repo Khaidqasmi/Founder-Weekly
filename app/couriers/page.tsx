@@ -400,12 +400,14 @@ function StatusBadge({ status }: { status: string }) {
   return <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${colorMap[info.color]}`}>{info.label}</span>
 }
 
+// Most recent valid date on the shipment — a stale/unparseable lastUpdate
+// must not hide a shipment whose bookedAt/deliveredAt is recent.
 function shipmentFilterDate(shipment: Shipment): Date | null {
-  return (
-    parseCourierDate(shipment.lastUpdate) ||
-    parseCourierDate(shipment.deliveredAt) ||
-    parseCourierDate(shipment.bookedAt)
-  )
+  const candidates = [shipment.lastUpdate, shipment.deliveredAt, shipment.bookedAt]
+    .map((value) => parseCourierDate(value))
+    .filter((d): d is Date => d !== null)
+  if (candidates.length === 0) return null
+  return candidates.reduce((latest, d) => (d > latest ? d : latest))
 }
 
 export default function CouriersPage() {
@@ -466,21 +468,34 @@ export default function CouriersPage() {
     if (hasAnyKey) refreshData()
   }, [])
 
+  // Inclusive boundaries: from = start of first day (00:00:00.000),
+  // to = end of today (23:59:59.999) so same-day shipments — including ones
+  // PostEx stamps with a time later than "now" due to timezone offsets —
+  // are never excluded.
   function getDateRange(filter: string): { from: Date | null; to: Date | null } {
-    const now = new Date()
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-    if (filter === 'today') return { from: today, to: now }
+    const startOfToday = new Date()
+    startOfToday.setHours(0, 0, 0, 0)
+    const endOfToday = new Date()
+    endOfToday.setHours(23, 59, 59, 999)
+
+    if (filter === 'today') return { from: startOfToday, to: endOfToday }
     if (filter === 'yesterday') {
-      const y = new Date(today); y.setDate(y.getDate() - 1)
-      return { from: y, to: today }
+      const from = new Date(startOfToday); from.setDate(from.getDate() - 1)
+      const to = new Date(endOfToday); to.setDate(to.getDate() - 1)
+      return { from, to }
     }
-    if (filter === '7d') { const f = new Date(today); f.setDate(f.getDate() - 7); return { from: f, to: now } }
-    if (filter === '30d') { const f = new Date(today); f.setDate(f.getDate() - 30); return { from: f, to: now } }
-    if (filter === '3m') { const f = new Date(today); f.setMonth(f.getMonth() - 3); return { from: f, to: now } }
-    if (filter === '6m') { const f = new Date(today); f.setMonth(f.getMonth() - 6); return { from: f, to: now } }
-    if (filter === '1y') { const f = new Date(today); f.setFullYear(f.getFullYear() - 1); return { from: f, to: now } }
-    if (filter === '3y') { const f = new Date(today); f.setFullYear(f.getFullYear() - 3); return { from: f, to: now } }
-    return { from: null, to: null }
+
+    const from = new Date(startOfToday)
+    // "-6" = 7 calendar days including today; same idea for 30 days.
+    if (filter === '7d') from.setDate(from.getDate() - 6)
+    else if (filter === '30d') from.setDate(from.getDate() - 29)
+    else if (filter === '3m') from.setMonth(from.getMonth() - 3)
+    else if (filter === '6m') from.setMonth(from.getMonth() - 6)
+    else if (filter === '1y') from.setFullYear(from.getFullYear() - 1)
+    else if (filter === '3y') from.setFullYear(from.getFullYear() - 3)
+    else return { from: null, to: null }
+
+    return { from, to: endOfToday }
   }
 
   const { from: dateFrom, to: dateTo } = getDateRange(dateFilter)
@@ -518,6 +533,33 @@ export default function CouriersPage() {
   useEffect(() => {
     setPage(1)
   }, [searchQuery, statusFilter, courierFilter, dateFilter, shipments.length])
+
+  // TEMP DEBUG — prints every shipment's raw dates, parsed date, and pass/fail
+  // whenever a date filter is active, so misparsed PostEx dates are visible in
+  // the browser console. Remove once short-range filters are confirmed live.
+  useEffect(() => {
+    if (dateFilter === 'all' || shipments.length === 0) return
+    const { from, to } = getDateRange(dateFilter)
+    if (!from || !to) return
+    const rows = shipments.map((s) => {
+      const parsed = shipmentFilterDate(s)
+      return {
+        trackingNumber: s.trackingNumber,
+        bookedAt: s.bookedAt || '—',
+        lastUpdate: s.lastUpdate || '—',
+        deliveredAt: s.deliveredAt || '—',
+        parsed: parsed ? parsed.toLocaleString() : 'UNPARSEABLE',
+        pass: parsed ? parsed >= from && parsed <= to : false,
+      }
+    })
+    const passCount = rows.filter((r) => r.pass).length
+    console.groupCollapsed(
+      `[couriers debug] filter "${dateFilter}": ${passCount}/${rows.length} pass | range ${from.toLocaleString()} → ${to.toLocaleString()}`
+    )
+    console.table(rows)
+    console.groupEnd()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dateFilter, shipments])
 
   const totalShipments = dateFiltered.length
   const delivered = dateFiltered.filter((s) => s.deliveryStatus === 'delivered').length
