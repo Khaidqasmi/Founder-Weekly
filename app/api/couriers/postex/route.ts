@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import https from 'node:https'
 
 // PostEx Merchant API integration (Guide v4.1.9)
 // Server-side proxy so the merchant token never touches the browser and CORS is avoided.
@@ -13,7 +12,9 @@ export const maxDuration = 60
 const ATTEMPT_TIMEOUT_MS = 8000
 
 const POSTEX_ENDPOINTS = {
-  // §3.16 List Orders API — GET, params sent as a JSON body per the guide.
+  // §3.16 List Orders API — GET with query-string params (orderStatusID,
+  // startDate, endDate). The guide's "params sent as a JSON body" note does
+  // not match the live gateway's Spring @RequestParam-based implementation.
   allOrders: 'https://api.postex.pk/services/integration/api/order/v1/get-all-order',
   // §3.6 List Un-booked Orders — GET with startDate/endDate.
   unbookedOrders: 'https://api.postex.pk/services/integration/api/order/v2/get-unbooked-orders',
@@ -31,19 +32,28 @@ const POSTEX_ENDPOINTS = {
 const ALL_ORDER_STATUS_IDS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 15, 16, 17, 18]
 
 function isoDateKey(date: Date) {
-  // Guide requires yyyy-mm-dd for fromDate/toDate.
+  // yyyy-mm-dd, as both date-range parameters require.
   return date.toISOString().split('T')[0]
 }
 
 // A single wide window keeps the number of upstream calls small while still
 // covering practically every order. toDate is pushed to tomorrow so orders
 // created "today" in PKT are never missed due to UTC offset.
+//
+// The guide (§3.16.2) documents get-all-order's parameters as fromDate/toDate,
+// but the live gateway rejects that with "Required String parameter 'startDate'
+// is not present" — it actually wants startDate/endDate, the same names used
+// by get-unbooked-orders (§3.6.2). Both pairs of keys are sent on every call so
+// this keeps working regardless of which name a given PostEx account/gateway
+// version expects.
 function dateWindow() {
   const to = new Date()
   to.setDate(to.getDate() + 1)
   const from = new Date()
   from.setDate(from.getDate() - 1095) // ~3 years back
-  return { fromDate: isoDateKey(from), toDate: isoDateKey(to) }
+  const fromKey = isoDateKey(from)
+  const toKey = isoDateKey(to)
+  return { fromDate: fromKey, toDate: toKey, startDate: fromKey, endDate: toKey }
 }
 
 function postexError(body: any, fallback: string) {
@@ -83,7 +93,8 @@ function safeJson(text: string) {
 type PostExResult = { status: number; ok: boolean; data: any }
 type AttemptLog = { source: string; status: number; ok: boolean; rowCount: number; message: string }
 
-// Standard fetch for GET-with-query and POST calls.
+// Fetch wrapper used for every PostEx call — all order-fetch calls use GET
+// with query-string parameters (see fetchAllOrders).
 async function fetchPostEx(url: string, token: string, init?: RequestInit): Promise<PostExResult> {
   const res = await fetch(url, {
     ...init,
@@ -98,39 +109,6 @@ async function fetchPostEx(url: string, token: string, init?: RequestInit): Prom
   })
   const data = safeJson(await res.text())
   return { status: res.status, ok: res.ok, data }
-}
-
-// The guide documents get-all-order as a GET whose parameters travel in a JSON
-// body. Node's fetch (undici) forbids a body on GET, so use the raw https module.
-function getWithBody(url: string, token: string, body: string): Promise<PostExResult> {
-  return new Promise((resolve, reject) => {
-    const u = new URL(url)
-    const req = https.request(
-      {
-        hostname: u.hostname,
-        path: u.pathname + u.search,
-        method: 'GET',
-        headers: {
-          token,
-          Accept: 'application/json',
-          'Content-Type': 'application/json',
-          'Content-Length': Buffer.byteLength(body),
-        },
-      },
-      (res) => {
-        let text = ''
-        res.on('data', (chunk) => (text += chunk))
-        res.on('end', () => {
-          const status = res.statusCode || 0
-          resolve({ status, ok: status >= 200 && status < 300, data: safeJson(text) })
-        })
-      }
-    )
-    req.setTimeout(ATTEMPT_TIMEOUT_MS, () => req.destroy(new Error('PostEx request timed out')))
-    req.on('error', reject)
-    req.write(body)
-    req.end()
-  })
 }
 
 async function tryAttempt(fn: () => Promise<PostExResult>): Promise<PostExResult | null> {
@@ -161,7 +139,7 @@ function dedupeByTrackingNumber(rows: any[]) {
  * is queried in parallel and the results merged so nothing is missed.
  */
 async function fetchAllOrders(token: string): Promise<{ rows: any[]; source: string; attempts: AttemptLog[] }> {
-  const { fromDate, toDate } = dateWindow()
+  const { fromDate, toDate, startDate, endDate } = dateWindow()
   const attempts: AttemptLog[] = []
 
   const record = (source: string, result: PostExResult | null, rows: any[]) => {
@@ -174,27 +152,43 @@ async function fetchAllOrders(token: string): Promise<{ rows: any[]; source: str
     })
   }
 
+  // The live gateway is a Java Spring @RequestParam GET handler, which only
+  // reads the QUERY STRING (never a JSON body, no matter what the guide says
+  // about "GET with a body") — confirmed by "Required String parameter
+  // 'startDate' is not present" until dates were moved to the query string.
+  // The next error was "Required Integer parameter 'orderStatusId' is not
+  // present": the real parameter name is camelCase orderStatusId, not the
+  // guide's orderStatusID. Sending both keys at once triggers a server-side
+  // "Impossible modulus" error (likely a duplicate-key collision), so only
+  // the confirmed-correct camelCase name is sent.
+  const allQueryParams = (statusId: number) =>
+    new URLSearchParams({
+      orderStatusId: String(statusId),
+      fromDate,
+      toDate,
+      startDate,
+      endDate,
+    }).toString()
+
   // Fast path: orderStatusID = 0 ("all orders" per the guide).
-  const allBody = JSON.stringify({ orderStatusID: 0, fromDate, toDate })
-  const fastResult = await tryAttempt(() => getWithBody(POSTEX_ENDPOINTS.allOrders, token, allBody))
+  const fastResult = await tryAttempt(() => fetchPostEx(`${POSTEX_ENDPOINTS.allOrders}?${allQueryParams(0)}`, token))
   const fastRows = fastResult ? normalizeOrderRows(extractRows(fastResult.data)) : []
-  record('get-all-order status=0 (GET+body)', fastResult, fastRows)
+  record('get-all-order status=0 (GET query)', fastResult, fastRows)
   if (fastResult?.ok && fastRows.length > 0) {
-    return { rows: fastRows, source: 'get-all-order status=0 (GET+body)', attempts }
+    return { rows: fastRows, source: 'get-all-order status=0 (GET query)', attempts }
   }
 
   // Fallback: query every documented status in parallel and merge. Also pull
   // Un-booked Orders (§3.6), which is a separate endpoint from get-all-order
   // and has proven reliable even when the "all" query returns nothing.
   const statusCalls = ALL_ORDER_STATUS_IDS.map(async (statusId) => {
-    const body = JSON.stringify({ orderStatusID: statusId, fromDate, toDate })
-    const result = await tryAttempt(() => getWithBody(POSTEX_ENDPOINTS.allOrders, token, body))
+    const result = await tryAttempt(() => fetchPostEx(`${POSTEX_ENDPOINTS.allOrders}?${allQueryParams(statusId)}`, token))
     const rows = result ? normalizeOrderRows(extractRows(result.data)) : []
-    record(`get-all-order status=${statusId} (GET+body)`, result, rows)
+    record(`get-all-order status=${statusId} (GET query)`, result, rows)
     return rows
   })
 
-  const unbookedQuery = new URLSearchParams({ startDate: fromDate, endDate: toDate }).toString()
+  const unbookedQuery = new URLSearchParams({ startDate, endDate }).toString()
   const unbookedCall = (async () => {
     const result = await tryAttempt(() => fetchPostEx(`${POSTEX_ENDPOINTS.unbookedOrders}?${unbookedQuery}`, token))
     const rows = result ? normalizeOrderRows(extractRows(result.data)) : []
@@ -210,8 +204,7 @@ async function fetchAllOrders(token: string): Promise<{ rows: any[]; source: str
   }
 
   // Last resort: legacy v3 endpoint for older accounts.
-  const allQuery = new URLSearchParams({ orderStatusID: '0', fromDate, toDate }).toString()
-  const legacyResult = await tryAttempt(() => fetchPostEx(`${POSTEX_ENDPOINTS.legacyOrders}?${allQuery}`, token))
+  const legacyResult = await tryAttempt(() => fetchPostEx(`${POSTEX_ENDPOINTS.legacyOrders}?${allQueryParams(0)}`, token))
   const legacyRows = legacyResult ? normalizeOrderRows(extractRows(legacyResult.data)) : []
   record('legacy v3 all-orders', legacyResult, legacyRows)
 
