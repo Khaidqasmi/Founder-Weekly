@@ -1,8 +1,9 @@
 import type { Report } from '@/lib/types'
 
-export function buildReportEmail(report: Report, businessName: string, appUrl: string): string {
+export function buildReportEmail(report: Report, businessName: string, appUrl: string, periodLabel: string = 'Weekly'): string {
   const f = (n: number) => n.toLocaleString()
   const pct = (n: number) => `${n.toFixed(1)}%`
+  const periodRange = report.week_start === report.week_end ? report.week_start : `${report.week_start} to ${report.week_end}`
 
   return `
 <!DOCTYPE html>
@@ -12,7 +13,7 @@ export function buildReportEmail(report: Report, businessName: string, appUrl: s
 <div style="max-width:600px;margin:0 auto;padding:24px">
   <div style="background:#fff;border-radius:12px;padding:32px;border:1px solid #e5e7eb">
     <h1 style="font-size:20px;margin:0 0 4px">${businessName}</h1>
-    <p style="color:#6b7280;margin:0 0 24px;font-size:14px">Weekly Growth Report: ${report.week_start} to ${report.week_end}</p>
+    <p style="color:#6b7280;margin:0 0 24px;font-size:14px">${periodLabel} Growth Report: ${periodRange}</p>
 
     <h2 style="font-size:16px;border-bottom:1px solid #e5e7eb;padding-bottom:8px">Business Snapshot</h2>
     <table style="width:100%;border-collapse:collapse;margin-bottom:24px">

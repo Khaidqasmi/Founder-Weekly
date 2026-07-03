@@ -40,13 +40,9 @@ export async function GET(request: NextRequest) {
   }
 
   const now = new Date()
-  const weekEnd = new Date(now)
-  weekEnd.setDate(weekEnd.getDate() - 1)
-  const weekStart = new Date(weekEnd)
-  weekStart.setDate(weekStart.getDate() - 6)
-
-  const wStart = weekStart.toISOString().split('T')[0]
-  const wEnd = weekEnd.toISOString().split('T')[0]
+  const day = new Date(now)
+  day.setDate(day.getDate() - 1)
+  const dayStr = day.toISOString().split('T')[0]
 
   const results: { workspace_id: string; status: string; error?: string }[] = []
 
@@ -55,8 +51,8 @@ export async function GET(request: NextRequest) {
       const wsId = sub.workspace_id
 
       const [ordersRes, adsRes, leadsRes, inventoryRes, wsRes] = await Promise.all([
-        supabase.from('orders').select('*').eq('workspace_id', wsId).gte('order_date', wStart).lte('order_date', wEnd),
-        supabase.from('ads').select('*').eq('workspace_id', wsId).gte('date', wStart).lte('date', wEnd),
+        supabase.from('orders').select('*').eq('workspace_id', wsId).gte('order_date', dayStr).lte('order_date', dayStr),
+        supabase.from('ads').select('*').eq('workspace_id', wsId).gte('date', dayStr).lte('date', dayStr),
         supabase.from('leads').select('*').eq('workspace_id', wsId),
         supabase.from('inventory').select('*').eq('workspace_id', wsId),
         supabase.from('workspaces').select('*').eq('id', wsId).single(),
@@ -72,8 +68,8 @@ export async function GET(request: NextRequest) {
 
       const report = {
         workspace_id: wsId,
-        week_start: wStart,
-        week_end: wEnd,
+        week_start: dayStr,
+        week_end: dayStr,
         revenue: calculateRevenue(orders),
         orders_count: calculateOrders(orders),
         aov: calculateAOV(orders),
@@ -96,8 +92,8 @@ export async function GET(request: NextRequest) {
 
       if (apiKey && emailFrom && workspace?.report_email && saved) {
         const resend = new Resend(apiKey)
-        const html = buildReportEmail(saved as Report, workspace.business_name, appUrl)
-        const subject = `${workspace.business_name} Weekly Growth Report, ${wStart} to ${wEnd}`
+        const html = buildReportEmail(saved as Report, workspace.business_name, appUrl, 'Daily')
+        const subject = `${workspace.business_name} Daily Growth Report, ${dayStr}`
 
         try {
           await resend.emails.send({ from: emailFrom, to: workspace.report_email, subject, html })
