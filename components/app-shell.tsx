@@ -3,12 +3,11 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
-import { signOut } from '@/lib/auth/actions'
 import { SiteHeader } from '@/components/site-header'
 import { SearchBar, NotificationBell, ProfileBlock } from '@/components/dashboard/widgets'
 import {
   BarChart3, FileText, Upload, ListChecks, Settings, CreditCard, Plug,
-  Menu, X, Truck, Clock, TrendingUp, LogOut, PanelLeftClose, PanelLeftOpen,
+  Menu, X, Truck, Clock, TrendingUp, PanelLeftClose, PanelLeftOpen,
 } from 'lucide-react'
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
@@ -90,25 +89,9 @@ function SidebarFooter({
   checked: boolean
   collapsed?: boolean
 }) {
-  if (!checked) return null
-  if (isLoggedIn) {
-    return (
-      <form action={signOut}>
-        <button
-          type="submit"
-          title={collapsed ? 'Logout' : undefined}
-          className={cn(
-            'group relative flex w-full items-center gap-3 rounded-xl text-sm font-medium text-white/60 transition-colors hover:bg-white/[0.07] hover:text-white',
-            collapsed ? 'justify-center px-0 py-2.5' : 'px-3.5 py-2.5'
-          )}
-        >
-          <LogOut className="h-4 w-4 shrink-0 text-white/50" />
-          {!collapsed && 'Logout'}
-          {collapsed && <SideTooltip label="Logout" />}
-        </button>
-      </form>
-    )
-  }
+  // Logout lives in the profile dropdown in the topbar — the sidebar only
+  // shows the trial CTA for logged-out visitors.
+  if (!checked || isLoggedIn) return null
   if (collapsed) {
     return (
       <Link
@@ -135,6 +118,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const [open, setOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
+  const [hovered, setHovered] = useState(false)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [email, setEmail] = useState<string | null>(null)
   const [checked, setChecked] = useState(false)
@@ -200,71 +184,76 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const visibleLinks = isLoggedIn || !checked ? appLinks : appLinks.filter((l) => !l.authOnly)
 
+  // A manually collapsed sidebar temporarily expands as an overlay on hover;
+  // the content padding stays at rail width so the layout doesn't jump.
+  const expanded = !collapsed || hovered
+
   // Mobile drawer always shows the full expanded menu.
   const drawerInner = (
     <>
       <Link href="/dashboard" className="mb-6 flex items-center px-2" aria-label="Ecom Panel home">
         <img src="/ecom-panel-logo.png" alt="Ecom Panel" className="h-11 w-auto max-w-[180px] object-contain" />
       </Link>
-      <nav className="flex-1 overflow-y-auto pr-1">
+      <nav className="no-scrollbar flex-1 overflow-y-auto overflow-x-hidden pr-1">
         <NavLinks links={visibleLinks} pathname={pathname} onNavigate={() => setOpen(false)} />
       </nav>
-      <div className="mt-4 border-t border-white/[0.08] pt-4">
-        <SidebarFooter isLoggedIn={isLoggedIn} checked={checked} />
-      </div>
+      {checked && !isLoggedIn && (
+        <div className="mt-4 border-t border-white/[0.08] pt-4">
+          <SidebarFooter isLoggedIn={isLoggedIn} checked={checked} />
+        </div>
+      )}
     </>
   )
 
   return (
     <div className="flex min-h-screen flex-col">
-      {/* Desktop sidebar (collapsible) */}
+      {/* Desktop sidebar (collapsible; hover temporarily expands the rail) */}
       <aside
+        onMouseEnter={() => collapsed && setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
         className={cn(
-          'fixed inset-y-0 left-0 z-40 hidden flex-col bg-gradient-to-b from-[#221c4e] via-[#241e52] to-[#1c1642] transition-[width] duration-200 lg:flex',
-          collapsed ? 'w-[72px] p-3' : 'w-64 p-4'
+          'fixed inset-y-0 left-0 z-40 hidden flex-col overflow-hidden bg-gradient-to-b from-[#221c4e] via-[#241e52] to-[#1c1642] transition-[width] duration-200 lg:flex',
+          expanded ? 'w-64 p-4' : 'w-[72px] p-3',
+          collapsed && hovered && 'shadow-[12px_0_50px_rgba(23,18,51,0.5)]'
         )}
       >
-        <div className={cn('mb-6 flex items-center', collapsed ? 'justify-center' : 'justify-between px-2')}>
-          {collapsed ? (
+        <div className={cn('mb-6 flex items-center', expanded ? 'px-2' : 'justify-center')}>
+          {expanded ? (
+            <Link href="/dashboard" aria-label="Ecom Panel home">
+              <img src="/ecom-panel-logo.png" alt="Ecom Panel" className="h-11 w-auto max-w-[160px] object-contain" />
+            </Link>
+          ) : (
             <Link
               href="/dashboard"
               aria-label="Ecom Panel home"
-              className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#8b5cf6] to-[#ec4899] text-white shadow-[0_4px_14px_rgba(139,92,246,0.4)]"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#8b5cf6] to-[#ec4899] text-white shadow-[0_4px_14px_rgba(139,92,246,0.4)]"
             >
               <BarChart3 className="h-5 w-5" />
-            </Link>
-          ) : (
-            <Link href="/dashboard" aria-label="Ecom Panel home">
-              <img src="/ecom-panel-logo.png" alt="Ecom Panel" className="h-11 w-auto max-w-[160px] object-contain" />
             </Link>
           )}
         </div>
 
-        <nav className={cn('flex-1 overflow-y-auto', collapsed ? '' : 'pr-1')}>
-          <NavLinks links={visibleLinks} pathname={pathname} collapsed={collapsed} />
+        <nav className={cn('no-scrollbar flex-1 overflow-y-auto overflow-x-hidden', expanded && 'pr-1')}>
+          <NavLinks links={visibleLinks} pathname={pathname} collapsed={!expanded} />
         </nav>
 
         <div className="mt-4 space-y-1 border-t border-white/[0.08] pt-4">
-          <SidebarFooter isLoggedIn={isLoggedIn} checked={checked} collapsed={collapsed} />
+          <SidebarFooter isLoggedIn={isLoggedIn} checked={checked} collapsed={!expanded} />
           <button
             onClick={toggleCollapsed}
             aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             className={cn(
               'group relative flex w-full items-center gap-3 rounded-xl text-sm font-medium text-white/60 transition-colors hover:bg-white/[0.07] hover:text-white',
-              collapsed ? 'justify-center px-0 py-2.5' : 'px-3.5 py-2.5'
+              expanded ? 'px-3.5 py-2.5' : 'justify-center px-0 py-2.5'
             )}
           >
             {collapsed ? (
-              <>
-                <PanelLeftOpen className="h-4 w-4 shrink-0 text-white/50" />
-                <SideTooltip label="Expand sidebar" />
-              </>
+              <PanelLeftOpen className="h-4 w-4 shrink-0 text-white/50" />
             ) : (
-              <>
-                <PanelLeftClose className="h-4 w-4 shrink-0 text-white/50" />
-                Collapse
-              </>
+              <PanelLeftClose className="h-4 w-4 shrink-0 text-white/50" />
             )}
+            {expanded && (collapsed ? 'Pin open' : 'Collapse')}
+            {!expanded && <SideTooltip label="Expand sidebar" />}
           </button>
         </div>
       </aside>
