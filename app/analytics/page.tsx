@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { KPICard } from '@/components/dashboard/kpi-card'
 import { SimpleBarChart } from '@/components/charts/bar-chart'
 import { LoadingSpinner } from '@/components/loading'
+import { daysAgoDateKey } from '@/lib/date-range'
 import { formatCurrency, formatNumber, formatPercent } from '@/lib/utils'
 import { demoAnalytics } from '@/lib/integrations/shopify/demo-analytics'
 import type { ShopifyAnalytics } from '@/lib/integrations/shopify/analytics'
@@ -15,20 +16,12 @@ import { ArrowRight, Smartphone, Monitor, Tablet, RefreshCw, ShoppingBag, BarCha
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function daysAgoStr(n: number) {
-  const d = new Date(); d.setDate(d.getDate() - n)
-  const year = d.getFullYear()
-  const month = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
-
 const DATE_PRESETS = [
   { label: 'Today', fromDays: 0, toDays: 0 },
   { label: 'Yesterday', fromDays: 1, toDays: 1 },
-  { label: '7 Days', fromDays: 7, toDays: 0 },
-  { label: '30 Days', fromDays: 30, toDays: 0 },
-  { label: '90 Days', fromDays: 90, toDays: 0 },
+  { label: '7 Days', fromDays: 6, toDays: 0 },
+  { label: '30 Days', fromDays: 29, toDays: 0 },
+  { label: '90 Days', fromDays: 89, toDays: 0 },
 ]
 
 type Tab = 'shopify' | 'google'
@@ -195,8 +188,8 @@ function ShopifyTab({ tab, setTab }: { tab: Tab; setTab: (tab: Tab) => void }) {
   const [warning, setWarning] = useState('')
   const [connected, setConnected] = useState<boolean | null>(null)
   const [shopDomain, setShopDomain] = useState('')
-  const [dateFrom, setDateFrom] = useState(daysAgoStr(0))
-  const [dateTo, setDateTo] = useState(daysAgoStr(0))
+  const [dateFrom, setDateFrom] = useState(daysAgoDateKey(0))
+  const [dateTo, setDateTo] = useState(daysAgoDateKey(0))
   const [dataSource, setDataSource] = useState<'shopifyql' | 'estimated' | 'demo'>('demo')
   const fetchSeqRef = useRef(0)
 
@@ -367,8 +360,8 @@ function ShopifyTab({ tab, setTab }: { tab: Tab; setTab: (tab: Tab) => void }) {
       <div className="bg-white rounded-xl border border-[#e4defa] p-4 mb-6">
         <div className="flex flex-wrap items-center gap-2">
           {DATE_PRESETS.map((p) => {
-            const from = daysAgoStr(p.fromDays)
-            const to = daysAgoStr(p.toDays)
+            const from = daysAgoDateKey(p.fromDays)
+            const to = daysAgoDateKey(p.toDays)
             const active = dateFrom === from && dateTo === to
 
             return (

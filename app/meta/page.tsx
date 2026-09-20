@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { KPICard } from '@/components/dashboard/kpi-card'
 import { SimpleBarChart } from '@/components/charts/bar-chart'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -94,6 +94,9 @@ const PRESETS = [
   { label: '90 Days', value: 'last_90d' },
   { label: 'Custom', value: 'custom' },
 ]
+
+const META_CACHE_TTL_MS = 60_000
+const metaRangeCache = new Map<string, { data: MetaData; ts: number }>()
 
 function dateInputValue(date: Date) {
   return date.toISOString().split('T')[0]
@@ -227,9 +230,21 @@ export default function MetaPage() {
   const [tab, setTab] = useState<ActiveTab>('overview')
   const [expandedCampaign, setExpandedCampaign] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'PAUSED'>('ALL')
+  const fetchSequence = useRef(0)
 
   async function fetchData(p = preset, range = customRange) {
-    setLoading(true); setError('')
+    const sequence = ++fetchSequence.current
+    const cacheKey = p === 'custom' ? `${p}:${range.since}:${range.until}` : p
+    const cached = metaRangeCache.get(cacheKey)
+    setError('')
+
+    if (cached) {
+      setData(cached.data)
+      setIsDemo(false)
+      if (Date.now() - cached.ts < META_CACHE_TTL_MS) return
+    }
+
+    setLoading(!cached)
     try {
       const params = new URLSearchParams({ preset: p })
       if (p === 'custom') {
@@ -239,20 +254,34 @@ export default function MetaPage() {
         params.set('until', range.until)
       }
 
-      const res = await fetch(`/api/meta/data?${params.toString()}`)
+      let res: Response | null = null
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        try {
+          res = await fetch(`/api/meta/data?${params.toString()}`, { cache: 'no-store' })
+          if (res.status < 500 || attempt === 1) break
+        } catch (requestError) {
+          if (attempt === 1) throw requestError
+        }
+        await new Promise((resolve) => setTimeout(resolve, 250))
+      }
+      if (!res) throw new Error('Meta data request failed')
+      if (sequence !== fetchSequence.current) return
       if (!res.ok) {
         const e = await res.json()
         if (e.demo) { setIsDemo(true); setData(DEMO) }
         else throw new Error(e.error || 'Failed to fetch Meta data')
       } else {
         const d = await res.json()
+        metaRangeCache.set(cacheKey, { data: d, ts: Date.now() })
         setData(d); setIsDemo(false)
       }
     } catch (e: any) {
-      setError(e.message)
-      notify({ kind: 'error', title: 'Meta data refresh failed', message: e.message })
+      if (sequence === fetchSequence.current) {
+        setError(e.message)
+        notify({ kind: 'error', title: 'Meta data refresh failed', message: e.message })
+      }
     }
-    setLoading(false)
+    if (sequence === fetchSequence.current) setLoading(false)
   }
 
   useEffect(() => { fetchData() }, [])

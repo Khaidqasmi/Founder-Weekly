@@ -3,7 +3,6 @@
 import { createServerSupabaseClient, createServiceRoleClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { TRIAL_DAYS } from '@/lib/constants'
-import { purgeAllTemporaryIntegrationData } from '@/lib/temporary-data'
 
 export async function signUp(formData: FormData) {
   const supabase = await createServerSupabaseClient()
@@ -110,21 +109,6 @@ export async function signIn(formData: FormData) {
 
 export async function signOut() {
   const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (user) {
-    const serviceClient = createServiceRoleClient()
-    const { data: member } = await serviceClient
-      .from('workspace_members')
-      .select('workspace_id')
-      .eq('user_id', user.id)
-      .maybeSingle()
-
-    if (member?.workspace_id) {
-      await purgeAllTemporaryIntegrationData(serviceClient, member.workspace_id)
-    }
-  }
-
   await supabase.auth.signOut()
   redirect('/login')
 }

@@ -24,7 +24,11 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(`${APP_URL}/integrations?error=Please+enter+your+store+domain+first`)
   }
 
-  const shopDomain = shop.includes('.myshopify.com') ? shop : `${shop}.myshopify.com`
+  const normalizedShop = shop.trim().toLowerCase().replace(/^https?:\/\//, '').split('/')[0]
+  const shopDomain = normalizedShop.includes('.myshopify.com') ? normalizedShop : `${normalizedShop}.myshopify.com`
+  if (!/^[a-z0-9][a-z0-9-]*\.myshopify\.com$/.test(shopDomain)) {
+    return NextResponse.redirect(`${APP_URL}/integrations?error=Enter+a+valid+myshopify.com+store+domain`)
+  }
   const state = crypto.randomBytes(16).toString('hex')
 
   // Store state + userId in a short-lived cookie for CSRF check

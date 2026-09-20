@@ -4,6 +4,7 @@ import { fetchShopifyAnalytics, type ShopifyAnalytics } from '@/lib/integrations
 import { resolveShopifyAccessToken } from '@/lib/integrations/sync-engine'
 import { decryptToken } from '@/lib/crypto'
 import type { Order } from '@/lib/types'
+import { validateDateRange } from '@/lib/date-range'
 
 type SyncedOrder = Partial<Order> & { source?: string }
 
@@ -178,7 +179,10 @@ function buildAnalyticsFromSyncedOrders(
 export async function GET(request: NextRequest) {
   const url = new URL(request.url)
   const from = url.searchParams.get('from') || ''
-  const to = url.searchParams.get('to') || new Date().toISOString().split('T')[0]
+  const to = url.searchParams.get('to') || ''
+
+  const rangeError = validateDateRange(from, to)
+  if (rangeError) return jsonNoStore({ error: rangeError }, { status: 400 })
 
   try {
     const supabase = await createServerSupabaseClient()
@@ -205,16 +209,25 @@ export async function GET(request: NextRequest) {
       return jsonNoStore({ error: 'Shopify not connected' }, { status: 400 })
     }
 
-    let ordersQuery = supabase
-      .from('orders')
-      .select('*')
-      .eq('workspace_id', member.workspace_id)
+    const orderRows: SyncedOrder[] = []
+    const pageSize = 1000
+    for (let page = 0; page < 100; page += 1) {
+      const pageFrom = page * pageSize
+      const { data, error } = await supabase
+        .from('orders')
+        .select('order_date, order_status, revenue, selling_price, product_name, quantity, city, source')
+        .eq('workspace_id', member.workspace_id)
+        .gte('order_date', from)
+        .lte('order_date', to)
+        .order('order_date', { ascending: false })
+        .range(pageFrom, pageFrom + pageSize - 1)
 
-    if (from) ordersQuery = ordersQuery.gte('order_date', from)
-    if (to) ordersQuery = ordersQuery.lte('order_date', to)
-
-    const { data: syncedOrders } = await ordersQuery.order('order_date', { ascending: false })
-    const orderRows: SyncedOrder[] = syncedOrders || []
+      if (error) throw error
+      const batch = (data || []) as SyncedOrder[]
+      orderRows.push(...batch)
+      if (batch.length < pageSize) break
+      if (page === 99) throw new Error('Selected range is too large. Please use a smaller date range.')
+    }
     const shopifyRows = orderRows.filter((order) => order.source === 'shopify')
     const ordersForAnalytics = shopifyRows.length > 0 ? shopifyRows : orderRows
 
