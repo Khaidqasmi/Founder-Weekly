@@ -103,6 +103,7 @@ function IntegrationCard({
   formHeader,
   embeddedRedirectUrl,
   initialValues,
+  quickConnect,
 }: {
   provider: string
   name: string
@@ -118,6 +119,7 @@ function IntegrationCard({
   formHeader?: React.ReactNode
   embeddedRedirectUrl?: string
   initialValues?: Record<string, string>
+  quickConnect?: React.ReactNode
 }) {
   const [open, setOpen] = useState(() => !!(initialValues && Object.keys(initialValues).length > 0))
   const [saving, setSaving] = useState(false)
@@ -170,6 +172,10 @@ function IntegrationCard({
             </span>
           )}
         </div>
+      )}
+
+      {!isConnected && !embeddedRedirectUrl && quickConnect && (
+        <div className="px-5 pt-4">{quickConnect}</div>
       )}
 
       {!isConnected && embeddedRedirectUrl && (
@@ -258,6 +264,13 @@ function IntegrationCard({
               Cancel
             </button>
           </>
+        ) : quickConnect ? (
+          <button
+            onClick={() => setOpen(true)}
+            className="text-xs font-medium text-[#6d64b8] hover:text-[#312b63] hover:underline"
+          >
+            Advanced: connect with credentials
+          </button>
         ) : (
           <button
             onClick={() => setOpen(true)}
@@ -402,6 +415,11 @@ export default function IntegrationsPage() {
   const [loggedIn, setLoggedIn] = useState(false)
   const [shopifyMode, setShopifyMode] = useState<'dev' | 'token'>('dev')
   const [isEmbedded, setIsEmbedded] = useState(false)
+  const [oauthAvailable, setOauthAvailable] = useState({ shopify: false, meta: false, google: false })
+  const [oauthShop, setOauthShop] = useState(() => {
+    if (typeof window === 'undefined') return ''
+    return new URLSearchParams(window.location.search).get('shop') || ''
+  })
   // Read synchronously so IntegrationCard receives the correct initialValues on its first render.
   // useEffect runs after mount, which is too late for useState lazy initialisers inside the card.
   const [shopParam, setShopParam] = useState(() => {
@@ -420,6 +438,7 @@ export default function IntegrationsPage() {
       if (res.ok) {
         const data = await res.json()
         setConnections(data.connections || [])
+        setOauthAvailable(data.oauth || { shopify: false, meta: false, google: false })
         // authenticated field: false means no Supabase session; missing/true means signed in
         setLoggedIn(data.authenticated !== false)
       }
@@ -440,15 +459,19 @@ export default function IntegrationsPage() {
     // Shopify passes `shop` (and optionally `host`, `embedded=1`) to embedded apps.
     // Only treat as embedded if inside an actual iframe or Shopify signals it via `embedded=1`.
     // The `shop` param alone is used for pre-fill when the user opens the top-level redirect link.
-    const shop = params.get('shop') || ''
     const isShopifyEmbed = inIframe || params.get('embedded') === '1'
 
     setIsEmbedded(isShopifyEmbed)
 
     const error = params.get('error')
+    const connected = params.get('connected')
     if (error) {
       toast.error(decodeURIComponent(error))
       window.history.replaceState({}, '', '/integrations')
+    } else if (connected) {
+      toast.success(`${providerName(connected)} connected successfully`)
+      window.history.replaceState({}, '', '/integrations')
+      loadStatus()
     }
   }, [])
 
@@ -552,6 +575,32 @@ export default function IntegrationsPage() {
             connection={getConn('shopify')}
             initialValues={shopParam ? { shop_domain: shopParam } : undefined}
             embeddedRedirectUrl={shopifyEmbeddedRedirectUrl}
+            quickConnect={oauthAvailable.shopify ? (
+              <div className="rounded-xl border border-[#dce8d4] bg-[#f5faf2] p-3">
+                <p className="mb-2 text-xs font-semibold text-[#365c25]">Recommended — connect in one step</p>
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <input
+                    value={oauthShop}
+                    onChange={(event) => setOauthShop(event.target.value)}
+                    placeholder="yourstore.myshopify.com"
+                    className="h-10 flex-1 rounded-lg border border-[#c9dbc0] bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-[#5e8e3e]/25"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!loggedIn) return toast.error('Sign in before connecting Shopify')
+                      const shop = (oauthShop || shopParam).trim()
+                      if (!shop) return toast.error('Enter your Shopify store domain')
+                      window.location.assign(`/api/oauth/shopify?shop=${encodeURIComponent(shop)}`)
+                    }}
+                    className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[#5e8e3e] px-4 text-sm font-semibold text-white hover:opacity-90"
+                  >
+                    Connect with Shopify <ChevronRight className="h-4 w-4" />
+                  </button>
+                </div>
+                <p className="mt-2 text-[11px] text-[#5f7654]">You will approve read-only access on Shopify. No app keys need to be copied.</p>
+              </div>
+            ) : undefined}
             formHeader={
               <div className="flex rounded-lg border border-[#e4defa] overflow-hidden text-xs font-medium">
                 <button
@@ -612,6 +661,21 @@ export default function IntegrationsPage() {
             tagline="Facebook and Instagram ad spend, ROAS and campaigns"
             color="bg-[#1877F2]/10"
             connection={getConn('meta')}
+            quickConnect={oauthAvailable.meta ? (
+              <div className="rounded-xl border border-[#cfe0fb] bg-[#f3f7ff] p-3">
+                <p className="mb-2 text-xs text-[#315b94]">Sign in to Facebook, choose access, and return here automatically.</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!loggedIn) return toast.error('Sign in before connecting Meta Ads')
+                    window.location.assign('/api/oauth/meta')
+                  }}
+                  className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-[#1877F2] px-4 text-sm font-semibold text-white hover:opacity-90"
+                >
+                  Connect with Meta <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+            ) : undefined}
             fields={[
               { label: 'Meta access token', key: 'access_token', placeholder: 'EAAB...', type: 'password' },
               { label: 'Ad account ID', key: 'ad_account_id', placeholder: 'act_1234567890' },
@@ -630,6 +694,20 @@ export default function IntegrationsPage() {
             tagline="GA4 property credentials for reporting"
             color="bg-[#fce7f3]"
             connection={getConn('google')}
+            quickConnect={oauthAvailable.google ? (
+              <div className="rounded-xl border border-[#d7e2fb] bg-[#f7f9ff] p-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!loggedIn) return toast.error('Sign in before connecting Google Analytics')
+                    window.location.assign('/api/oauth/google')
+                  }}
+                  className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-[#4285F4] px-4 text-sm font-semibold text-white hover:opacity-90"
+                >
+                  Connect with Google <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+            ) : undefined}
             fields={[
               { label: 'GA4 property ID', key: 'property_id', placeholder: '123456789' },
               { label: 'Access token', key: 'access_token', placeholder: 'ya29...', type: 'password' },

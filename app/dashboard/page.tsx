@@ -21,6 +21,7 @@ import { fetchAllShipments } from '@/lib/integrations/couriers/client'
 import { DELIVERY_STATUSES } from '@/lib/integrations/couriers/types'
 import type { Shipment } from '@/lib/integrations/couriers/types'
 import { parseCourierDate } from '@/lib/integrations/couriers/format'
+import { daysAgoDateKey, isDateInRange } from '@/lib/date-range'
 
 // Charts are code-split so recharts stays out of the initial bundle — the
 // KPIs and layout paint immediately while the chart chunk loads in parallel.
@@ -71,22 +72,14 @@ function buildDemoData() {
   }
 }
 
-function daysAgoStr(n: number) {
-  const d = new Date(); d.setDate(d.getDate() - n)
-  const year = d.getFullYear()
-  const month = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
-
 const DATE_PRESETS: { label: string; fromDays?: number; toDays?: number; all?: boolean }[] = [
   { label: 'Today', fromDays: 0, toDays: 0 },
   { label: 'Yesterday', fromDays: 1, toDays: 1 },
-  { label: '7D', fromDays: 7, toDays: 0 },
-  { label: '30D', fromDays: 30, toDays: 0 },
-  { label: '90D', fromDays: 90, toDays: 0 },
-  { label: '6M', fromDays: 180, toDays: 0 },
-  { label: '1Y', fromDays: 365, toDays: 0 },
+  { label: '7D', fromDays: 6, toDays: 0 },
+  { label: '30D', fromDays: 29, toDays: 0 },
+  { label: '90D', fromDays: 89, toDays: 0 },
+  { label: '6M', fromDays: 179, toDays: 0 },
+  { label: '1Y', fromDays: 364, toDays: 0 },
   { label: 'All', all: true },
 ]
 
@@ -99,11 +92,7 @@ function shipmentActivityDate(shipment: Shipment): Date | null {
 }
 
 function inDashboardDateRange(date: Date | null, from: string, to: string) {
-  if (!from || !to) return true
-  if (!date) return false
-  const start = new Date(`${from}T00:00:00`)
-  const end = new Date(`${to}T23:59:59.999`)
-  return date >= start && date <= end
+  return isDateInRange(date, from, to)
 }
 
 function hasCourierCredentials() {
@@ -135,38 +124,49 @@ function PriorityBadge({ priority }: { priority: string }) {
 
 const CACHE_TTL_MS = 60_000
 const rangeCache = new Map<string, { data: any; ts: number }>()
-const inflight = new Map<string, Promise<any | null>>()
+type RangeResult = { data: any | null; status: number; error?: string }
+const inflight = new Map<string, Promise<RangeResult>>()
 
 function rangeKey(from?: string, to?: string) {
   return `${from || ''}|${to || ''}`
 }
 
 // Single fetch per range: dedupes concurrent requests for the same key.
-function fetchRange(from?: string, to?: string): Promise<any | null> {
+function fetchRange(from?: string, to?: string): Promise<RangeResult> {
   const key = rangeKey(from, to)
   const existing = inflight.get(key)
   if (existing) return existing
 
-  let url = '/api/dashboard'
-  const params: string[] = []
-  if (from) params.push(`from=${from}`)
-  if (to) params.push(`to=${to}`)
-  if (params.length) url += '?' + params.join('&')
+  const params = new URLSearchParams()
+  if (from) params.set('from', from)
+  if (to) params.set('to', to)
+  const url = params.size ? `/api/dashboard?${params}` : '/api/dashboard'
 
   const p = (async () => {
-    try {
-      const res = await fetch(url)
-      if (!res.ok) return null
-      const apiData = await res.json()
-      if (!apiData.metrics) return null
-      rangeCache.set(key, { data: apiData, ts: Date.now() })
-      return apiData
-    } catch {
-      return null
-    } finally {
-      inflight.delete(key)
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        const res = await fetch(url, { cache: 'no-store' })
+        const apiData = await res.json().catch(() => ({}))
+        if (res.ok && apiData.metrics) {
+          rangeCache.set(key, { data: apiData, ts: Date.now() })
+          return { data: apiData, status: res.status }
+        }
+
+        if (res.status < 500 || attempt === 1) {
+          return { data: null, status: res.status, error: apiData.error || 'Dashboard data could not be loaded.' }
+        }
+      } catch (error) {
+        if (attempt === 1) {
+          return { data: null, status: 0, error: error instanceof Error ? error.message : 'Network error' }
+        }
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 250))
     }
-  })()
+    return { data: null, status: 0, error: 'Dashboard data could not be loaded.' }
+  })().finally(() => {
+    inflight.delete(key)
+  })
   inflight.set(key, p)
   return p
 }
@@ -178,23 +178,24 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
-  const [dateFrom, setDateFrom] = useState(daysAgoStr(0))
-  const [dateTo, setDateTo] = useState(daysAgoStr(0))
+  const [dateFrom, setDateFrom] = useState(daysAgoDateKey(0))
+  const [dateTo, setDateTo] = useState(daysAgoDateKey(0))
   const [syncing, setSyncing] = useState<string | null>(null)
   const [courierShipments, setCourierShipments] = useState<Shipment[]>([])
   const fetchSeq = useRef(0)
 
   async function fetchDashboard(from?: string, to?: string) {
     const seq = ++fetchSeq.current
-    const apiData = await fetchRange(from, to)
+    const result = await fetchRange(from, to)
     // Ignore responses that arrive after a newer request (fast date switching)
     if (seq !== fetchSeq.current) return true
-    if (apiData) {
-      setData({ ...apiData, isDemo: false })
+    if (result.data) {
+      setData({ ...result.data, isDemo: false })
       setIsLoggedIn(true)
       setLoading(false)
       return true
     }
+    if (result.status !== 401 && result.error) toast.error(result.error)
     return false
   }
 
@@ -253,8 +254,8 @@ export default function DashboardPage() {
         // Warm the cache for the common presets so switching is instant
         const idle = () => {
           for (const p of DATE_PRESETS.slice(0, 5)) {
-            const from = p.all ? undefined : daysAgoStr(p.fromDays || 0)
-            const to = p.all ? undefined : daysAgoStr(p.toDays || 0)
+            const from = p.all ? undefined : daysAgoDateKey(p.fromDays || 0)
+            const to = p.all ? undefined : daysAgoDateKey(p.toDays || 0)
             if (!rangeCache.has(rangeKey(from, to))) fetchRange(from, to)
           }
         }
@@ -408,8 +409,8 @@ export default function DashboardPage() {
             <div className="mb-3 flex flex-wrap items-center gap-2">
               <div className="flex flex-wrap items-center gap-1 rounded-full bg-[#f4f0fd] p-1">
                 {DATE_PRESETS.map((p) => {
-                  const from = p.all ? '' : daysAgoStr(p.fromDays || 0)
-                  const to = p.all ? '' : daysAgoStr(p.toDays || 0)
+                  const from = p.all ? '' : daysAgoDateKey(p.fromDays || 0)
+                  const to = p.all ? '' : daysAgoDateKey(p.toDays || 0)
                   const active = dateFrom === from && dateTo === to
                   return (
                     <button

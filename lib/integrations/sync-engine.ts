@@ -1,5 +1,6 @@
 import { SupabaseClient } from '@supabase/supabase-js'
 import { isCODPaymentMethod } from '@/lib/calculations'
+import { daysAgoDateKey } from '@/lib/date-range'
 
 interface SyncContext {
   supabase: SupabaseClient
@@ -24,14 +25,14 @@ export async function syncShopifyData(ctx: SyncContext) {
     const baseUrl = `https://${normalizedShopDomain}/admin/api/2024-01`
     const headers = { 'X-Shopify-Access-Token': cleanAccessToken, 'Content-Type': 'application/json' }
 
-    // Fetch orders
-    const ordersRes = await fetchWithReadableError(`${baseUrl}/orders.json?status=any&limit=250`, { headers }, 'Shopify orders API')
-    if (ordersRes.status === 401) {
-      throw new Error('Shopify rejected the saved access token — it may have expired or been revoked. Please reconnect Shopify from the Integrations page.')
-    }
-    if (!ordersRes.ok) throw new Error(await formatHttpError(ordersRes, 'Shopify orders API'))
-    const ordersData = await ordersRes.json()
-    const shopifyOrders = ordersData.orders || []
+    // Shopify REST caps a page at 250 records. Follow Link pagination so long
+    // ranges and larger stores are synced completely rather than silently cut.
+    const shopifyOrders = await fetchShopifyCollection<any>(
+      `${baseUrl}/orders.json?status=any&limit=250`,
+      headers,
+      'orders',
+      'Shopify orders API'
+    )
 
     // If no orders were returned, check the count endpoint to distinguish
     // "store truly has no orders" from "token lacks read_all_orders scope".
@@ -55,17 +56,9 @@ export async function syncShopifyData(ctx: SyncContext) {
       }
     }
 
-    await Promise.all([
-      supabase.from('orders').delete().eq('workspace_id', workspaceId).eq('source', 'shopify'),
-      supabase.from('inventory').delete().eq('workspace_id', workspaceId).eq('source', 'shopify'),
-    ])
-
-    let newOrders = 0
-    let updatedOrders = 0
-
-    for (const o of shopifyOrders) {
+    const mappedOrders = shopifyOrders.map((o) => {
       const paymentMethod = o.gateway || o.payment_gateway_names?.join(', ') || ''
-      const mapped = {
+      return {
         workspace_id: workspaceId,
         order_date: o.created_at?.split('T')[0] || new Date().toISOString().split('T')[0],
         order_id: `SHOP-${o.id}`,
@@ -81,68 +74,62 @@ export async function syncShopifyData(ctx: SyncContext) {
         cod_status: isCODPaymentMethod(paymentMethod) ? (o.financial_status === 'paid' ? 'Confirmed' : 'Pending') : 'N/A',
         source: 'shopify',
       }
-
-      const { data: existing } = await supabase
-        .from('orders')
-        .select('id')
-        .eq('workspace_id', workspaceId)
-        .eq('order_id', mapped.order_id)
-        .single()
-
-      if (existing) {
-        const { error } = await supabase.from('orders').update(mapped).eq('id', existing.id)
-        if (error) throw error
-        updatedOrders++
-      } else {
-        const { error } = await supabase.from('orders').insert(mapped)
-        if (error) throw error
-        newOrders++
-      }
-    }
+    })
 
     // Fetch products/inventory
-    const productsRes = await fetchWithReadableError(`${baseUrl}/products.json?limit=250`, { headers }, 'Shopify products API')
-    if (productsRes.ok) {
-      const productsData = await productsRes.json()
-      const products = productsData.products || []
-      let newInventory = 0
-
-      for (const p of products) {
-        for (const v of p.variants || []) {
-          const mapped = {
-            workspace_id: workspaceId,
-            product_name: `${p.title}${v.title !== 'Default Title' ? ` - ${v.title}` : ''}`,
-            sku: v.sku || '',
-            current_stock: v.inventory_quantity || 0,
-            reorder_level: 10,
-            selling_price: Number(v.price) || 0,
-            cost_price: Number(v.compare_at_price) || 0,
-            source: 'shopify',
-          }
-
-          const { data: existing } = await supabase
-            .from('inventory')
-            .select('id')
-            .eq('workspace_id', workspaceId)
-            .eq('sku', mapped.sku)
-            .eq('source', 'shopify')
-            .single()
-
-          if (existing) {
-            const { error } = await supabase.from('inventory').update(mapped).eq('id', existing.id)
-            if (error) throw error
-          } else {
-            const { error } = await supabase.from('inventory').insert(mapped)
-            if (error) throw error
-            newInventory++
-          }
-        }
-      }
-      newOrders += newInventory
+    let products: any[] = []
+    let inventoryFetched = false
+    try {
+      products = await fetchShopifyCollection<any>(
+        `${baseUrl}/products.json?limit=250`,
+        headers,
+        'products',
+        'Shopify products API'
+      )
+      inventoryFetched = true
+    } catch (error) {
+      // Missing product/inventory scopes should not discard an otherwise valid
+      // order sync. The order data remains useful and the UI can surface scopes.
+      console.warn('[sync-engine] Shopify inventory fetch skipped', error)
     }
 
-    await finishSyncRun(supabase, syncRun.id, 'success', shopifyOrders.length, newOrders, updatedOrders)
-    return { fetched: shopifyOrders.length, new: newOrders, updated: updatedOrders }
+    const mappedInventory = products.flatMap((product) =>
+      (product.variants || []).map((variant: any) => ({
+            workspace_id: workspaceId,
+            product_name: `${product.title}${variant.title !== 'Default Title' ? ` - ${variant.title}` : ''}`,
+            sku: variant.sku || '',
+            current_stock: variant.inventory_quantity || 0,
+            reorder_level: 10,
+            selling_price: Number(variant.price) || 0,
+            cost_price: Number(variant.compare_at_price) || 0,
+            source: 'shopify',
+      }))
+    )
+
+    // Replace only provider-owned rows and insert in batches. This removes the
+    // previous N+1 select/update loop (two database calls per record).
+    const ordersDelete = await supabase
+      .from('orders')
+      .delete()
+      .eq('workspace_id', workspaceId)
+      .eq('source', 'shopify')
+    if (ordersDelete.error) throw ordersDelete.error
+    await insertInBatches(supabase, 'orders', mappedOrders)
+
+    if (inventoryFetched) {
+      const inventoryDelete = await supabase
+        .from('inventory')
+        .delete()
+        .eq('workspace_id', workspaceId)
+        .eq('source', 'shopify')
+      if (inventoryDelete.error) throw inventoryDelete.error
+      await insertInBatches(supabase, 'inventory', mappedInventory)
+    }
+
+    const inserted = mappedOrders.length + (inventoryFetched ? mappedInventory.length : 0)
+
+    await finishSyncRun(supabase, syncRun.id, 'success', shopifyOrders.length, inserted, 0)
+    return { fetched: shopifyOrders.length, new: inserted, updated: 0 }
 
   } catch (err: any) {
     await finishSyncRun(supabase, syncRun.id, 'failed', 0, 0, 0, err.message)
@@ -160,10 +147,8 @@ export async function syncMetaAdsData(ctx: SyncContext) {
 
   try {
     // Fetch last 90 days of campaign insights
-    const since = new Date()
-    since.setDate(since.getDate() - 90)
-    const sinceStr = since.toISOString().split('T')[0]
-    const untilStr = new Date().toISOString().split('T')[0]
+    const sinceStr = daysAgoDateKey(89)
+    const untilStr = daysAgoDateKey(0)
     const timeRange = encodeURIComponent(JSON.stringify({ since: sinceStr, until: untilStr }))
 
     const url = `https://graph.facebook.com/v25.0/${cleanAdAccountId}/insights?` +
@@ -172,19 +157,13 @@ export async function syncMetaAdsData(ctx: SyncContext) {
       `&level=ad&time_increment=1&limit=500` +
       `&access_token=${encodeURIComponent(cleanAccessToken)}`
 
-    const res = await fetchWithReadableError(url, undefined, 'Meta API')
-    if (!res.ok) throw new Error(await formatMetaError(res))
-    const data = await res.json()
-    const rows = data.data || []
+    const rows = await fetchAllMetaRows(url)
 
-    let newAds = 0
-    let updatedAds = 0
-
-    for (const r of rows) {
+    const mappedAds = rows.map((r: any) => {
       const purchases = r.actions?.find((a: any) => a.action_type === 'purchase')?.value || 0
       const purchaseRevenue = r.action_values?.find((a: any) => a.action_type === 'purchase')?.value || 0
 
-      const mapped = {
+      return {
         workspace_id: workspaceId,
         date: r.date_start,
         platform: 'Meta',
@@ -199,31 +178,21 @@ export async function syncMetaAdsData(ctx: SyncContext) {
         purchase_revenue: Number(purchaseRevenue),
         source: 'meta',
       }
+    })
 
-      // Deduplicate by date + campaign + ad
-      const { data: existing } = await supabase
-        .from('ads')
-        .select('id')
-        .eq('workspace_id', workspaceId)
-        .eq('date', mapped.date)
-        .eq('campaign_name', mapped.campaign_name)
-        .eq('ad_name', mapped.ad_name)
-        .eq('source', 'meta')
-        .single()
+    const { error: deleteError } = await supabase
+      .from('ads')
+      .delete()
+      .eq('workspace_id', workspaceId)
+      .eq('source', 'meta')
+      .gte('date', sinceStr)
+      .lte('date', untilStr)
+    if (deleteError) throw deleteError
 
-      if (existing) {
-        const { error } = await supabase.from('ads').update(mapped).eq('id', existing.id)
-        if (error) throw error
-        updatedAds++
-      } else {
-        const { error } = await supabase.from('ads').insert(mapped)
-        if (error) throw error
-        newAds++
-      }
-    }
+    await insertInBatches(supabase, 'ads', mappedAds)
 
-    await finishSyncRun(supabase, syncRun.id, 'success', rows.length, newAds, updatedAds)
-    return { fetched: rows.length, new: newAds, updated: updatedAds }
+    await finishSyncRun(supabase, syncRun.id, 'success', rows.length, mappedAds.length, 0)
+    return { fetched: rows.length, new: mappedAds.length, updated: 0 }
 
   } catch (err: any) {
     await finishSyncRun(supabase, syncRun.id, 'failed', 0, 0, 0, err.message)
@@ -299,6 +268,64 @@ function ensureShopifyHostname(hostname: string) {
   const clean = hostname.replace(/^www\./i, '').toLowerCase()
   if (!clean) return ''
   return clean.includes('.') ? clean : `${clean}.myshopify.com`
+}
+
+function nextShopifyPage(linkHeader: string | null) {
+  if (!linkHeader) return ''
+  for (const part of linkHeader.split(',')) {
+    const match = part.match(/<([^>]+)>;\s*rel="([^"]+)"/)
+    if (match?.[2] === 'next') return match[1]
+  }
+  return ''
+}
+
+async function fetchShopifyCollection<T>(
+  initialUrl: string,
+  headers: Record<string, string>,
+  key: string,
+  label: string
+): Promise<T[]> {
+  const rows: T[] = []
+  let next = initialUrl
+
+  for (let page = 0; next && page < 100; page += 1) {
+    const response = await fetchWithReadableError(next, { headers }, label)
+    if (response.status === 401) {
+      throw new Error('Shopify rejected the saved access token — it may have expired or been revoked. Please reconnect Shopify from the Integrations page.')
+    }
+    if (!response.ok) throw new Error(await formatHttpError(response, label))
+
+    const body = await response.json()
+    rows.push(...(body[key] || []))
+    next = nextShopifyPage(response.headers.get('link'))
+  }
+
+  if (next) throw new Error(`${label} returned too many pages. Please contact support.`)
+  return rows
+}
+
+async function fetchAllMetaRows(initialUrl: string) {
+  const rows: any[] = []
+  let next = initialUrl
+
+  for (let page = 0; next && page < 100; page += 1) {
+    const response = await fetchWithReadableError(next, undefined, 'Meta API')
+    if (!response.ok) throw new Error(await formatMetaError(response))
+    const body = await response.json()
+    rows.push(...(body.data || []))
+    next = body.paging?.next || ''
+  }
+
+  if (next) throw new Error('Meta returned too many pages. Please use a smaller sync range.')
+  return rows
+}
+
+async function insertInBatches(supabase: SupabaseClient, table: string, rows: Record<string, any>[]) {
+  const batchSize = 500
+  for (let index = 0; index < rows.length; index += batchSize) {
+    const { error } = await supabase.from(table).insert(rows.slice(index, index + batchSize))
+    if (error) throw error
+  }
 }
 
 async function fetchWithReadableError(url: string, init: RequestInit | undefined, label: string) {

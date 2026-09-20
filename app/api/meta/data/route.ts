@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { decryptToken } from '@/lib/crypto'
+import { validateDateRange } from '@/lib/date-range'
 
 async function graphGet(url: string) {
   const res = await fetch(url)
@@ -369,6 +370,11 @@ export async function GET(req: NextRequest) {
   const datePreset = searchParams.get('preset') || 'last_30d'
   const since = searchParams.get('since') || ''
   const until = searchParams.get('until') || ''
+
+  if (since || until) {
+    const rangeError = validateDateRange(since, until)
+    if (rangeError) return NextResponse.json({ error: rangeError }, { status: 400 })
+  }
 
   // Require a signed-in user — this route must not act as an open proxy to the Meta API
   const supabase = await createServerSupabaseClient()

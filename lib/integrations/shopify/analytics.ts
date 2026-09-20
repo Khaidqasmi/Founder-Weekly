@@ -185,6 +185,31 @@ async function fetchShopTimeZone(baseUrl: string, headers: Record<string, string
   }
 }
 
+function nextPageUrl(linkHeader: string | null) {
+  if (!linkHeader) return ''
+  for (const part of linkHeader.split(',')) {
+    const match = part.match(/<([^>]+)>;\s*rel="([^"]+)"/)
+    if (match?.[2] === 'next') return match[1]
+  }
+  return ''
+}
+
+async function fetchAllOrders(url: string, headers: Record<string, string>) {
+  const orders: any[] = []
+  let next = url
+
+  for (let page = 0; next && page < 100; page += 1) {
+    const response = await fetch(next, { headers })
+    if (!response.ok) return { orders: [], response }
+
+    const body = await response.json().catch(() => ({}))
+    orders.push(...(body.orders || []))
+    next = nextPageUrl(response.headers.get('link'))
+  }
+
+  return { orders, response: null }
+}
+
 export async function fetchShopifyAnalytics(
   shopDomain: string,
   accessToken: string,
@@ -324,11 +349,11 @@ export async function fetchShopifyAnalytics(
     }
   } catch {}
 
-  const ordersRes = await fetch(
+  const orderResult = await fetchAllOrders(
     `${baseUrl}/orders.json?created_at_min=${encodeURIComponent(restRange.min)}&created_at_max=${encodeURIComponent(restRange.max)}&status=any&limit=250&fields=id,total_price,financial_status,source_name,shipping_address,billing_address,line_items,created_at,customer`,
-    { headers }
+    headers
   )
-  const orders = ordersRes.ok ? (await ordersRes.json().catch(() => ({}))).orders || [] : []
+  const orders = orderResult.orders
 
   // Detect "count > 0 but list empty": Shopify has orders but token lacks
   // read_all_orders — only the last 60 days of order details are accessible by default.

@@ -2,10 +2,27 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient, createServiceRoleClient } from '@/lib/supabase/server'
 import { encryptToken } from '@/lib/crypto'
 import { purgeProviderTemporaryData } from '@/lib/temporary-data'
+import crypto from 'crypto'
 
 const CLIENT_ID = process.env.SHOPIFY_CLIENT_ID!
 const CLIENT_SECRET = process.env.SHOPIFY_CLIENT_SECRET!
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL!
+
+function hasValidShopifyHmac(searchParams: URLSearchParams) {
+  const provided = searchParams.get('hmac') || ''
+  if (!provided || !CLIENT_SECRET) return false
+
+  const message = [...searchParams.entries()]
+    .filter(([key]) => key !== 'hmac' && key !== 'signature')
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([key, value]) => `${key}=${value}`)
+    .join('&')
+  const expected = crypto.createHmac('sha256', CLIENT_SECRET).update(message).digest('hex')
+
+  const providedBuffer = Buffer.from(provided, 'utf8')
+  const expectedBuffer = Buffer.from(expected, 'utf8')
+  return providedBuffer.length === expectedBuffer.length && crypto.timingSafeEqual(providedBuffer, expectedBuffer)
+}
 
 export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl
@@ -21,6 +38,9 @@ export async function GET(req: NextRequest) {
   }
   if (state !== savedState || shop !== savedShop) {
     return NextResponse.redirect(`${APP_URL}/integrations?error=Invalid+OAuth+state.+Please+try+again`)
+  }
+  if (!/^[a-z0-9][a-z0-9-]*\.myshopify\.com$/i.test(shop) || !hasValidShopifyHmac(searchParams)) {
+    return NextResponse.redirect(`${APP_URL}/integrations?error=Shopify+authorization+could+not+be+verified`)
   }
 
   // Exchange code for access token

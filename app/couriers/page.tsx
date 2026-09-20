@@ -534,33 +534,6 @@ export default function CouriersPage() {
     setPage(1)
   }, [searchQuery, statusFilter, courierFilter, dateFilter, shipments.length])
 
-  // TEMP DEBUG — prints every shipment's raw dates, parsed date, and pass/fail
-  // whenever a date filter is active, so misparsed PostEx dates are visible in
-  // the browser console. Remove once short-range filters are confirmed live.
-  useEffect(() => {
-    if (dateFilter === 'all' || shipments.length === 0) return
-    const { from, to } = getDateRange(dateFilter)
-    if (!from || !to) return
-    const rows = shipments.map((s) => {
-      const parsed = shipmentFilterDate(s)
-      return {
-        trackingNumber: s.trackingNumber,
-        bookedAt: s.bookedAt || '—',
-        lastUpdate: s.lastUpdate || '—',
-        deliveredAt: s.deliveredAt || '—',
-        parsed: parsed ? parsed.toLocaleString() : 'UNPARSEABLE',
-        pass: parsed ? parsed >= from && parsed <= to : false,
-      }
-    })
-    const passCount = rows.filter((r) => r.pass).length
-    console.groupCollapsed(
-      `[couriers debug] filter "${dateFilter}": ${passCount}/${rows.length} pass | range ${from.toLocaleString()} → ${to.toLocaleString()}`
-    )
-    console.table(rows)
-    console.groupEnd()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dateFilter, shipments])
-
   const totalShipments = dateFiltered.length
   const delivered = dateFiltered.filter((s) => s.deliveryStatus === 'delivered').length
   const inTransit = dateFiltered.filter((s) => ['in_transit', 'out_for_delivery', 'picked'].includes(s.deliveryStatus)).length
