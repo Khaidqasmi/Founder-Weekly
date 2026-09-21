@@ -32,6 +32,7 @@ export async function GET() {
 
   const authUrl = `https://www.facebook.com/v25.0/dialog/oauth?${params}`
   const res = NextResponse.redirect(authUrl)
-  res.cookies.set('meta_oauth_state', state, { httpOnly: true, maxAge: 300, path: '/' })
+  res.cookies.set('meta_oauth_state', state, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', maxAge: 300, path: '/' })
+  res.cookies.set('meta_oauth_user', user.id, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', maxAge: 300, path: '/' })
   return res
 }

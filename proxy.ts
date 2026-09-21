@@ -178,7 +178,7 @@ export async function proxy(request: NextRequest) {
 
   // Pages that strictly require login — dashboard stays open for demo mode
   // (demo shows only fake sample data; real business data always requires login)
-  const protectedPaths = ['/onboarding', '/settings', '/billing', '/reports', '/actions', '/admin', '/data', '/history']
+  const protectedPaths = ['/onboarding', '/settings', '/billing', '/reports', '/actions', '/admin', '/data', '/history', '/couriers']
   const authPaths = ['/login', '/signup']
 
   const isProtected = protectedPaths.some((p) => path.startsWith(p))

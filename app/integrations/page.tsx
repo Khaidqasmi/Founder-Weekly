@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { notify } from '@/lib/notifications'
+import { getCourierConnections, saveCourierConnection, removeCourierConnection } from '@/lib/integrations/couriers/client'
 import {
   AlertCircle,
   BarChart3,
@@ -239,34 +240,31 @@ function CourierCard({ id, name }: { id: string; name: string }) {
   const [open, setOpen] = useState(false)
   const [saved, setSaved] = useState(false)
 
+  const [saving, setSaving] = useState(false)
   useEffect(() => {
-    const stored: Record<string, string> = {}
-    let hasSaved = false
-    fields.forEach((field) => {
-      const value = localStorage.getItem(`fwgr_${field.key}`) || ''
-      stored[field.key] = value
-      if (value) hasSaved = true
-    })
-    setValues(stored)
-    setSaved(hasSaved)
-  }, [fields])
+    getCourierConnections().then(providers => setSaved(providers.includes(id))).catch(() => setSaved(false))
+  }, [id])
 
-  function handleSave() {
-    fields.forEach((field) => {
-      const value = values[field.key]?.trim()
-      if (value) localStorage.setItem(`fwgr_${field.key}`, value)
-      else localStorage.removeItem(`fwgr_${field.key}`)
-    })
-    setSaved(fields.some((field) => !!values[field.key]?.trim()))
-    setOpen(false)
-    toast.success(`${name} connected`)
+  async function handleSave() {
+    setSaving(true)
+    try {
+      await saveCourierConnection(id, values)
+      fields.forEach(field => localStorage.removeItem(`fwgr_${field.key}`))
+      setValues({})
+      setSaved(true)
+      setOpen(false)
+      toast.success(`${name} credentials saved to your account`)
+    } catch (error) { toast.error(error instanceof Error ? error.message : 'Could not save connection') }
+    finally { setSaving(false) }
   }
 
-  function handleDisconnect() {
-    fields.forEach((field) => localStorage.removeItem(`fwgr_${field.key}`))
-    setValues({})
-    setSaved(false)
-    toast.success(`${name} disconnected`)
+  async function handleDisconnect() {
+    try {
+      await removeCourierConnection(id)
+      setValues({})
+      setSaved(false)
+      toast.success(`${name} disconnected`)
+    } catch (error) { toast.error(error instanceof Error ? error.message : 'Could not disconnect') }
   }
 
   return (
@@ -307,7 +305,7 @@ function CourierCard({ id, name }: { id: string; name: string }) {
               />
             </div>
           ))}
-          <button onClick={handleSave} className="w-full h-9 text-xs font-semibold text-black bg-[#ec4899] hover:opacity-90 rounded-lg hover:opacity-90 transition-opacity">
+          <button onClick={handleSave} disabled={saving} className="w-full h-9 text-xs font-semibold text-black bg-[#ec4899] hover:opacity-90 rounded-lg hover:opacity-90 transition-opacity">
             Save & Connect
           </button>
         </div>
@@ -673,7 +671,7 @@ export default function IntegrationsPage() {
           />
         </Section>
 
-        <Section icon={<Truck className="w-4 h-4" />} title="Courier Accounts" description="Enter courier portal API keys for this browser.">
+        <Section icon={<Truck className="w-4 h-4" />} title="Courier Accounts" description="Save your courier credentials once to your Ecom Panel account.">
           <div className="space-y-3">
             {[
               { id: 'trax', name: 'Trax' },
@@ -690,7 +688,7 @@ export default function IntegrationsPage() {
           <p className="text-xs font-medium text-[#4a4477] mb-1">Your data stays secure</p>
           <p className="text-xs text-[#8d87b8]">
             Store and ad credentials are saved to your workspace, so they remain connected when you log back in.
-            Courier API keys are currently saved in this browser and need to be re-entered if browser data is cleared.
+            Courier credentials are encrypted and saved to your workspace. Sign out hides your data; signing back in restores your connections.
           </p>
         </div>
       </div>

@@ -30,6 +30,13 @@ export async function GET(req: NextRequest) {
   const state = searchParams.get('state')
   const shop = searchParams.get('shop')
 
+  const supabase = await createServerSupabaseClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.redirect(`${APP_URL}/login`)
+  if (req.cookies.get('shopify_oauth_user')?.value !== user.id) {
+    return NextResponse.redirect(`${APP_URL}/integrations?error=Your+session+changed.+Please+connect+again`)
+  }
+
   const savedState = req.cookies.get('shopify_oauth_state')?.value
   const savedShop = req.cookies.get('shopify_oauth_shop')?.value
 
@@ -78,9 +85,6 @@ export async function GET(req: NextRequest) {
   }
 
   // Save to database
-  const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.redirect(`${APP_URL}/login`)
 
   const { data: member } = await supabase
     .from('workspace_members').select('workspace_id').eq('user_id', user.id).single()
@@ -114,6 +118,7 @@ export async function GET(req: NextRequest) {
 
   const res = NextResponse.redirect(`${APP_URL}/integrations?connected=shopify&autosync=shopify`)
   res.cookies.delete('shopify_oauth_state')
+  res.cookies.delete('shopify_oauth_user')
   res.cookies.delete('shopify_oauth_shop')
   return res
 }

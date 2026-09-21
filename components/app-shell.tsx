@@ -9,7 +9,7 @@ import {
   BarChart3, FileText, Upload, ListChecks, Settings, CreditCard, Plug,
   Menu, X, Truck, Clock, TrendingUp, PanelLeftClose, PanelLeftOpen,
 } from 'lucide-react'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { AIAssistant } from '@/components/ai-assistant/ai-assistant'
 
@@ -123,6 +123,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [email, setEmail] = useState<string | null>(null)
   const [checked, setChecked] = useState(false)
+  const sessionUser = useRef<string | null | undefined>(undefined)
 
   useEffect(() => {
     try {
@@ -143,6 +144,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     try {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
+      const nextUser = user?.id || null
+      const previousUser = sessionUser.current
+      sessionUser.current = nextUser
+      if (previousUser !== undefined && previousUser !== nextUser && isAppPage(window.location.pathname)) {
+        try { localStorage.removeItem('fw-notifications') } catch {}
+        window.location.replace(nextUser ? '/dashboard' : '/login')
+        return
+      }
       setIsLoggedIn(!!user)
       setEmail(user?.email ?? null)
     } catch {
@@ -158,9 +167,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [pathname, refreshAuth])
 
   useEffect(() => {
+    window.addEventListener('focus', refreshAuth)
+    return () => window.removeEventListener('focus', refreshAuth)
+  }, [refreshAuth])
+
+  useEffect(() => {
     try {
       const supabase = createClient()
-      const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+        const nextUser = session?.user.id || null
+        const previousUser = sessionUser.current
+        sessionUser.current = nextUser
+        if ((event === 'SIGNED_OUT' || (previousUser !== undefined && previousUser !== nextUser)) && isAppPage(window.location.pathname)) {
+          // Reload rather than retaining client components from a different account.
+          try { localStorage.removeItem('fw-notifications') } catch {}
+          window.location.replace(nextUser ? '/dashboard' : '/login')
+          return
+        }
         refreshAuth()
       })
       return () => subscription.unsubscribe()

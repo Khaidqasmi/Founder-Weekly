@@ -35,6 +35,7 @@ export async function GET() {
 
   const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?${params}`
   const res = NextResponse.redirect(authUrl)
-  res.cookies.set('google_oauth_state', state, { httpOnly: true, maxAge: 300, path: '/' })
+  res.cookies.set('google_oauth_state', state, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', maxAge: 300, path: '/' })
+  res.cookies.set('google_oauth_user', user.id, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', maxAge: 300, path: '/' })
   return res
 }
