@@ -12,12 +12,13 @@ import { KPICard } from '@/components/dashboard/kpi-card'
 import { LoadingSpinner } from '@/components/loading'
 import { COURIER_PROVIDERS, DELIVERY_STATUSES } from '@/lib/integrations/couriers/types'
 import type { Shipment, CourierProvider } from '@/lib/integrations/couriers/types'
-import { fetchAllShipments, fetchAllRemittances } from '@/lib/integrations/couriers/client'
+import { fetchAllShipments, fetchAllRemittances, getCourierConnections, saveCourierConnection, removeCourierConnection } from '@/lib/integrations/couriers/client'
 import type { Remittance } from '@/lib/integrations/couriers/client'
 import { parseCourierDate, formatCompactPKR } from '@/lib/integrations/couriers/format'
 import { formatCurrency, formatNumber } from '@/lib/utils'
 import { toast } from 'sonner'
 import { notify } from '@/lib/notifications'
+import { createClient } from '@/lib/supabase/client'
 import { Eye, EyeOff, RefreshCw, Search, Upload, X, ZoomIn, FileText, ExternalLink } from 'lucide-react'
 
 const RECEIPTS_KEY = 'fw-cod-receipts'
@@ -66,15 +67,13 @@ function CodReceiptsSection({ couriers }: { couriers: string[] }) {
   // flag controls below.
   const [hasApiKeys, setHasApiKeys] = useState(false)
   useEffect(() => {
-    setHasApiKeys(
-      !!localStorage.getItem('fwgr_trax_api_key') ||
-      !!localStorage.getItem('fwgr_leopards_api_key') ||
-      !!localStorage.getItem('fwgr_postex_api_token')
-    )
+    getCourierConnections().then(ids => setHasApiKeys(ids.some(id => ['trax', 'leopards', 'postex'].includes(id)))).catch(() => setHasApiKeys(false))
   }, [])
+
 
   // Manual receipts (fallback for couriers without API support)
   const [receipts, setReceipts] = useState<CodReceipt[]>([])
+  const [receiptStorageKey, setReceiptStorageKey] = useState<string | null>(null)
   const [form, setForm] = useState({ courier: '', date: '', amount: '', notes: '' })
   const [imageBase64, setImageBase64] = useState('')
   const [preview, setPreview] = useState<string | null>(null)
@@ -82,7 +81,12 @@ function CodReceiptsSection({ couriers }: { couriers: string[] }) {
   const [showManual, setShowManual] = useState(false)
 
   useEffect(() => {
-    try { setReceipts(JSON.parse(localStorage.getItem(RECEIPTS_KEY) || '[]')) } catch {}
+    createClient().auth.getUser().then(({ data: { user } }) => {
+      if (!user) return
+      const key = `${RECEIPTS_KEY}:${user.id}`
+      setReceiptStorageKey(key)
+      try { setReceipts(JSON.parse(localStorage.getItem(key) || '[]')) } catch {}
+    })
     loadRemittances()
   }, [])
 
@@ -99,8 +103,9 @@ function CodReceiptsSection({ couriers }: { couriers: string[] }) {
   }
 
   function saveManual(list: CodReceipt[]) {
+    if (!receiptStorageKey) return toast.error('Sign in before saving receipts')
     setReceipts(list)
-    localStorage.setItem(RECEIPTS_KEY, JSON.stringify(list))
+    localStorage.setItem(receiptStorageKey, JSON.stringify(list))
   }
 
   function handleImage(e: React.ChangeEvent<HTMLInputElement>) {
@@ -317,37 +322,32 @@ function CourierSetupCard({ provider, onCredentialsChange }: { provider: Courier
   const [showKeys, setShowKeys] = useState<Record<string, boolean>>({})
   const [saved, setSaved] = useState(false)
 
+  const [saving, setSaving] = useState(false)
   useEffect(() => {
-    const stored: Record<string, string> = {}
-    let hasSaved = false
-    provider.fields.forEach((f) => {
-      const val = localStorage.getItem(`fwgr_${f.key}`) || ''
-      stored[f.key] = val
-      if (val) hasSaved = true
-    })
-    setValues(stored)
-    setSaved(hasSaved)
-  }, [provider.fields])
+    getCourierConnections().then(ids => setSaved(ids.includes(provider.id))).catch(() => setSaved(false))
+  }, [provider.id])
 
-  function handleSave() {
-    provider.fields.forEach((f) => {
-      const val = values[f.key]?.trim() || ''
-      if (val) localStorage.setItem(`fwgr_${f.key}`, val)
-      else localStorage.removeItem(`fwgr_${f.key}`)
-    })
-    setSaved(Object.values(values).some((v) => v.trim()))
-    onCredentialsChange?.()
-    toast.success(`${provider.name} credentials saved`)
-    notify({ kind: 'success', title: 'Courier update', message: `${provider.name} connected` })
+  async function handleSave() {
+    setSaving(true)
+    try {
+      await saveCourierConnection(provider.id, values)
+      provider.fields.forEach(f => localStorage.removeItem(`fwgr_${f.key}`))
+      setValues({})
+      setSaved(true)
+      onCredentialsChange?.()
+      toast.success(`${provider.name} credentials saved to your account`)
+    } catch (error) { toast.error(error instanceof Error ? error.message : 'Could not save connection') }
+    finally { setSaving(false) }
   }
 
-  function handleRemove() {
-    provider.fields.forEach((f) => localStorage.removeItem(`fwgr_${f.key}`))
-    setValues({})
-    setSaved(false)
-    onCredentialsChange?.()
-    toast.success(`${provider.name} disconnected`)
-    notify({ kind: 'info', title: 'Courier update', message: `${provider.name} disconnected` })
+  async function handleRemove() {
+    try {
+      await removeCourierConnection(provider.id)
+      setValues({})
+      setSaved(false)
+      onCredentialsChange?.()
+      toast.success(`${provider.name} disconnected`)
+    } catch (error) { toast.error(error instanceof Error ? error.message : 'Could not disconnect') }
   }
 
   return (
@@ -380,7 +380,7 @@ function CourierSetupCard({ provider, onCredentialsChange }: { provider: Courier
         ))}
       </div>
       <div className="flex gap-2 mt-3">
-        <Button size="sm" className="h-7 text-xs" onClick={handleSave}>Save</Button>
+        <Button size="sm" className="h-7 text-xs" onClick={handleSave} disabled={saving}>Save</Button>
         {saved && <Button size="sm" variant="outline" className="h-7 text-xs" onClick={handleRemove}>Remove</Button>}
         <a href={provider.docsUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-400 hover:underline ml-auto self-center">Docs</a>
       </div>
@@ -423,23 +423,23 @@ export default function CouriersPage() {
   const [dateFilter, setDateFilter] = useState('all')
   const [page, setPage] = useState(1)
 
-  function readConnectedCouriers() {
-    if (typeof window === 'undefined') return []
-    return COURIER_PROVIDERS
-      .filter((provider) => provider.fields.some((field) => localStorage.getItem(`fwgr_${field.key}`)))
-      .map((provider) => provider.name)
+  async function readConnectedCouriers() {
+    const ids = await getCourierConnections()
+    return COURIER_PROVIDERS.filter(provider => ids.includes(provider.id)).map(provider => provider.name)
   }
 
-  function refreshConnectedCouriers() {
-    setConnectedCouriers(readConnectedCouriers())
+  async function refreshConnectedCouriers() {
+    try { setConnectedCouriers(await readConnectedCouriers()) }
+    catch { setConnectedCouriers([]) }
+    await refreshData()
   }
 
   async function refreshData() {
     setLoading(true)
     setErrors([])
-    const connected = readConnectedCouriers()
-    setConnectedCouriers(connected)
     try {
+      const connected = await readConnectedCouriers()
+      setConnectedCouriers(connected)
       const result = await fetchAllShipments()
       if (result.shipments.length > 0) {
         setShipments(result.shipments)
@@ -457,15 +457,15 @@ export default function CouriersPage() {
       }
     } catch (err: any) {
       setErrors([err.message])
+      setShipments([])
+      setConnectedCouriers([])
+      setIsDemo(false)
     }
     setLoading(false)
   }
 
   useEffect(() => {
-    const connected = readConnectedCouriers()
-    setConnectedCouriers(connected)
-    const hasAnyKey = connected.length > 0
-    if (hasAnyKey) refreshData()
+    refreshData()
   }, [])
 
   // Inclusive boundaries: from = start of first day (00:00:00.000),

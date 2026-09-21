@@ -17,8 +17,15 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(`${APP_URL}/integrations?error=Meta+authorization+was+cancelled`)
   }
 
+  const supabase = await createServerSupabaseClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.redirect(`${APP_URL}/login`)
+  if (req.cookies.get('meta_oauth_user')?.value !== user.id) {
+    return NextResponse.redirect(`${APP_URL}/integrations?error=Your+session+changed.+Please+connect+again`)
+  }
+
   const savedState = req.cookies.get('meta_oauth_state')?.value
-  if (state !== savedState) {
+  if (!state || !savedState || state !== savedState) {
     return NextResponse.redirect(`${APP_URL}/integrations?error=Invalid+OAuth+state.+Please+try+again`)
   }
 
@@ -55,9 +62,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(`${APP_URL}/integrations?error=${encodeURIComponent(err.message)}`)
   }
 
-  const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.redirect(`${APP_URL}/login`)
 
   const { data: member } = await supabase
     .from('workspace_members').select('workspace_id').eq('user_id', user.id).single()
@@ -92,5 +96,6 @@ export async function GET(req: NextRequest) {
     : `${APP_URL}/integrations?select=meta`
   const res = NextResponse.redirect(destination)
   res.cookies.delete('meta_oauth_state')
+  res.cookies.delete('meta_oauth_user')
   return res
 }

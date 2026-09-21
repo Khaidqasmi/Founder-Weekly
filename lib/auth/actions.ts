@@ -104,7 +104,9 @@ export async function signIn(formData: FormData) {
     return { error: error.message }
   }
 
-  redirect('/dashboard')
+  const next = formData.get('next')
+  // Only permit known internal destinations, never arbitrary redirects.
+  redirect(next === '/integrations' ? '/integrations' : '/dashboard')
 }
 
 export async function signOut() {

@@ -40,7 +40,8 @@ export async function GET(req: NextRequest) {
   const authUrl = `https://${shopDomain}/admin/oauth/authorize?client_id=${CLIENT_ID}&scope=${SCOPES}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}`
 
   const res = NextResponse.redirect(authUrl)
-  res.cookies.set('shopify_oauth_state', state, { httpOnly: true, maxAge: 300, path: '/' })
-  res.cookies.set('shopify_oauth_shop', shopDomain, { httpOnly: true, maxAge: 300, path: '/' })
+  res.cookies.set('shopify_oauth_state', state, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', maxAge: 300, path: '/' })
+  res.cookies.set('shopify_oauth_shop', shopDomain, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', maxAge: 300, path: '/' })
+  res.cookies.set('shopify_oauth_user', user.id, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', maxAge: 300, path: '/' })
   return res
 }
