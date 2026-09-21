@@ -22,7 +22,7 @@ export default function OnboardingPage() {
     report_day: 'Monday',
     report_time: '09:00',
     report_email: '',
-    data_method: 'demo',
+    data_method: 'connect',
   })
 
   async function handleSave() {
@@ -63,7 +63,7 @@ export default function OnboardingPage() {
     }
 
     toast.success('Onboarding complete!')
-    router.push('/dashboard')
+    router.push(settings.data_method === 'connect' ? '/integrations' : '/dashboard')
     setLoading(false)
   }
 
@@ -140,9 +140,9 @@ export default function OnboardingPage() {
                 <Select value={settings.data_method} onValueChange={(v: string | null) => v && setSettings({ ...settings, data_method: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="connect">Connect my accounts (recommended)</SelectItem>
                     <SelectItem value="demo">Use demo data</SelectItem>
                     <SelectItem value="csv">Upload CSV</SelectItem>
-                    <SelectItem value="manual">Manual entry</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

@@ -1,3 +1,5 @@
+import { getShopifyAccessScopes, shopifyAdminGraphQL } from './graphql'
+
 export interface ShopifyAnalytics {
   sessions: number
   visitors: number
@@ -38,41 +40,10 @@ function addDays(date: string, days: number) {
   return d.toISOString().split('T')[0]
 }
 
-function getTimeZoneOffset(date: string, timeZone: string) {
-  try {
-    const utcDate = new Date(`${date}T12:00:00Z`)
-    const parts = new Intl.DateTimeFormat('en-US', {
-      timeZone,
-      timeZoneName: 'shortOffset',
-      hour: '2-digit',
-    }).formatToParts(utcDate)
-    const tz = parts.find((part) => part.type === 'timeZoneName')?.value || 'GMT'
-    const match = tz.match(/GMT([+-])(\d{1,2})(?::?(\d{2}))?/)
-    if (!match) return '+00:00'
-
-    const sign = match[1]
-    const hours = match[2].padStart(2, '0')
-    const minutes = (match[3] || '00').padStart(2, '0')
-    return `${sign}${hours}:${minutes}`
-  } catch {
-    return '+00:00'
-  }
-}
-
 function sinceUntil(from: string, to: string) {
   // ShopifyQL treats UNTIL like an upper boundary in several reports. Extending
   // by one day makes Today/Yesterday ranges include the whole selected date.
   return `SINCE ${from} UNTIL ${addDays(to, 1)}`
-}
-
-function shopifyRestDateRange(from: string, to: string, timeZone = 'UTC') {
-  const offset = getTimeZoneOffset(from, timeZone)
-  const endOffset = getTimeZoneOffset(addDays(to, 1), timeZone)
-
-  return {
-    min: `${from}T00:00:00${offset}`,
-    max: `${addDays(to, 1)}T00:00:00${endOffset}`,
-  }
 }
 
 function previousDateRange(from: string, to: string) {
@@ -93,19 +64,15 @@ function previousDateRange(from: string, to: string) {
 }
 
 async function shopifyQL(domain: string, token: string, qlQuery: string) {
-  const res = await fetch(`https://${domain}/admin/api/2026-07/graphql.json`, {
-    method: 'POST',
-    headers: { 'X-Shopify-Access-Token': token, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      query: `query { shopifyqlQuery(query: ${JSON.stringify(qlQuery)}) {
+  const data = await shopifyAdminGraphQL<{
+    shopifyqlQuery: { tableData?: unknown; parseErrors?: unknown[] }
+  }>(domain, token, `query ShopifyAnalytics($query: String!) {
+      shopifyqlQuery(query: $query) {
         tableData { rows columns { name dataType displayName } }
         parseErrors
-      } }`,
-    }),
-  })
-  if (!res.ok) throw new Error(`ShopifyQL error: ${res.status}`)
-  const json = await res.json()
-  const result = json?.data?.shopifyqlQuery
+      }
+    }`, { query: qlQuery })
+  const result = data.shopifyqlQuery
   if (result?.parseErrors?.length) throw new Error(`ShopifyQL parse error: ${String(result.parseErrors[0])}`)
   return result?.tableData
 }
@@ -174,40 +141,54 @@ async function fetchLandingPages(shopDomain: string, accessToken: string, range:
   })
 }
 
-async function fetchShopTimeZone(baseUrl: string, headers: Record<string, string>) {
-  try {
-    const res = await fetch(`${baseUrl}/shop.json?fields=iana_timezone,timezone`, { headers })
-    if (!res.ok) return 'UTC'
-    const data = await res.json()
-    return data.shop?.iana_timezone || 'UTC'
-  } catch {
-    return 'UTC'
-  }
-}
-
-function nextPageUrl(linkHeader: string | null) {
-  if (!linkHeader) return ''
-  for (const part of linkHeader.split(',')) {
-    const match = part.match(/<([^>]+)>;\s*rel="([^"]+)"/)
-    if (match?.[2] === 'next') return match[1]
-  }
-  return ''
-}
-
-async function fetchAllOrders(url: string, headers: Record<string, string>) {
+async function fetchAllOrders(shopDomain: string, accessToken: string, from: string, to: string) {
   const orders: any[] = []
-  let next = url
+  let cursor: string | null = null
+  const search = `created_at:>=${from} created_at:<${addDays(to, 1)}`
 
-  for (let page = 0; next && page < 100; page += 1) {
-    const response = await fetch(next, { headers })
-    if (!response.ok) return { orders: [], response }
+  for (let page = 0; page < 100; page += 1) {
+    const data: any = await shopifyAdminGraphQL(
+      shopDomain,
+      accessToken,
+      `query AnalyticsOrders($cursor: String, $search: String!) {
+        orders(first: 100, after: $cursor, query: $search, sortKey: CREATED_AT) {
+          nodes {
+            id createdAt displayFinancialStatus sourceName
+            totalPriceSet { shopMoney { amount } }
+            customer { id }
+            shippingAddress { country }
+            billingAddress { country }
+            lineItems(first: 100) {
+              nodes { title quantity discountedUnitPriceSet { shopMoney { amount } } }
+            }
+          }
+          pageInfo { hasNextPage endCursor }
+        }
+      }`,
+      { cursor, search }
+    )
 
-    const body = await response.json().catch(() => ({}))
-    orders.push(...(body.orders || []))
-    next = nextPageUrl(response.headers.get('link'))
+    orders.push(...(data.orders?.nodes || []).map((order: any) => ({
+      id: order.id,
+      created_at: order.createdAt,
+      financial_status: String(order.displayFinancialStatus || '').toLowerCase(),
+      source_name: order.sourceName || '',
+      total_price: order.totalPriceSet?.shopMoney?.amount || '0',
+      customer: order.customer,
+      shipping_address: order.shippingAddress ? { country: order.shippingAddress.country } : null,
+      billing_address: order.billingAddress ? { country: order.billingAddress.country } : null,
+      line_items: (order.lineItems?.nodes || []).map((lineItem: any) => ({
+        title: lineItem.title,
+        quantity: lineItem.quantity,
+        price: lineItem.discountedUnitPriceSet?.shopMoney?.amount || '0',
+      })),
+    })))
+
+    if (!data.orders?.pageInfo?.hasNextPage) return orders
+    cursor = data.orders.pageInfo.endCursor
   }
 
-  return { orders, response: null }
+  throw new Error('Shopify returned too many orders for this analytics range. Select a smaller range.')
 }
 
 export async function fetchShopifyAnalytics(
@@ -218,10 +199,7 @@ export async function fetchShopifyAnalytics(
 ): Promise<ShopifyAnalytics> {
   if (!shopDomain || !accessToken) throw new Error('Shopify credentials not configured')
 
-  const baseUrl = `https://${shopDomain}/admin/api/2026-07`
-  const headers = { 'X-Shopify-Access-Token': accessToken, 'Content-Type': 'application/json' }
   const range = sinceUntil(dateFrom, dateTo)
-  const shopTimeZone = await fetchShopTimeZone(baseUrl, headers)
 
   // ── 1. Try ShopifyQL for real session data ──────────────────────────────
   let sessionRows: Record<string, any>[] = []
@@ -332,32 +310,15 @@ export async function fetchShopifyAnalytics(
     shopifyQLError ||= err?.message || 'ShopifyQL landing page query failed'
   }
 
-  let orderCount = 0
-  const restRange = (() => {
-    try { return shopifyRestDateRange(dateFrom, dateTo, shopTimeZone) } catch { /* fall through */ }
-    try { return shopifyRestDateRange(dateFrom, dateTo, 'UTC') } catch { /* fall through */ }
-    return { min: `${dateFrom}T00:00:00+00:00`, max: `${addDays(dateTo, 1)}T00:00:00+00:00` }
-  })()
+  const orders = await fetchAllOrders(shopDomain, accessToken, dateFrom, dateTo)
+  const orderCount = orders.length
+  let hasReadAllOrders = false
   try {
-    const countRes = await fetch(
-      `${baseUrl}/orders/count.json?created_at_min=${encodeURIComponent(restRange.min)}&created_at_max=${encodeURIComponent(restRange.max)}&status=any`,
-      { headers }
-    )
-    if (countRes.ok) {
-      const countData = await countRes.json()
-      orderCount = Number(countData.count || 0)
-    }
+    hasReadAllOrders = (await getShopifyAccessScopes(shopDomain, accessToken)).has('read_all_orders')
   } catch {}
-
-  const orderResult = await fetchAllOrders(
-    `${baseUrl}/orders.json?created_at_min=${encodeURIComponent(restRange.min)}&created_at_max=${encodeURIComponent(restRange.max)}&status=any&limit=250&fields=id,total_price,financial_status,source_name,shipping_address,billing_address,line_items,created_at,customer`,
-    headers
-  )
-  const orders = orderResult.orders
-
-  // Detect "count > 0 but list empty": Shopify has orders but token lacks
-  // read_all_orders — only the last 60 days of order details are accessible by default.
-  const orderAccessLimited = orderCount > 0 && orders.length === 0
+  const sixtyDaysAgo = new Date()
+  sixtyDaysAgo.setUTCDate(sixtyDaysAgo.getUTCDate() - 60)
+  const orderAccessLimited = new Date(`${dateFrom}T00:00:00Z`) < sixtyDaysAgo && !hasReadAllOrders
 
   const paidOrders = orders.filter((o: any) => !['refunded', 'voided'].includes(o.financial_status))
 

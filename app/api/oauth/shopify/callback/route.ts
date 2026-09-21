@@ -112,7 +112,7 @@ export async function GET(req: NextRequest) {
     await supabase.from('integration_connections').insert(record)
   }
 
-  const res = NextResponse.redirect(`${APP_URL}/integrations?connected=shopify`)
+  const res = NextResponse.redirect(`${APP_URL}/integrations?connected=shopify&autosync=shopify`)
   res.cookies.delete('shopify_oauth_state')
   res.cookies.delete('shopify_oauth_shop')
   return res

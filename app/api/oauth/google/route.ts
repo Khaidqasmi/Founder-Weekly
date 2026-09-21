@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import crypto from 'crypto'
 
@@ -7,12 +7,10 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL!
 
 const SCOPES = [
   'https://www.googleapis.com/auth/analytics.readonly',
-  'https://www.googleapis.com/auth/webmasters.readonly',
-  'https://www.googleapis.com/auth/spreadsheets.readonly',
   'https://www.googleapis.com/auth/userinfo.email',
 ].join(' ')
 
-export async function GET(req: NextRequest) {
+export async function GET() {
   if (!CLIENT_ID) {
     return NextResponse.redirect(`${APP_URL}/integrations?error=Google+app+not+configured`)
   }
@@ -31,6 +29,7 @@ export async function GET(req: NextRequest) {
     scope: SCOPES,
     access_type: 'offline',
     prompt: 'consent select_account',
+    include_granted_scopes: 'true',
     state,
   })
 

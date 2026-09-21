@@ -2,10 +2,12 @@ import { NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 
 export async function GET() {
+  const shopifyInstallUrl = process.env.SHOPIFY_APP_INSTALL_URL || ''
   const oauth = {
-    shopify: !!(process.env.SHOPIFY_CLIENT_ID && process.env.SHOPIFY_CLIENT_SECRET),
+    shopify: !!(process.env.SHOPIFY_CLIENT_ID && process.env.SHOPIFY_CLIENT_SECRET && shopifyInstallUrl),
     meta: !!(process.env.META_APP_ID && process.env.META_APP_SECRET),
     google: !!(process.env.GA4_CLIENT_ID && process.env.GA4_CLIENT_SECRET),
+    shopifyInstallUrl,
   }
 
   try {

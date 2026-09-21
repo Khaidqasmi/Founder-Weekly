@@ -25,6 +25,7 @@ export async function GET(req: NextRequest) {
 
   // Exchange code for tokens
   let accessToken: string, refreshToken: string, email: string
+  let properties: { id: string; name: string }[] = []
   try {
     const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
@@ -43,6 +44,21 @@ export async function GET(req: NextRequest) {
     })
     const userInfo = await userRes.json()
     email = userInfo.email || ''
+
+    const propertyRes = await fetch('https://analyticsadmin.googleapis.com/v1beta/accountSummaries?pageSize=200', {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+    const propertyData = await propertyRes.json()
+    if (!propertyRes.ok || propertyData?.error) {
+      throw new Error(propertyData?.error?.message || 'Could not load Google Analytics properties')
+    }
+    properties = (propertyData.accountSummaries || []).flatMap((account: any) =>
+      (account.propertySummaries || []).map((property: any) => ({
+        id: String(property.property || '').replace(/^properties\//, ''),
+        name: property.displayName || property.property,
+      }))
+    ).filter((property: { id: string }) => property.id)
+    if (properties.length === 0) throw new Error('No GA4 property is available for this Google account')
   } catch (err: any) {
     return NextResponse.redirect(`${APP_URL}/integrations?error=${encodeURIComponent(err.message)}`)
   }
@@ -56,13 +72,15 @@ export async function GET(req: NextRequest) {
     .from('workspace_members').select('workspace_id').eq('user_id', user.id).single()
   if (!member) return NextResponse.redirect(`${APP_URL}/integrations?error=No+workspace`)
 
+  const propertyId = properties.length === 1 ? properties[0].id : ''
   const record = {
     workspace_id: member.workspace_id,
     provider: 'google',
-    status: 'connected',
+    status: propertyId ? 'connected' : 'needs_selection',
     access_token_encrypted: encryptToken(accessToken),
     refresh_token_encrypted: encryptToken(refreshToken),
     shop_domain: email,
+    ga4_property_id: propertyId,
     last_sync_at: new Date().toISOString(),
   }
 
@@ -76,7 +94,11 @@ export async function GET(req: NextRequest) {
     await supabase.from('integration_connections').insert(record)
   }
 
-  const res = NextResponse.redirect(`${APP_URL}/integrations?connected=google`)
+  const res = NextResponse.redirect(
+    propertyId
+      ? `${APP_URL}/integrations?connected=google`
+      : `${APP_URL}/integrations?select=google`
+  )
   res.cookies.delete('google_oauth_state')
   return res
 }
