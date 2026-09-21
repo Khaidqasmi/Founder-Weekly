@@ -159,7 +159,7 @@ function IntegrationCard({
       {!isConnected && !embeddedRedirectUrl && !quickConnect && (
         <div className="px-5 pt-4">
           <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-xs text-amber-800">
-            Ecom Panel ka secure connection setup final review mein hai. Client ko API key ya developer app banane ki zaroorat nahi hogi.
+            Connection is temporarily unavailable. Please contact support.
           </div>
         </div>
       )}
@@ -349,6 +349,9 @@ export default function IntegrationsPage() {
   const [selectedAccountId, setSelectedAccountId] = useState('')
   const [loadingOptions, setLoadingOptions] = useState(false)
   const [savingSelection, setSavingSelection] = useState(false)
+  const [showShopInput, setShowShopInput] = useState(false)
+  const [connectionNotice, setConnectionNotice] = useState('')
+  const [statusLoading, setStatusLoading] = useState(true)
   // Read synchronously so IntegrationCard receives the correct initialValues on its first render.
   // useEffect runs after mount, which is too late for useState lazy initialisers inside the card.
   const [shopParam] = useState(() => {
@@ -373,6 +376,9 @@ export default function IntegrationsPage() {
       }
     } catch {
       setConnections([])
+      setLoggedIn(false)
+    } finally {
+      setStatusLoading(false)
     }
   }
 
@@ -456,6 +462,30 @@ export default function IntegrationsPage() {
     return connections.find((connection) => connection.provider === provider)
   }
 
+  function connect(provider: 'shopify' | 'meta' | 'google') {
+    if (statusLoading) return
+    if (!loggedIn) {
+      window.location.assign('/login?next=/integrations')
+      return
+    }
+    setConnectionNotice('')
+    if (!oauthAvailable[provider]) {
+      const message = `${providerName(provider)} sign-in is not available yet. Please contact Ecom Panel support to activate it. You do not need to create an app or supply API keys.`
+      setConnectionNotice(message)
+      toast.error(message)
+      return
+    }
+    if (provider === 'shopify') {
+      if (oauthAvailable.shopifyInstallUrl) {
+        window.location.assign(oauthAvailable.shopifyInstallUrl)
+      } else {
+        setShowShopInput(true)
+      }
+      return
+    }
+    window.location.assign(`/api/oauth/${provider}`)
+  }
+
   async function disconnect(provider: string) {
     try {
       const res = await fetch('/api/oauth/status', {
@@ -508,18 +538,19 @@ export default function IntegrationsPage() {
           <p className="text-sm text-[#6d64b8] mt-1">
             Har client apne account par Connect dabaye, provider approval de, aur data us ke apne workspace mein sync ho jaye.
           </p>
+          {connectionNotice && <div role="alert" className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{connectionNotice}</div>}
           {connectedCount > 0 && (
             <div className="mt-3 inline-flex items-center gap-2 text-xs bg-green-500/10 border border-green-500/25 text-green-600 rounded-full px-3 py-1 font-medium">
               <CheckCircle className="w-3 h-3" /> {connectedCount} integration{connectedCount !== 1 ? 's' : ''} connected
             </div>
           )}
-          {!loggedIn && !isEmbedded && (
+          {!statusLoading && !loggedIn && !isEmbedded && (
             <div className="mt-3 flex items-center gap-2 bg-[#fce7f3] border border-[#f8cfe4] text-[#db2777] rounded-lg px-4 py-3 text-sm">
               <AlertCircle className="w-4 h-4 shrink-0" />
               <span>
                 You need to{' '}
                 <a href="/login" target="_blank" rel="noopener noreferrer" className="underline font-medium">
-                  sign in to Founder Weekly
+                  sign in to Ecom Panel
                 </a>{' '}
                 before connecting integrations.
               </span>
@@ -564,18 +595,26 @@ export default function IntegrationsPage() {
             color="bg-[#5e8e3e]/10"
             connection={getConn('shopify')}
             embeddedRedirectUrl={shopifyEmbeddedRedirectUrl}
-            quickConnect={oauthAvailable.shopify ? (
+            quickConnect={(
               <div className="rounded-xl border border-[#dce8d4] bg-[#f5faf2] p-3">
                 <p className="mb-2 text-xs font-semibold text-[#365c25]">One-click secure install</p>
-                <a
-                  href={oauthAvailable.shopifyInstallUrl}
+                <button
+                  type="button"
+                  disabled={statusLoading}
+                  onClick={() => connect('shopify')}
                   className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-[#5e8e3e] px-4 text-sm font-semibold text-white hover:opacity-90"
                 >
                   Connect with Shopify <ChevronRight className="h-4 w-4" />
-                </a>
+                </button>
+                {showShopInput && (
+                  <form action="/api/oauth/shopify" className="mt-3 flex gap-2">
+                    <input name="shop" aria-label="Shopify store address" placeholder="your-store.myshopify.com" required defaultValue={shopParam} className="min-w-0 flex-1 rounded-lg border px-3 py-2 text-sm" />
+                    <button type="submit" className="rounded-lg bg-[#5e8e3e] px-3 text-sm font-semibold text-white">Continue</button>
+                  </form>
+                )}
                 <p className="mt-2 text-[11px] text-[#5f7654]">Shopify par store choose karke read-only access approve karein. API keys ki zaroorat nahi.</p>
               </div>
-            ) : undefined}
+            )}
             onDisconnect={() => disconnect('shopify')}
             onSync={() => syncNow('shopify')}
             syncing={!!syncing.shopify}
@@ -589,21 +628,19 @@ export default function IntegrationsPage() {
             tagline="Facebook and Instagram ad spend, ROAS and campaigns"
             color="bg-[#1877F2]/10"
             connection={getConn('meta')}
-            quickConnect={oauthAvailable.meta ? (
+            quickConnect={(
               <div className="rounded-xl border border-[#cfe0fb] bg-[#f3f7ff] p-3">
                 <p className="mb-2 text-xs text-[#315b94]">Sign in to Facebook, choose access, and return here automatically.</p>
                 <button
                   type="button"
-                  onClick={() => {
-                    if (!loggedIn) return toast.error('Sign in before connecting Meta Ads')
-                    window.location.assign('/api/oauth/meta')
-                  }}
+                  onClick={() => connect('meta')}
+                  disabled={statusLoading}
                   className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-[#1877F2] px-4 text-sm font-semibold text-white hover:opacity-90"
                 >
                   Connect with Meta <ChevronRight className="h-4 w-4" />
                 </button>
               </div>
-            ) : undefined}
+            )}
             onDisconnect={() => disconnect('meta')}
             onSync={() => syncNow('meta')}
             syncing={!!syncing.meta}
@@ -617,20 +654,18 @@ export default function IntegrationsPage() {
             tagline="GA4 property credentials for reporting"
             color="bg-[#fce7f3]"
             connection={getConn('google')}
-            quickConnect={oauthAvailable.google ? (
+            quickConnect={(
               <div className="rounded-xl border border-[#d7e2fb] bg-[#f7f9ff] p-3">
                 <button
                   type="button"
-                  onClick={() => {
-                    if (!loggedIn) return toast.error('Sign in before connecting Google Analytics')
-                    window.location.assign('/api/oauth/google')
-                  }}
+                  onClick={() => connect('google')}
+                  disabled={statusLoading}
                   className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-[#4285F4] px-4 text-sm font-semibold text-white hover:opacity-90"
                 >
                   Connect with Google <ChevronRight className="h-4 w-4" />
                 </button>
               </div>
-            ) : undefined}
+            )}
             onDisconnect={() => disconnect('google')}
             onSync={() => syncNow('google')}
             syncing={!!syncing.google}
