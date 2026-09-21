@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
   const redirectUri = `${APP_URL}/api/oauth/meta/callback`
 
   // Exchange code for long-lived token
-  let accessToken: string, adAccountId = ''
+  let accessToken: string, adAccounts: { id: string; name: string }[] = []
   try {
     const tokenRes = await fetch(
       `https://graph.facebook.com/v25.0/oauth/access_token?client_id=${APP_ID}&client_secret=${APP_SECRET}&redirect_uri=${encodeURIComponent(redirectUri)}&code=${code}`
@@ -42,12 +42,15 @@ export async function GET(req: NextRequest) {
     const longLived = await longLivedRes.json()
     if (longLived.access_token) accessToken = longLived.access_token
 
-    // Fetch first ad account
+    // Fetch all selectable ad accounts. Auto-connect only when there is one;
+    // choosing the first account silently can attach the wrong client brand.
     const adRes = await fetch(
-      `https://graph.facebook.com/v25.0/me/adaccounts?fields=id,name&limit=1&access_token=${accessToken}`
+      `https://graph.facebook.com/v25.0/me/adaccounts?fields=id,name&limit=100&access_token=${accessToken}`
     )
     const adData = await adRes.json()
-    adAccountId = adData?.data?.[0]?.id || ''
+    if (!adRes.ok || adData?.error) throw new Error(adData?.error?.message || 'Could not load Meta ad accounts')
+    adAccounts = (adData?.data || []).map((account: any) => ({ id: account.id, name: account.name || account.id }))
+    if (adAccounts.length === 0) throw new Error('No Meta ad account is available for this Facebook user')
   } catch (err: any) {
     return NextResponse.redirect(`${APP_URL}/integrations?error=${encodeURIComponent(err.message)}`)
   }
@@ -60,10 +63,11 @@ export async function GET(req: NextRequest) {
     .from('workspace_members').select('workspace_id').eq('user_id', user.id).single()
   if (!member) return NextResponse.redirect(`${APP_URL}/integrations?error=No+workspace`)
 
+  const adAccountId = adAccounts.length === 1 ? adAccounts[0].id : ''
   const record = {
     workspace_id: member.workspace_id,
     provider: 'meta',
-    status: 'connected',
+    status: adAccountId ? 'connected' : 'needs_selection',
     access_token_encrypted: encryptToken(accessToken),
     ad_account_id: adAccountId,
     last_sync_at: new Date().toISOString(),
@@ -83,7 +87,10 @@ export async function GET(req: NextRequest) {
     await supabase.from('integration_connections').insert(record)
   }
 
-  const res = NextResponse.redirect(`${APP_URL}/integrations?connected=meta`)
+  const destination = adAccountId
+    ? `${APP_URL}/integrations?connected=meta&autosync=meta`
+    : `${APP_URL}/integrations?select=meta`
+  const res = NextResponse.redirect(destination)
   res.cookies.delete('meta_oauth_state')
   return res
 }

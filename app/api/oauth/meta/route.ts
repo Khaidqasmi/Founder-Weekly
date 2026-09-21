@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import crypto from 'crypto'
 
@@ -10,7 +10,7 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL!
 // merchants who only need reporting.
 const SCOPES = ['ads_read'].join(',')
 
-export async function GET(req: NextRequest) {
+export async function GET() {
   if (!APP_ID) {
     return NextResponse.redirect(`${APP_URL}/integrations?error=Meta+app+not+configured`)
   }

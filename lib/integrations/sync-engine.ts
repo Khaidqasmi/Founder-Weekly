@@ -1,6 +1,7 @@
 import { SupabaseClient } from '@supabase/supabase-js'
 import { isCODPaymentMethod } from '@/lib/calculations'
 import { daysAgoDateKey } from '@/lib/date-range'
+import { getShopifyAccessScopes, shopifyAdminGraphQL } from '@/lib/integrations/shopify/graphql'
 
 interface SyncContext {
   supabase: SupabaseClient
@@ -22,56 +23,32 @@ export async function syncShopifyData(ctx: SyncContext) {
   const syncRun = await startSyncRun(supabase, workspaceId, 'shopify', 'orders+inventory')
 
   try {
-    const baseUrl = `https://${normalizedShopDomain}/admin/api/2024-01`
-    const headers = { 'X-Shopify-Access-Token': cleanAccessToken, 'Content-Type': 'application/json' }
-
-    // Shopify REST caps a page at 250 records. Follow Link pagination so long
-    // ranges and larger stores are synced completely rather than silently cut.
-    const shopifyOrders = await fetchShopifyCollection<any>(
-      `${baseUrl}/orders.json?status=any&limit=250`,
-      headers,
-      'orders',
-      'Shopify orders API'
-    )
-
-    // If no orders were returned, check the count endpoint to distinguish
-    // "store truly has no orders" from "token lacks read_all_orders scope".
-    if (shopifyOrders.length === 0) {
-      try {
-        const countRes = await fetchWithReadableError(`${baseUrl}/orders/count.json?status=any`, { headers }, 'Shopify orders count API')
-        if (countRes.ok) {
-          const countData = await countRes.json()
-          const totalCount = Number(countData.count || 0)
-          if (totalCount > 0) {
-            throw new Error(
-              `Shopify reports ${totalCount} order(s) exist but this app cannot retrieve them. ` +
-              `The connected token is missing the read_all_orders permission. ` +
-              `To fix this: add the read_all_orders scope to your Shopify app, then reinstall/reconnect the integration.`
-            )
-          }
-        }
-      } catch (countErr: any) {
-        // Re-throw only our own descriptive error; swallow count fetch errors
-        if (countErr.message?.includes('read_all_orders')) throw countErr
-      }
-    }
+    // New public Shopify apps must use the GraphQL Admin API. The cursor loop
+    // keeps the sync complete for large stores without relying on legacy REST.
+    const shopifyOrders = await fetchShopifyOrdersGraphQL(normalizedShopDomain, cleanAccessToken)
+    let historyLimited = false
+    try {
+      historyLimited = !(await getShopifyAccessScopes(normalizedShopDomain, cleanAccessToken)).has('read_all_orders')
+    } catch {}
 
     const mappedOrders = shopifyOrders.map((o) => {
-      const paymentMethod = o.gateway || o.payment_gateway_names?.join(', ') || ''
+      const paymentMethod = o.paymentGatewayNames?.join(', ') || ''
+      const lineItems = o.lineItems?.nodes || []
       return {
         workspace_id: workspaceId,
-        order_date: o.created_at?.split('T')[0] || new Date().toISOString().split('T')[0],
-        order_id: `SHOP-${o.id}`,
-        customer_name: `${o.customer?.first_name || ''} ${o.customer?.last_name || ''}`.trim(),
-        city: o.shipping_address?.city || '',
-        product_name: o.line_items?.map((li: any) => li.title).join(', ') || '',
-        sku: o.line_items?.[0]?.sku || '',
-        quantity: o.line_items?.reduce((s: number, li: any) => s + li.quantity, 0) || 0,
-        selling_price: Number(o.total_price) || 0,
-        revenue: Number(o.total_price) || 0,
+        order_date: o.createdAt?.split('T')[0] || new Date().toISOString().split('T')[0],
+        order_id: `SHOP-${o.legacyResourceId || o.id}`,
+        shopify_customer_id: String(o.customer?.legacyResourceId || ''),
+        customer_name: `${o.customer?.firstName || ''} ${o.customer?.lastName || ''}`.trim(),
+        city: o.shippingAddress?.city || '',
+        product_name: lineItems.map((lineItem: any) => lineItem.title).join(', '),
+        sku: lineItems[0]?.sku || '',
+        quantity: lineItems.reduce((sum: number, lineItem: any) => sum + Number(lineItem.quantity || 0), 0),
+        selling_price: Number(o.totalPriceSet?.shopMoney?.amount) || 0,
+        revenue: Number(o.totalPriceSet?.shopMoney?.amount) || 0,
         payment_method: paymentMethod,
-        order_status: mapShopifyStatus(o.financial_status, o.fulfillment_status),
-        cod_status: isCODPaymentMethod(paymentMethod) ? (o.financial_status === 'paid' ? 'Confirmed' : 'Pending') : 'N/A',
+        order_status: mapShopifyStatus(o.displayFinancialStatus, o.displayFulfillmentStatus),
+        cod_status: isCODPaymentMethod(paymentMethod) ? (o.displayFinancialStatus === 'PAID' ? 'Confirmed' : 'Pending') : 'N/A',
         source: 'shopify',
       }
     })
@@ -80,12 +57,7 @@ export async function syncShopifyData(ctx: SyncContext) {
     let products: any[] = []
     let inventoryFetched = false
     try {
-      products = await fetchShopifyCollection<any>(
-        `${baseUrl}/products.json?limit=250`,
-        headers,
-        'products',
-        'Shopify products API'
-      )
+      products = await fetchShopifyProductsGraphQL(normalizedShopDomain, cleanAccessToken)
       inventoryFetched = true
     } catch (error) {
       // Missing product/inventory scopes should not discard an otherwise valid
@@ -94,7 +66,7 @@ export async function syncShopifyData(ctx: SyncContext) {
     }
 
     const mappedInventory = products.flatMap((product) =>
-      (product.variants || []).map((variant: any) => ({
+      (product.variants?.nodes || []).map((variant: any) => ({
             workspace_id: workspaceId,
             product_name: `${product.title}${variant.title !== 'Default Title' ? ` - ${variant.title}` : ''}`,
             sku: variant.sku || '',
@@ -129,7 +101,15 @@ export async function syncShopifyData(ctx: SyncContext) {
     const inserted = mappedOrders.length + (inventoryFetched ? mappedInventory.length : 0)
 
     await finishSyncRun(supabase, syncRun.id, 'success', shopifyOrders.length, inserted, 0)
-    return { fetched: shopifyOrders.length, new: inserted, updated: 0 }
+    return {
+      fetched: shopifyOrders.length,
+      new: inserted,
+      updated: 0,
+      historyLimited,
+      warning: historyLimited
+        ? 'Shopify has granted only the default 60-day order window. Historical analytics will unlock after read_all_orders approval and reconnection.'
+        : undefined,
+    }
 
   } catch (err: any) {
     await finishSyncRun(supabase, syncRun.id, 'failed', 0, 0, 0, err.message)
@@ -201,10 +181,10 @@ export async function syncMetaAdsData(ctx: SyncContext) {
 }
 
 function mapShopifyStatus(financial: string, fulfillment: string): string {
-  if (financial === 'refunded') return 'Returned'
-  if (financial === 'voided') return 'Cancelled'
-  if (fulfillment === 'fulfilled') return 'Delivered'
-  if (fulfillment === 'partial') return 'Shipped'
+  if (financial === 'REFUNDED') return 'Returned'
+  if (financial === 'VOIDED') return 'Cancelled'
+  if (fulfillment === 'FULFILLED') return 'Delivered'
+  if (fulfillment === 'PARTIALLY_FULFILLED') return 'Shipped'
   return 'Pending'
 }
 
@@ -270,38 +250,69 @@ function ensureShopifyHostname(hostname: string) {
   return clean.includes('.') ? clean : `${clean}.myshopify.com`
 }
 
-function nextShopifyPage(linkHeader: string | null) {
-  if (!linkHeader) return ''
-  for (const part of linkHeader.split(',')) {
-    const match = part.match(/<([^>]+)>;\s*rel="([^"]+)"/)
-    if (match?.[2] === 'next') return match[1]
+async function fetchShopifyOrdersGraphQL(shopDomain: string, accessToken: string) {
+  const orders: any[] = []
+  let cursor: string | null = null
+
+  for (let page = 0; page < 100; page += 1) {
+    const data: any = await shopifyAdminGraphQL(
+      shopDomain,
+      accessToken,
+      `query OrdersForDashboard($cursor: String) {
+        orders(first: 100, after: $cursor, sortKey: CREATED_AT, reverse: true) {
+          nodes {
+            id legacyResourceId createdAt displayFinancialStatus displayFulfillmentStatus
+            paymentGatewayNames
+            totalPriceSet { shopMoney { amount } }
+            customer { id legacyResourceId firstName lastName }
+            shippingAddress { city country }
+            billingAddress { country }
+            lineItems(first: 100) {
+              nodes { title sku quantity discountedUnitPriceSet { shopMoney { amount } } }
+            }
+          }
+          pageInfo { hasNextPage endCursor }
+        }
+      }`,
+      { cursor }
+    )
+
+    orders.push(...(data.orders?.nodes || []))
+    if (!data.orders?.pageInfo?.hasNextPage) return orders
+    cursor = data.orders.pageInfo.endCursor
   }
-  return ''
+
+  throw new Error('Shopify returned more than 10,000 orders. Please contact support for bulk import.')
 }
 
-async function fetchShopifyCollection<T>(
-  initialUrl: string,
-  headers: Record<string, string>,
-  key: string,
-  label: string
-): Promise<T[]> {
-  const rows: T[] = []
-  let next = initialUrl
+async function fetchShopifyProductsGraphQL(shopDomain: string, accessToken: string) {
+  const products: any[] = []
+  let cursor: string | null = null
 
-  for (let page = 0; next && page < 100; page += 1) {
-    const response = await fetchWithReadableError(next, { headers }, label)
-    if (response.status === 401) {
-      throw new Error('Shopify rejected the saved access token — it may have expired or been revoked. Please reconnect Shopify from the Integrations page.')
-    }
-    if (!response.ok) throw new Error(await formatHttpError(response, label))
+  for (let page = 0; page < 100; page += 1) {
+    const data: any = await shopifyAdminGraphQL(
+      shopDomain,
+      accessToken,
+      `query ProductsForDashboard($cursor: String) {
+        products(first: 100, after: $cursor, sortKey: UPDATED_AT) {
+          nodes {
+            id title
+            variants(first: 100) {
+              nodes { id title sku inventoryQuantity price compareAtPrice }
+            }
+          }
+          pageInfo { hasNextPage endCursor }
+        }
+      }`,
+      { cursor }
+    )
 
-    const body = await response.json()
-    rows.push(...(body[key] || []))
-    next = nextShopifyPage(response.headers.get('link'))
+    products.push(...(data.products?.nodes || []))
+    if (!data.products?.pageInfo?.hasNextPage) return products
+    cursor = data.products.pageInfo.endCursor
   }
 
-  if (next) throw new Error(`${label} returned too many pages. Please contact support.`)
-  return rows
+  throw new Error('Shopify returned more than 10,000 products. Please contact support for bulk import.')
 }
 
 async function fetchAllMetaRows(initialUrl: string) {
@@ -335,12 +346,6 @@ async function fetchWithReadableError(url: string, init: RequestInit | undefined
     const reason = error?.cause?.message || error?.message || 'network request failed'
     throw new Error(`${label} request failed: ${reason}`)
   }
-}
-
-async function formatHttpError(response: Response, label: string) {
-  const text = await response.text().catch(() => '')
-  const message = text.slice(0, 300) || response.statusText
-  return `${label}: ${response.status} ${message}`
 }
 
 // Meta's raw error JSON (e.g. {"error":{"message":"API access blocked.",...}})

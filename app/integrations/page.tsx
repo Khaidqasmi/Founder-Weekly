@@ -27,6 +27,18 @@ interface Connection {
   last_sync_at?: string
 }
 
+interface OAuthAvailability {
+  shopify: boolean
+  meta: boolean
+  google: boolean
+  shopifyInstallUrl?: string
+}
+
+interface AccountOption {
+  id: string
+  name: string
+}
+
 interface CredentialField {
   label: string
   key: string
@@ -94,15 +106,11 @@ function IntegrationCard({
   tagline,
   color,
   connection,
-  fields,
-  onSave,
   onDisconnect,
   onSync,
   syncing,
   syncEnabled = true,
-  formHeader,
   embeddedRedirectUrl,
-  initialValues,
   quickConnect,
 }: {
   provider: string
@@ -110,45 +118,15 @@ function IntegrationCard({
   tagline: string
   color: string
   connection?: Connection
-  fields: CredentialField[]
-  onSave: (credentials: Record<string, string>) => Promise<void>
   onDisconnect: () => void
   onSync: () => void
   syncing: boolean
   syncEnabled?: boolean
-  formHeader?: React.ReactNode
   embeddedRedirectUrl?: string
-  initialValues?: Record<string, string>
   quickConnect?: React.ReactNode
 }) {
-  const [open, setOpen] = useState(() => !!(initialValues && Object.keys(initialValues).length > 0))
-  const [saving, setSaving] = useState(false)
-  const [values, setValues] = useState<Record<string, string>>(initialValues || {})
   const isConnected = connection?.status === 'connected'
   const detail = detailFor(connection)
-
-  async function handleSave() {
-    const credentials: Record<string, string> = {}
-    for (const field of fields) {
-      const value = values[field.key]?.trim() || ''
-      if (!value) {
-        toast.error(`Enter ${field.label}`)
-        return
-      }
-      credentials[field.key] = value
-    }
-
-    setSaving(true)
-    try {
-      await onSave(credentials)
-      setValues({})
-      setOpen(false)
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to save credentials')
-    } finally {
-      setSaving(false)
-    }
-  }
 
   return (
     <div className="bg-white rounded-2xl border border-[#e4defa] overflow-hidden">
@@ -178,13 +156,20 @@ function IntegrationCard({
         <div className="px-5 pt-4">{quickConnect}</div>
       )}
 
+      {!isConnected && !embeddedRedirectUrl && !quickConnect && (
+        <div className="px-5 pt-4">
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-xs text-amber-800">
+            Ecom Panel ka secure connection setup final review mein hai. Client ko API key ya developer app banane ki zaroorat nahi hogi.
+          </div>
+        </div>
+      )}
+
       {!isConnected && embeddedRedirectUrl && (
         <div className="px-5 pt-4 pb-1 space-y-2">
           <div className="flex items-start gap-2 bg-[#fce7f3] border border-[#f8cfe4] rounded-lg px-3 py-2.5 text-xs text-[#db2777]">
             <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
             <span>
-              Credentials cannot be saved inside the Shopify admin panel because browser cookies
-              are blocked in embedded iframes. Open Founder Weekly directly to connect.
+              Secure sign-in ko complete karne ke liye Ecom Panel ko new tab mein kholein.
             </span>
           </div>
           <a
@@ -194,35 +179,12 @@ function IntegrationCard({
             className="flex items-center justify-center gap-2 w-full text-sm font-semibold text-white rounded-xl px-5 py-2.5 transition-all hover:opacity-90"
             style={{ background: '#5e8e3e' }}
           >
-            Open Founder Weekly to Connect Shopify
+            Open Ecom Panel to Continue
             <ChevronRight className="w-4 h-4" />
           </a>
           <p className="text-xs text-[#8d87b8] text-center pb-1">
-            Sign in if prompted, then paste your credentials on the Integrations page.
+            Sign in if prompted; kisi API key ko copy karne ki zaroorat nahi hai.
           </p>
-        </div>
-      )}
-
-      {!isConnected && !embeddedRedirectUrl && open && (
-        <div className="px-5 pt-4 space-y-3">
-          <p className="text-xs text-[#6d64b8]">
-            Paste credentials from your own {name} account. They are saved only for your workspace.
-          </p>
-          {formHeader}
-          {fields.map((field) => (
-            <div key={field.key}>
-              <label className="text-xs font-medium text-[#6d64b8] block mb-1">
-                {field.label}
-              </label>
-              <input
-                type={field.type || 'text'}
-                value={values[field.key] || ''}
-                onChange={(event) => setValues({ ...values, [field.key]: event.target.value })}
-                placeholder={field.placeholder}
-                className="w-full h-9 px-3 text-xs font-mono rounded-lg border border-[#e4defa] bg-[#f5f3fb] focus:outline-none focus:ring-2 focus:ring-[#ec4899]/30"
-              />
-            </div>
-          ))}
         </div>
       )}
 
@@ -247,40 +209,7 @@ function IntegrationCard({
               Disconnect
             </button>
           </>
-        ) : embeddedRedirectUrl ? null : open ? (
-          <>
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="flex items-center gap-2 text-sm font-semibold text-white rounded-xl px-5 py-2.5 transition-all hover:opacity-90 disabled:opacity-60"
-              style={{ background: provider === 'shopify' ? '#5e8e3e' : provider === 'meta' ? '#1877F2' : '#4285F4' }}
-            >
-              {saving ? 'Saving...' : `Save & Connect ${name}`}
-            </button>
-            <button
-              onClick={() => setOpen(false)}
-              className="text-xs font-medium text-[#6d64b8] border border-[#e4defa] rounded-lg px-3 py-2 hover:border-[#e4defa] transition-colors"
-            >
-              Cancel
-            </button>
-          </>
-        ) : quickConnect ? (
-          <button
-            onClick={() => setOpen(true)}
-            className="text-xs font-medium text-[#6d64b8] hover:text-[#312b63] hover:underline"
-          >
-            Advanced: connect with credentials
-          </button>
-        ) : (
-          <button
-            onClick={() => setOpen(true)}
-            className="flex items-center gap-2 text-sm font-semibold text-white rounded-xl px-5 py-2.5 transition-all hover:opacity-90 active:scale-[0.98]"
-            style={{ background: provider === 'shopify' ? '#5e8e3e' : provider === 'meta' ? '#1877F2' : '#4285F4' }}
-          >
-            Connect {name}
-            <ChevronRight className="w-4 h-4" />
-          </button>
-        )}
+        ) : null}
       </div>
     </div>
   )
@@ -413,16 +342,16 @@ export default function IntegrationsPage() {
   const [connections, setConnections] = useState<Connection[]>([])
   const [syncing, setSyncing] = useState<Record<string, boolean>>({})
   const [loggedIn, setLoggedIn] = useState(false)
-  const [shopifyMode, setShopifyMode] = useState<'dev' | 'token'>('dev')
   const [isEmbedded, setIsEmbedded] = useState(false)
-  const [oauthAvailable, setOauthAvailable] = useState({ shopify: false, meta: false, google: false })
-  const [oauthShop, setOauthShop] = useState(() => {
-    if (typeof window === 'undefined') return ''
-    return new URLSearchParams(window.location.search).get('shop') || ''
-  })
+  const [oauthAvailable, setOauthAvailable] = useState<OAuthAvailability>({ shopify: false, meta: false, google: false })
+  const [selectionProvider, setSelectionProvider] = useState<'meta' | 'google' | null>(null)
+  const [accountOptions, setAccountOptions] = useState<AccountOption[]>([])
+  const [selectedAccountId, setSelectedAccountId] = useState('')
+  const [loadingOptions, setLoadingOptions] = useState(false)
+  const [savingSelection, setSavingSelection] = useState(false)
   // Read synchronously so IntegrationCard receives the correct initialValues on its first render.
   // useEffect runs after mount, which is too late for useState lazy initialisers inside the card.
-  const [shopParam, setShopParam] = useState(() => {
+  const [shopParam] = useState(() => {
     if (typeof window === 'undefined') return ''
     return new URLSearchParams(window.location.search).get('shop') || ''
   })
@@ -465,33 +394,66 @@ export default function IntegrationsPage() {
 
     const error = params.get('error')
     const connected = params.get('connected')
+    const selectProvider = params.get('select')
+    const autoSync = params.get('autosync')
     if (error) {
       toast.error(decodeURIComponent(error))
       window.history.replaceState({}, '', '/integrations')
     } else if (connected) {
       toast.success(`${providerName(connected)} connected successfully`)
       window.history.replaceState({}, '', '/integrations')
-      loadStatus()
+      loadStatus().then(() => {
+        if (autoSync === 'shopify' || autoSync === 'meta') syncNow(autoSync)
+      })
+    } else if (selectProvider === 'meta' || selectProvider === 'google') {
+      setSelectionProvider(selectProvider)
+      loadAccountOptions(selectProvider)
     }
   }, [])
 
-  function getConn(provider: string) {
-    return connections.find((connection) => connection.provider === provider)
+  async function loadAccountOptions(provider: 'meta' | 'google') {
+    setLoadingOptions(true)
+    try {
+      const response = await fetch(`/api/oauth/options?provider=${provider}`)
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(data.error || 'Accounts could not be loaded')
+      const options = data.options || []
+      setAccountOptions(options)
+      setSelectedAccountId(options[0]?.id || '')
+    } catch (error: any) {
+      toast.error(error.message || 'Accounts could not be loaded')
+    } finally {
+      setLoadingOptions(false)
+    }
   }
 
-  async function saveCredentials(provider: string, credentials: Record<string, string>) {
-    const res = await fetch('/api/integrations/keys', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ provider, credentials }),
-    })
+  async function saveAccountSelection() {
+    if (!selectionProvider || !selectedAccountId) return
+    setSavingSelection(true)
+    try {
+      const response = await fetch('/api/oauth/options', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider: selectionProvider, selectedId: selectedAccountId }),
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(data.error || 'Selection could not be saved')
+      const provider = selectionProvider
+      setSelectionProvider(null)
+      setAccountOptions([])
+      window.history.replaceState({}, '', '/integrations')
+      toast.success(`${providerName(provider)} connected successfully`)
+      await loadStatus()
+      if (provider === 'meta') await syncNow('meta')
+    } catch (error: any) {
+      toast.error(error.message || 'Selection could not be saved')
+    } finally {
+      setSavingSelection(false)
+    }
+  }
 
-    const data = await res.json().catch(() => ({}))
-    if (!res.ok) throw new Error(data.error || 'Failed to save credentials')
-
-    toast.success(`${providerName(provider)} connected`)
-    notify({ kind: 'success', title: 'Integration connected', message: `${providerName(provider)} is now connected` })
-    await loadStatus()
+  function getConn(provider: string) {
+    return connections.find((connection) => connection.provider === provider)
   }
 
   async function disconnect(provider: string) {
@@ -544,7 +506,7 @@ export default function IntegrationsPage() {
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-[#312b63]">Integrations</h1>
           <p className="text-sm text-[#6d64b8] mt-1">
-            Click Connect, paste your account credentials, and save them to this workspace.
+            Har client apne account par Connect dabaye, provider approval de, aur data us ke apne workspace mein sync ho jaye.
           </p>
           {connectedCount > 0 && (
             <div className="mt-3 inline-flex items-center gap-2 text-xs bg-green-500/10 border border-green-500/25 text-green-600 rounded-full px-3 py-1 font-medium">
@@ -563,91 +525,57 @@ export default function IntegrationsPage() {
               </span>
             </div>
           )}
+          {selectionProvider && (
+            <div className="mt-4 rounded-xl border border-[#d7e2fb] bg-white p-4 shadow-sm">
+              <p className="text-sm font-semibold text-[#312b63]">
+                {selectionProvider === 'meta' ? 'Meta ad account' : 'Google Analytics property'} select karein
+              </p>
+              <p className="mt-1 text-xs text-[#6d64b8]">Multiple accounts mile hain, is liye sahi brand ek martaba choose karna zaroori hai.</p>
+              {loadingOptions ? (
+                <div className="mt-3 flex items-center gap-2 text-sm text-[#6d64b8]"><Loader2 className="h-4 w-4 animate-spin" /> Loading accounts...</div>
+              ) : (
+                <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                  <select
+                    value={selectedAccountId}
+                    onChange={(event) => setSelectedAccountId(event.target.value)}
+                    className="h-10 flex-1 rounded-lg border border-[#d7e2fb] bg-white px-3 text-sm"
+                  >
+                    {accountOptions.map((option) => <option key={option.id} value={option.id}>{option.name}</option>)}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={saveAccountSelection}
+                    disabled={!selectedAccountId || savingSelection}
+                    className="h-10 rounded-lg bg-[#312b63] px-4 text-sm font-semibold text-white disabled:opacity-50"
+                  >
+                    {savingSelection ? 'Connecting...' : 'Connect selected account'}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <Section icon={<Store className="w-4 h-4" />} title="eCommerce" description="Connect your store to sync orders, products, inventory, and analytics.">
           <IntegrationCard
-            key={shopifyMode}
             provider="shopify"
             name="Shopify"
             tagline="Orders, products, inventory and store analytics"
             color="bg-[#5e8e3e]/10"
             connection={getConn('shopify')}
-            initialValues={shopParam ? { shop_domain: shopParam } : undefined}
             embeddedRedirectUrl={shopifyEmbeddedRedirectUrl}
             quickConnect={oauthAvailable.shopify ? (
               <div className="rounded-xl border border-[#dce8d4] bg-[#f5faf2] p-3">
-                <p className="mb-2 text-xs font-semibold text-[#365c25]">Recommended — connect in one step</p>
-                <div className="flex flex-col gap-2 sm:flex-row">
-                  <input
-                    value={oauthShop}
-                    onChange={(event) => setOauthShop(event.target.value)}
-                    placeholder="yourstore.myshopify.com"
-                    className="h-10 flex-1 rounded-lg border border-[#c9dbc0] bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-[#5e8e3e]/25"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (!loggedIn) return toast.error('Sign in before connecting Shopify')
-                      const shop = (oauthShop || shopParam).trim()
-                      if (!shop) return toast.error('Enter your Shopify store domain')
-                      window.location.assign(`/api/oauth/shopify?shop=${encodeURIComponent(shop)}`)
-                    }}
-                    className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[#5e8e3e] px-4 text-sm font-semibold text-white hover:opacity-90"
-                  >
-                    Connect with Shopify <ChevronRight className="h-4 w-4" />
-                  </button>
-                </div>
-                <p className="mt-2 text-[11px] text-[#5f7654]">You will approve read-only access on Shopify. No app keys need to be copied.</p>
+                <p className="mb-2 text-xs font-semibold text-[#365c25]">One-click secure install</p>
+                <a
+                  href={oauthAvailable.shopifyInstallUrl}
+                  className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-[#5e8e3e] px-4 text-sm font-semibold text-white hover:opacity-90"
+                >
+                  Connect with Shopify <ChevronRight className="h-4 w-4" />
+                </a>
+                <p className="mt-2 text-[11px] text-[#5f7654]">Shopify par store choose karke read-only access approve karein. API keys ki zaroorat nahi.</p>
               </div>
             ) : undefined}
-            formHeader={
-              <div className="flex rounded-lg border border-[#e4defa] overflow-hidden text-xs font-medium">
-                <button
-                  type="button"
-                  onClick={() => setShopifyMode('dev')}
-                  className={`flex-1 py-1.5 transition-colors ${shopifyMode === 'dev' ? 'bg-gradient-to-r from-[#ec4899] to-[#a855f7] text-white font-semibold' : 'bg-white text-[#6d64b8] hover:bg-[#f8f6fd]'}`}
-                >
-                  Dev Dashboard app
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShopifyMode('token')}
-                  className={`flex-1 py-1.5 border-l border-[#e4defa] transition-colors ${shopifyMode === 'token' ? 'bg-gradient-to-r from-[#ec4899] to-[#a855f7] text-white font-semibold' : 'bg-white text-[#6d64b8] hover:bg-[#f8f6fd]'}`}
-                >
-                  Custom app / direct token
-                </button>
-              </div>
-            }
-            fields={shopifyMode === 'dev' ? [
-              { label: 'Store domain', key: 'shop_domain', placeholder: shopParam || 'yourstore.myshopify.com' },
-              { label: 'Client ID', key: 'client_id', placeholder: '32-char hex — Dev Dashboard → your app → Client credentials' },
-              { label: 'Client secret', key: 'client_secret', placeholder: '32-char hex — Dev Dashboard → your app → Client credentials', type: 'password' },
-            ] : [
-              { label: 'Store domain', key: 'shop_domain', placeholder: shopParam || 'yourstore.myshopify.com' },
-              { label: 'Admin API access token', key: 'access_token', placeholder: 'shpat_… — Settings → Apps → Develop apps → your app → API credentials', type: 'password' },
-            ]}
-            onSave={async (credentials) => {
-              if (!loggedIn) {
-                throw new Error(
-                  'You need to sign in to your Founder Weekly account before connecting Shopify. ' +
-                  'Open the sign-in page in a new tab, sign in or create an account, then return here and try again.'
-                )
-              }
-              const body =
-                shopifyMode === 'dev'
-                  ? { shopDomain: credentials.shop_domain, clientId: credentials.client_id, clientSecret: credentials.client_secret }
-                  : { shopDomain: credentials.shop_domain, accessToken: credentials.access_token }
-              const res = await fetch('/api/integrations/shopify/connect', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body),
-              })
-              const data = await res.json().catch(() => ({}))
-              if (!res.ok) throw new Error(data.error || 'Connection failed')
-              toast.success(`Shopify connected${data.shopName ? ` — ${data.shopName}` : ''}!`)
-              await loadStatus()
-            }}
             onDisconnect={() => disconnect('shopify')}
             onSync={() => syncNow('shopify')}
             syncing={!!syncing.shopify}
@@ -676,11 +604,6 @@ export default function IntegrationsPage() {
                 </button>
               </div>
             ) : undefined}
-            fields={[
-              { label: 'Meta access token', key: 'access_token', placeholder: 'EAAB...', type: 'password' },
-              { label: 'Ad account ID', key: 'ad_account_id', placeholder: 'act_1234567890' },
-            ]}
-            onSave={(credentials) => saveCredentials('meta', credentials)}
             onDisconnect={() => disconnect('meta')}
             onSync={() => syncNow('meta')}
             syncing={!!syncing.meta}
@@ -708,11 +631,6 @@ export default function IntegrationsPage() {
                 </button>
               </div>
             ) : undefined}
-            fields={[
-              { label: 'GA4 property ID', key: 'property_id', placeholder: '123456789' },
-              { label: 'Access token', key: 'access_token', placeholder: 'ya29...', type: 'password' },
-            ]}
-            onSave={(credentials) => saveCredentials('google', credentials)}
             onDisconnect={() => disconnect('google')}
             onSync={() => syncNow('google')}
             syncing={!!syncing.google}

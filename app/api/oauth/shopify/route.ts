@@ -5,9 +5,13 @@ import crypto from 'crypto'
 const CLIENT_ID = process.env.SHOPIFY_CLIENT_ID!
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL!
 
-const SCOPES = [
-  'read_orders', 'read_products', 'read_inventory',
-  'read_analytics', 'read_customers', 'read_reports',
+const SCOPES = process.env.SHOPIFY_SCOPES || [
+  'read_orders',
+  'read_products',
+  'read_inventory',
+  'read_analytics',
+  'read_customers',
+  'read_reports',
 ].join(',')
 
 export async function GET(req: NextRequest) {
