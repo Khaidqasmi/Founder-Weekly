@@ -57,6 +57,7 @@ export async function GET(req: NextRequest) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ client_id: CLIENT_ID, client_secret: CLIENT_SECRET, code }),
+      signal: AbortSignal.timeout(15_000),
     })
 
     const rawText = await tokenRes.text()
@@ -90,9 +91,10 @@ export async function GET(req: NextRequest) {
     .from('workspace_members').select('workspace_id').eq('user_id', user.id).single()
   if (!member) return NextResponse.redirect(`${APP_URL}/integrations?error=No+workspace+found`)
 
-  const { data: existing } = await supabase
+  const { data: existing, error: lookupError } = await supabase
     .from('integration_connections').select('id, shop_domain')
-    .eq('workspace_id', member.workspace_id).eq('provider', 'shopify').single()
+    .eq('workspace_id', member.workspace_id).eq('provider', 'shopify').maybeSingle()
+  if (lookupError) return NextResponse.redirect(`${APP_URL}/integrations?error=Could+not+load+your+connection.+Please+try+again`)
 
   if (existing?.shop_domain && existing.shop_domain !== shop) {
     await purgeProviderTemporaryData(createServiceRoleClient(), member.workspace_id, 'shopify')
@@ -107,13 +109,14 @@ export async function GET(req: NextRequest) {
     // OAuth tokens are permanent — clear any stale client secret from a previous
     // save so token resolution never mistakes this token for a Client ID.
     refresh_token_encrypted: '',
-    last_sync_at: new Date().toISOString(),
+    // Authorization is not a completed data sync.
+    last_sync_at: null,
   }
 
-  if (existing) {
-    await supabase.from('integration_connections').update(record).eq('id', existing.id)
-  } else {
-    await supabase.from('integration_connections').insert(record)
+  const { data: saved, error: saveError } = await supabase.from('integration_connections')
+    .upsert(record, { onConflict: 'workspace_id,provider' }).select('id').single()
+  if (saveError || !saved) {
+    return NextResponse.redirect(`${APP_URL}/integrations?error=Could+not+save+your+Shopify+connection.+Please+connect+again`)
   }
 
   const res = NextResponse.redirect(`${APP_URL}/integrations?connected=shopify&autosync=shopify`)

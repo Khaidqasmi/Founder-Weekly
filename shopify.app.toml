@@ -1,0 +1,23 @@
+# Central public app. Client ID is public; never put the client secret here.
+client_id = "2c3ed60f601a1b51bcad1dbf0f4d9b2c"
+name = "Ecom Panel"
+application_url = "https://founder-weekly-omega.vercel.app/api/oauth/shopify"
+embedded = false
+
+[access_scopes]
+scopes = "read_orders,read_products,read_inventory,read_analytics,read_customers,read_reports"
+use_legacy_install_flow = false
+
+[auth]
+redirect_urls = ["https://founder-weekly-omega.vercel.app/api/oauth/shopify/callback"]
+
+[webhooks]
+api_version = "2026-07"
+
+[[webhooks.subscriptions]]
+compliance_topics = ["customers/data_request", "customers/redact", "shop/redact"]
+uri = "https://founder-weekly-omega.vercel.app/api/webhooks/shopify"
+
+[[webhooks.subscriptions]]
+topics = ["app/uninstalled"]
+uri = "https://founder-weekly-omega.vercel.app/api/webhooks/shopify"
