@@ -3,6 +3,7 @@
 import { createServerSupabaseClient, createServiceRoleClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { TRIAL_DAYS } from '@/lib/constants'
+import { safeReturnPath } from '@/lib/auth/return-path'
 
 export async function signUp(formData: FormData) {
   const supabase = await createServerSupabaseClient()
@@ -106,7 +107,7 @@ export async function signIn(formData: FormData) {
 
   const next = formData.get('next')
   // Only permit known internal destinations, never arbitrary redirects.
-  redirect(next === '/integrations' ? '/integrations' : '/dashboard')
+  redirect(safeReturnPath(next))
 }
 
 export async function signOut() {

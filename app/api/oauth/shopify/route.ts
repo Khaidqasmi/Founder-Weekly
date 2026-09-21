@@ -15,23 +15,25 @@ const SCOPES = process.env.SHOPIFY_SCOPES || [
 ].join(',')
 
 export async function GET(req: NextRequest) {
-  if (!CLIENT_ID) {
+  if (!CLIENT_ID || !process.env.SHOPIFY_CLIENT_SECRET) {
     return NextResponse.redirect(`${APP_URL}/integrations?error=Shopify+app+not+configured`)
   }
-
-  const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.redirect(`${APP_URL}/login?next=/integrations`)
 
   const shop = req.nextUrl.searchParams.get('shop')
   if (!shop) {
     return NextResponse.redirect(`${APP_URL}/integrations?error=Please+enter+your+store+domain+first`)
   }
 
-  const normalizedShop = shop.trim().toLowerCase().replace(/^https?:\/\//, '').split('/')[0]
-  const shopDomain = normalizedShop.includes('.myshopify.com') ? normalizedShop : `${normalizedShop}.myshopify.com`
+  const normalizedShop = shop.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, '')
+  const shopDomain = normalizedShop.endsWith('.myshopify.com') ? normalizedShop : `${normalizedShop}.myshopify.com`
   if (!/^[a-z0-9][a-z0-9-]*\.myshopify\.com$/.test(shopDomain)) {
     return NextResponse.redirect(`${APP_URL}/integrations?error=Enter+a+valid+myshopify.com+store+domain`)
+  }
+  const supabase = await createServerSupabaseClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    const next = `/api/oauth/shopify?shop=${shopDomain}`
+    return NextResponse.redirect(`${APP_URL}/login?next=${encodeURIComponent(next)}`)
   }
   const state = crypto.randomBytes(16).toString('hex')
 
